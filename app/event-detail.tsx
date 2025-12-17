@@ -1,0 +1,409 @@
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+} from "react-native";
+import { useState, useEffect } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams } from "expo-router";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { router } from "expo-router";
+import { trpc } from "@/lib/trpc";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const COSTUMES_STORAGE_KEY = "costumes";
+
+interface CostumeData {
+  id: string;
+  name: string;
+  imageUri: string;
+  thumbnailUri: string;
+  colors: {
+    primary: string;
+    secondary?: string;
+  };
+  colorCategory: "warm" | "cool" | "neutral";
+  tone: "pastel" | "vivid" | "dark" | "neutral";
+  pattern: "solid" | "floral" | "stripe" | "dot" | "other";
+  tags: string[];
+  usageHistory: Array<{ eventId: string; date: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function EventDetailScreen() {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+  const params = useLocalSearchParams();
+  const eventId = parseInt(params.id as string, 10);
+
+  const [costumes, setCostumes] = useState<CostumeData[]>([]);
+  const [selectedCostumes, setSelectedCostumes] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+
+  const { data: event, isLoading: eventLoading } = trpc.events.list.useQuery();
+  const currentEvent = event?.find((e) => e.id === eventId);
+  const submitCostumesMutation = trpc.costumes.submit.useMutation();
+  const runOptimizationMutation = trpc.optimization.run.useMutation();
+
+  useEffect(() => {
+    loadCostumes();
+  }, []);
+
+  const loadCostumes = async () => {
+    try {
+      const data = await AsyncStorage.getItem(COSTUMES_STORAGE_KEY);
+      if (data) {
+        setCostumes(JSON.parse(data));
+      }
+    } catch (error) {
+      console.error("Failed to load costumes:", error);
+    }
+  };
+
+  const toggleCostumeSelection = (costumeId: string) => {
+    setSelectedCostumes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(costumeId)) {
+        newSet.delete(costumeId);
+      } else {
+        if (newSet.size >= 30) {
+          Alert.alert("選択上限", "最大30着まで選択できます");
+          return prev;
+        }
+        newSet.add(costumeId);
+      }
+      return newSet;
+    });
+  };
+
+  const submitCostumes = async () => {
+    if (selectedCostumes.size === 0) {
+      Alert.alert("選択エラー", "少なくとも1着の衣装を選択してください");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const selectedCostumeData = costumes.filter((c) => selectedCostumes.has(c.id));
+
+      const snapshots = selectedCostumeData.map((costume, index) => ({
+        costumeData: {
+          name: costume.name,
+          colors: costume.colors,
+          colorCategory: costume.colorCategory,
+          tone: costume.tone,
+          pattern: costume.pattern,
+          tags: costume.tags,
+          lastUsedDate: costume.usageHistory[0]?.date || undefined,
+        },
+        priority: index + 1, // Simple priority based on order
+        thumbnailUrl: undefined, // In a real app, upload thumbnail to server
+      }));
+
+      await submitCostumesMutation.mutateAsync({
+        eventId,
+        costumes: snapshots,
+      });
+
+      Alert.alert("提出完了", "衣装を提出しました");
+    } catch (error) {
+      console.error("Failed to submit costumes:", error);
+      Alert.alert("エラー", "衣装の提出に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runOptimization = async () => {
+    setLoading(true);
+
+    try {
+      const result = await runOptimizationMutation.mutateAsync({ eventId });
+
+      Alert.alert(
+        "最適化完了",
+        `${result.proposals.length}件の提案を生成しました`,
+        [
+          {
+            text: "結果を見る",
+            onPress: () => {
+              // Navigate to optimization results screen
+              router.push(`/optimization-results?eventId=${eventId}` as any);
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Failed to run optimization:", error);
+      Alert.alert("エラー", "最適化の実行に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderCostumeCard = ({ item }: { item: CostumeData }) => {
+    const isSelected = selectedCostumes.has(item.id);
+
+    return (
+      <Pressable
+        style={[
+          styles.costumeCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: isSelected ? colors.tint : colors.border,
+            borderWidth: isSelected ? 2 : 1,
+          },
+        ]}
+        onPress={() => toggleCostumeSelection(item.id)}
+      >
+        <Image source={{ uri: item.thumbnailUri }} style={styles.thumbnail} />
+        <View style={styles.costumeInfo}>
+          <ThemedText type="defaultSemiBold" numberOfLines={1}>
+            {item.name}
+          </ThemedText>
+          <View style={styles.colorIndicator}>
+            <View style={[styles.colorDot, { backgroundColor: item.colors.primary }]} />
+            <ThemedText style={{ color: colors.textSecondary, fontSize: 12 }}>
+              {item.pattern}
+            </ThemedText>
+          </View>
+        </View>
+        {isSelected && (
+          <View style={[styles.checkmark, { backgroundColor: colors.tint }]}>
+            <ThemedText style={{ color: "#FFFFFF" }}>✓</ThemedText>
+          </View>
+        )}
+      </Pressable>
+    );
+  };
+
+  if (eventLoading) {
+    return (
+      <ThemedView style={styles.container}>
+        <ActivityIndicator size="large" color={colors.tint} />
+      </ThemedView>
+    );
+  }
+
+  if (!currentEvent) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.emptyState}>
+          <ThemedText type="title">イベントが見つかりません</ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <ThemedView style={styles.container}>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, Spacing.m),
+            paddingHorizontal: Spacing.m,
+            backgroundColor: colors.elevated,
+          },
+        ]}
+      >
+        <Pressable onPress={() => router.back()}>
+          <ThemedText style={{ fontSize: 24 }}>←</ThemedText>
+        </Pressable>
+        <ThemedText type="subtitle" numberOfLines={1} style={{ flex: 1, marginLeft: Spacing.m }}>
+          {currentEvent.name}
+        </ThemedText>
+      </View>
+
+      {/* Event Info */}
+      <View style={[styles.eventInfo, { backgroundColor: colors.card }]}>
+        <View style={styles.infoRow}>
+          <ThemedText style={{ color: colors.textSecondary }}>📅 開催日:</ThemedText>
+          <ThemedText>{new Date(currentEvent.eventDate).toLocaleDateString("ja-JP")}</ThemedText>
+        </View>
+        <View style={styles.infoRow}>
+          <ThemedText style={{ color: colors.textSecondary }}>👥 参加者:</ThemedText>
+          <ThemedText>0人</ThemedText>
+        </View>
+        <View style={styles.infoRow}>
+          <ThemedText style={{ color: colors.textSecondary }}>🎨 条件:</ThemedText>
+          <ThemedText>
+            {currentEvent.conditions?.colorCategory || "指定なし"} / {currentEvent.conditions?.tone || "指定なし"}
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Costume Selection */}
+      <View style={styles.selectionHeader}>
+        <ThemedText type="subtitle">衣装を選択 ({selectedCostumes.size}/30)</ThemedText>
+      </View>
+
+      <FlatList
+        data={costumes}
+        renderItem={renderCostumeCard}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        contentContainerStyle={[
+          styles.costumeGrid,
+          {
+            paddingBottom: Math.max(insets.bottom, Spacing.m) + 120,
+          },
+        ]}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <ThemedText style={{ color: colors.textSecondary }}>
+              衣装が登録されていません
+            </ThemedText>
+          </View>
+        }
+      />
+
+      {/* Action Buttons */}
+      <View
+        style={[
+          styles.actionButtons,
+          {
+            paddingBottom: Math.max(insets.bottom, Spacing.m),
+            backgroundColor: colors.elevated,
+          },
+        ]}
+      >
+        <Pressable
+          style={[
+            styles.actionButton,
+            { backgroundColor: colors.tint },
+            loading && { opacity: 0.6 },
+          ]}
+          onPress={submitCostumes}
+          disabled={loading || selectedCostumes.size === 0}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <ThemedText style={styles.actionButtonText}>衣装を提出</ThemedText>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionButton,
+            { backgroundColor: colors.secondary },
+            loading && { opacity: 0.6 },
+          ]}
+          onPress={runOptimization}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <ThemedText style={styles.actionButtonText}>最適化実行</ThemedText>
+          )}
+        </Pressable>
+      </View>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: Spacing.m,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  eventInfo: {
+    padding: Spacing.m,
+    gap: Spacing.s,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  selectionHeader: {
+    padding: Spacing.m,
+  },
+  costumeGrid: {
+    padding: Spacing.s,
+  },
+  costumeCard: {
+    flex: 1,
+    margin: Spacing.s,
+    borderRadius: BorderRadius.card,
+    overflow: "hidden",
+  },
+  thumbnail: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+  },
+  costumeInfo: {
+    padding: Spacing.s,
+  },
+  colorIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  colorDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+  },
+  checkmark: {
+    position: "absolute",
+    top: Spacing.s,
+    right: Spacing.s,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  actionButtons: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    gap: Spacing.m,
+    padding: Spacing.m,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: Spacing.m,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});

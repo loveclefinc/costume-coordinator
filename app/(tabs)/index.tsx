@@ -54,7 +54,7 @@ export default function HomeScreen() {
   };
 
   const handleAddCostume = () => {
-    router.push("/modal");
+    router.push("/add-costume" as any);
   };
 
   const handleCostumePress = (costume: Costume) => {

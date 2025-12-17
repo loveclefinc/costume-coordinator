@@ -20,7 +20,7 @@ export default function EventsScreen() {
   });
 
   const handleCreateEvent = () => {
-    router.push("/modal");
+    router.push("/create-event" as any);
   };
 
   const handleJoinByUrl = () => {
@@ -28,7 +28,7 @@ export default function EventsScreen() {
   };
 
   const handleEventPress = (eventId: number) => {
-    router.push("/modal");
+    router.push(`/event-detail?id=${eventId}` as any);
   };
 
   const renderEventCard = ({ item }: { item: any }) => (
