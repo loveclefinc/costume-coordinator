@@ -1,41 +1,54 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Costume Coordinator theme colors
  */
 
 import { Platform } from "react-native";
 
-const tintColorLight = "#0a7ea4";
-const tintColorDark = "#fff";
+const tintColorLight = "#FF6B9D"; // Pink accent
+const tintColorDark = "#FF8FB3";
 
 export const Colors = {
   light: {
-    text: "#11181C",
-    background: "#fff",
+    text: "#1A1A1A",
+    textSecondary: "#6B6B6B",
+    textDisabled: "#BDBDBD",
+    background: "#FFFFFF",
+    card: "#F8F8F8",
+    elevated: "#FFFFFF",
     tint: tintColorLight,
+    secondary: "#9B59B6", // Purple
     icon: "#687076",
     tabIconDefault: "#687076",
     tabIconSelected: tintColorLight,
+    border: "#E0E0E0",
+    error: "#FF3B30",
+    success: "#34C759",
+    warning: "#FF9500",
   },
   dark: {
-    text: "#ECEDEE",
-    background: "#151718",
+    text: "#FFFFFF",
+    textSecondary: "#A0A0A0",
+    textDisabled: "#5A5A5A",
+    background: "#121212",
+    card: "#1E1E1E",
+    elevated: "#2A2A2A",
     tint: tintColorDark,
+    secondary: "#B185DB",
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
     tabIconSelected: tintColorDark,
+    border: "#3A3A3A",
+    error: "#FF453A",
+    success: "#32D74B",
+    warning: "#FF9F0A",
   },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: "ui-monospace",
   },
   default: {
@@ -51,3 +64,19 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+export const Spacing = {
+  xs: 4,
+  s: 8,
+  m: 16,
+  l: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+export const BorderRadius = {
+  button: 12,
+  card: 16,
+  modal: 24,
+  thumbnail: 8,
+};

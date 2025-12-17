@@ -25,4 +25,64 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Events table - stores event information and conditions
+ */
+export const events = mysqlTable("events", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  eventDate: timestamp("eventDate").notNull(),
+  createdByUserId: int("createdByUserId").notNull(),
+  inviteCode: varchar("inviteCode", { length: 64 }).notNull().unique(),
+  conditions: text("conditions").notNull(), // JSON string
+  status: varchar("status", { length: 50 }).default("active").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = typeof events.$inferInsert;
+
+/**
+ * Event participants table - tracks who joined which event
+ */
+export const eventParticipants = mysqlTable("event_participants", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(),
+  userId: int("userId").notNull(),
+  displayName: varchar("displayName", { length: 255 }).notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+
+export type EventParticipant = typeof eventParticipants.$inferSelect;
+export type InsertEventParticipant = typeof eventParticipants.$inferInsert;
+
+/**
+ * Costume snapshots table - stores costume metadata for events
+ */
+export const costumeSnapshots = mysqlTable("costume_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(),
+  participantId: int("participantId").notNull(),
+  costumeData: text("costumeData").notNull(), // JSON string
+  priority: int("priority").notNull(), // 1-5
+  thumbnailUrl: text("thumbnailUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CostumeSnapshot = typeof costumeSnapshots.$inferSelect;
+export type InsertCostumeSnapshot = typeof costumeSnapshots.$inferInsert;
+
+/**
+ * Optimization results table - caches optimization results
+ */
+export const optimizationResults = mysqlTable("optimization_results", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(),
+  resultData: text("resultData").notNull(), // JSON string
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OptimizationResult = typeof optimizationResults.$inferSelect;
+export type InsertOptimizationResult = typeof optimizationResults.$inferInsert;

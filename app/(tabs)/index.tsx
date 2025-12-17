@@ -1,278 +1,243 @@
-import { Image } from "expo-image";
-import { useRouter, Link } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet } from "react-native";
-
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
+import { StyleSheet, View, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { useState, useEffect } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { getLoginUrl } from "@/constants/oauth";
-import { useAuth } from "@/hooks/use-auth";
+import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+
+interface Costume {
+  id: string;
+  name: string;
+  imageUri: string;
+  thumbnailUri: string;
+  colors: {
+    primary: string;
+    secondary?: string;
+  };
+  colorCategory: "warm" | "cool" | "neutral";
+  tone: "pastel" | "vivid" | "dark" | "neutral";
+  pattern: "solid" | "floral" | "stripe" | "dot" | "other";
+  tags: string[];
+  usageHistory: Array<{ eventId: string; date: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const COSTUMES_STORAGE_KEY = "costumes";
 
 export default function HomeScreen() {
-  const { user, loading, isAuthenticated, logout } = useAuth();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  const [costumes, setCostumes] = useState<Costume[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("[HomeScreen] Auth state:", {
-      hasUser: !!user,
-      loading,
-      isAuthenticated,
-      user: user ? { id: user.id, openId: user.openId, name: user.name, email: user.email } : null,
-    });
-  }, [user, loading, isAuthenticated]);
+    loadCostumes();
+  }, []);
 
-  const handleLogin = async () => {
+  const loadCostumes = async () => {
     try {
-      console.log("[Auth] Login button clicked");
-      setIsLoggingIn(true);
-      const loginUrl = getLoginUrl();
-      console.log("[Auth] Generated login URL:", loginUrl);
-
-      // On web, use direct redirect in same tab
-      // On mobile, use WebBrowser to open OAuth in a separate context
-      if (Platform.OS === "web") {
-        console.log("[Auth] Web platform: redirecting to OAuth in same tab...");
-        window.location.href = loginUrl;
-        return;
-      }
-
-      // Mobile: Open OAuth URL in browser
-      // The OAuth server will redirect to our deep link (manusapp://oauth/callback?code=...&state=...)
-      console.log("[Auth] Opening OAuth URL in browser...");
-      const result = await WebBrowser.openAuthSessionAsync(
-        loginUrl,
-        undefined, // Deep link is already configured in getLoginUrl, so no need to specify here
-        {
-          preferEphemeralSession: false,
-          showInRecents: true,
-        },
-      );
-
-      console.log("[Auth] WebBrowser result:", result);
-      if (result.type === "cancel") {
-        console.log("[Auth] OAuth cancelled by user");
-      } else if (result.type === "dismiss") {
-        console.log("[Auth] OAuth dismissed");
-      } else if (result.type === "success" && result.url) {
-        console.log("[Auth] OAuth session successful, navigating to callback:", result.url);
-        // Extract code and state from the URL
-        try {
-          // Parse the URL - it might be exp:// or a regular URL
-          let url: URL;
-          if (result.url.startsWith("exp://") || result.url.startsWith("exps://")) {
-            // For exp:// URLs, we need to parse them differently
-            // Format: exp://192.168.31.156:8081/--/oauth/callback?code=...&state=...
-            const urlStr = result.url.replace(/^exp(s)?:\/\//, "http://");
-            url = new URL(urlStr);
-          } else {
-            url = new URL(result.url);
-          }
-
-          const code = url.searchParams.get("code");
-          const state = url.searchParams.get("state");
-          const error = url.searchParams.get("error");
-
-          console.log("[Auth] Extracted params from callback URL:", {
-            code: code?.substring(0, 20) + "...",
-            state: state?.substring(0, 20) + "...",
-            error,
-          });
-
-          if (error) {
-            console.error("[Auth] OAuth error in callback:", error);
-            return;
-          }
-
-          if (code && state) {
-            // Navigate to callback route with params
-            console.log("[Auth] Navigating to callback route with params...");
-            router.push({
-              pathname: "/oauth/callback" as any,
-              params: { code, state },
-            });
-          } else {
-            console.error("[Auth] Missing code or state in callback URL");
-          }
-        } catch (err) {
-          console.error("[Auth] Failed to parse callback URL:", err, result.url);
-          // Fallback: try parsing with regex
-          const codeMatch = result.url.match(/[?&]code=([^&]+)/);
-          const stateMatch = result.url.match(/[?&]state=([^&]+)/);
-
-          if (codeMatch && stateMatch) {
-            const code = decodeURIComponent(codeMatch[1]);
-            const state = decodeURIComponent(stateMatch[1]);
-            console.log("[Auth] Fallback: extracted params via regex, navigating...");
-            router.push({
-              pathname: "/oauth/callback" as any,
-              params: { code, state },
-            });
-          } else {
-            console.error("[Auth] Could not extract code/state from URL");
-          }
-        }
+      const data = await AsyncStorage.getItem(COSTUMES_STORAGE_KEY);
+      if (data) {
+        setCostumes(JSON.parse(data));
       }
     } catch (error) {
-      console.error("[Auth] Login error:", error);
+      console.error("Failed to load costumes:", error);
     } finally {
-      setIsLoggingIn(false);
+      setLoading(false);
     }
   };
 
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.authContainer}>
-        {loading ? (
-          <ActivityIndicator />
-        ) : isAuthenticated && user ? (
-          <ThemedView style={styles.userInfo}>
-            <ThemedText type="subtitle">Logged in as</ThemedText>
-            <ThemedText type="defaultSemiBold">{user.name || user.email || user.openId}</ThemedText>
-            <Pressable onPress={logout} style={styles.logoutButton}>
-              <ThemedText style={styles.logoutText}>Logout</ThemedText>
-            </Pressable>
-          </ThemedView>
-        ) : (
-          <Pressable
-            onPress={handleLogin}
-            disabled={isLoggingIn}
-            style={[styles.loginButton, isLoggingIn && styles.loginButtonDisabled]}
-          >
-            {isLoggingIn ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <ThemedText style={styles.loginText}>Login</ThemedText>
-            )}
-          </Pressable>
-        )}
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{" "}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: "cmd + d",
-              android: "cmd + m",
-              web: "F12",
-            })}
-          </ThemedText>{" "}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert("Action pressed")} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert("Share pressed")}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert("Delete pressed")}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const handleAddCostume = () => {
+    router.push("/modal");
+  };
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
+  const handleCostumePress = (costume: Costume) => {
+    router.push("/modal");
+  };
+
+  const renderCostumeCard = ({ item }: { item: Costume }) => (
+    <Pressable
+      style={[styles.costumeCard, { backgroundColor: colors.card }]}
+      onPress={() => handleCostumePress(item)}
+    >
+      <View style={[styles.thumbnail, { backgroundColor: colors.border }]}>
+        <ThemedText style={styles.thumbnailPlaceholder}>📷</ThemedText>
+      </View>
+      <ThemedText style={styles.costumeName} numberOfLines={2}>
+        {item.name}
+      </ThemedText>
+      <View style={[styles.colorIndicator, { backgroundColor: item.colors.primary }]} />
+    </Pressable>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <ThemedText type="title" style={styles.emptyTitle}>
+        衣装を追加しましょう
+      </ThemedText>
+      <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
+        写真を撮影または選択して、{"\n"}あなたの衣装コレクションを始めましょう
+      </ThemedText>
+      <Pressable
+        style={[styles.emptyButton, { backgroundColor: colors.tint }]}
+        onPress={handleAddCostume}
+      >
+        <ThemedText style={styles.emptyButtonText}>最初の衣装を追加</ThemedText>
+      </Pressable>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <ThemedView style={styles.container}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{" "}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{" "}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{" "}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    );
+  }
+
+  return (
+    <ThemedView style={styles.container}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, Spacing.m),
+            paddingHorizontal: Spacing.m,
+          },
+        ]}
+      >
+        <ThemedText type="title">My Costumes</ThemedText>
+        <Pressable onPress={() => router.push("/modal")}>
+          <ThemedText style={{ fontSize: 24 }}>⚙️</ThemedText>
+        </Pressable>
+      </View>
+
+      {costumes.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <FlatList
+          data={costumes}
+          renderItem={renderCostumeCard}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={[
+            styles.grid,
+            {
+              paddingBottom: Math.max(insets.bottom, Spacing.m) + 72, // FAB height + margin
+            },
+          ]}
+          columnWrapperStyle={styles.row}
+        />
+      )}
+
+      {/* Floating Action Button */}
+      <Pressable
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.tint,
+            bottom: Math.max(insets.bottom, Spacing.m) + 56, // Tab bar height
+            right: Spacing.m,
+          },
+        ]}
+        onPress={handleAddCostume}
+      >
+        <ThemedText style={styles.fabIcon}>+</ThemedText>
+      </Pressable>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
+    paddingBottom: Spacing.m,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  grid: {
+    padding: Spacing.m,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  row: {
+    justifyContent: "space-between",
   },
-  authContainer: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  costumeCard: {
+    width: "48%",
+    borderRadius: BorderRadius.card,
+    padding: Spacing.s,
+    marginBottom: Spacing.m,
   },
-  userInfo: {
-    gap: 8,
-    alignItems: "center",
-  },
-  loginButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: "center",
+  thumbnail: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+    borderRadius: BorderRadius.thumbnail,
     justifyContent: "center",
-    minHeight: 44,
+    alignItems: "center",
+    marginBottom: Spacing.s,
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
+  thumbnailPlaceholder: {
+    fontSize: 48,
   },
-  loginText: {
-    color: "#fff",
+  costumeName: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: Spacing.xs,
+  },
+  colorIndicator: {
+    height: 8,
+    borderRadius: 4,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  emptyTitle: {
+    marginBottom: Spacing.m,
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: "center",
+    marginBottom: Spacing.xl,
+  },
+  emptyButton: {
+    paddingVertical: Spacing.m,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.button,
+  },
+  emptyButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },
-  logoutButton: {
-    marginTop: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 59, 48, 0.1)",
+  fab: {
+    position: "absolute",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  logoutText: {
-    color: "#FF3B30",
-    fontSize: 14,
-    fontWeight: "500",
+  fabIcon: {
+    fontSize: 32,
+    color: "#FFFFFF",
+    fontWeight: "300",
   },
 });

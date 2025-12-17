@@ -89,4 +89,173 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ==================== Events ====================
+
+import {
+  events,
+  eventParticipants,
+  costumeSnapshots,
+  optimizationResults,
+  InsertEvent,
+  InsertEventParticipant,
+  InsertCostumeSnapshot,
+  InsertOptimizationResult,
+} from "../drizzle/schema";
+import { and } from "drizzle-orm";
+
+export async function createEvent(data: InsertEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(events).values(data);
+  // Get the last inserted ID
+  const result = await db.select().from(events).orderBy(events.id).limit(1);
+  return result[0]?.id || 0;
+}
+
+export async function getEventByInviteCode(inviteCode: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(events).where(eq(events.inviteCode, inviteCode));
+  return result[0] || null;
+}
+
+export async function getEventById(eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(events).where(eq(events.id, eventId));
+  return result[0] || null;
+}
+
+export async function getUserEvents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get events created by user
+  const createdEvents = await db.select().from(events).where(eq(events.createdByUserId, userId));
+
+  // Get events user participated in
+  const participations = await db
+    .select()
+    .from(eventParticipants)
+    .where(eq(eventParticipants.userId, userId));
+
+  const participatedEventIds = participations.map((p) => p.eventId);
+  const participatedEvents =
+    participatedEventIds.length > 0
+      ? await db
+          .select()
+          .from(events)
+          .where(eq(events.id, participatedEventIds[0]))
+      : [];
+
+  // Combine and deduplicate
+  const allEvents = [...createdEvents, ...participatedEvents];
+  const uniqueEvents = Array.from(new Map(allEvents.map((e) => [e.id, e])).values());
+
+  return uniqueEvents;
+}
+
+export async function updateEventStatus(eventId: number, status: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(events).set({ status }).where(eq(events.id, eventId));
+}
+
+// ==================== Event Participants ====================
+
+export async function addParticipant(data: InsertEventParticipant) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(eventParticipants).values(data);
+  const result = await db.select().from(eventParticipants).orderBy(eventParticipants.id).limit(1);
+  return result[0]?.id || 0;
+}
+
+export async function getEventParticipants(eventId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(eventParticipants).where(eq(eventParticipants.eventId, eventId));
+}
+
+export async function getParticipantByEventAndUser(eventId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId)));
+
+  return result[0] || null;
+}
+
+// ==================== Costume Snapshots ====================
+
+export async function addCostumeSnapshot(data: InsertCostumeSnapshot) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(costumeSnapshots).values(data);
+  const result = await db.select().from(costumeSnapshots).orderBy(costumeSnapshots.id).limit(1);
+  return result[0]?.id || 0;
+}
+
+export async function getEventCostumeSnapshots(eventId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(costumeSnapshots).where(eq(costumeSnapshots.eventId, eventId));
+}
+
+export async function getParticipantCostumeSnapshots(participantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(costumeSnapshots)
+    .where(eq(costumeSnapshots.participantId, participantId));
+}
+
+export async function deleteCostumeSnapshot(snapshotId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(costumeSnapshots).where(eq(costumeSnapshots.id, snapshotId));
+}
+
+// ==================== Optimization Results ====================
+
+export async function saveOptimizationResult(data: InsertOptimizationResult) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(optimizationResults).values(data);
+  const result = await db.select().from(optimizationResults).orderBy(optimizationResults.id).limit(1);
+  return result[0]?.id || 0;
+}
+
+export async function getLatestOptimizationResult(eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(optimizationResults)
+    .where(eq(optimizationResults.eventId, eventId));
+
+  return result[result.length - 1] || null;
+}
+
+export async function deleteOptimizationResults(eventId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(optimizationResults).where(eq(optimizationResults.eventId, eventId));
+}
