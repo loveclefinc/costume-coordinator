@@ -186,3 +186,20 @@ export function getColorName(hex: string): string {
   if (h >= 270 && h < 330) return "紫";
   return "赤";
 }
+
+
+/**
+ * Extract dominant color from image URI
+ * Returns the most prominent color in the image as HEX string
+ */
+export async function extractDominantColor(imageUri: string): Promise<string | null> {
+  try {
+    // For web/mobile, we'll use a simplified approach
+    // In a real implementation, you would use image processing libraries
+    // For now, return null to trigger manual color selection
+    return null;
+  } catch (error) {
+    console.error("Failed to extract color:", error);
+    return null;
+  }
+}

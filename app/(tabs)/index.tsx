@@ -57,8 +57,12 @@ export default function HomeScreen() {
     router.push("/add-costume" as any);
   };
 
+  const handleViewCostumes = () => {
+    router.push("/costumes-list" as any);
+  };
+
   const handleCostumePress = (costume: Costume) => {
-    router.push("/modal");
+    router.push(`/costume-detail?id=${costume.id}` as any);
   };
 
   const renderCostumeCard = ({ item }: { item: Costume }) => (
@@ -113,8 +117,8 @@ export default function HomeScreen() {
         ]}
       >
         <ThemedText type="title">My Costumes</ThemedText>
-        <Pressable onPress={() => router.push("/modal")}>
-          <ThemedText style={{ fontSize: 24 }}>⚙️</ThemedText>
+        <Pressable onPress={handleViewCostumes}>
+          <ThemedText style={{ fontSize: 24 }}>👗</ThemedText>
         </Pressable>
       </View>
 

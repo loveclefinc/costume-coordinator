@@ -15,9 +15,13 @@ export default function EventsScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const { isAuthenticated, loading: authLoading } = useAuth();
 
+  // Allow local mode - fetch events only if authenticated
   const { data: events, isLoading, refetch } = trpc.events.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  // Use empty array if not authenticated (local mode)
+  const displayEvents = events || [];
 
   const handleCreateEvent = () => {
     router.push("/create-event" as any);
@@ -95,21 +99,6 @@ export default function EventsScreen() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <ThemedView style={styles.container}>
-        <View style={styles.emptyState}>
-          <ThemedText type="title" style={styles.emptyTitle}>
-            ログインが必要です
-          </ThemedText>
-          <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
-            イベント機能を使用するには{"\n"}ログインしてください
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
       <View
@@ -127,24 +116,24 @@ export default function EventsScreen() {
         </Pressable>
       </View>
 
-      {!events || events.length === 0 ? (
+      {displayEvents.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={events}
+          data={displayEvents}
           renderItem={renderEventCard}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[
-            styles.list,
+            styles.listContent,
             {
-              paddingBottom: Math.max(insets.bottom, Spacing.m) + 56, // Tab bar height
+              paddingBottom: Math.max(insets.bottom, Spacing.m),
             },
           ]}
         />
       )}
 
       {/* Join by URL button */}
-      {events && events.length > 0 && (
+      {displayEvents.length > 0 && (
         <View
           style={[
             styles.bottomButton,
@@ -177,6 +166,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.m,
   },
   list: {
+    padding: Spacing.m,
+  },
+  listContent: {
     padding: Spacing.m,
   },
   eventCard: {

@@ -18,7 +18,8 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { analyzeColor, getColorName } from "@/lib/image-analysis";
+import { analyzeColor, getColorName, extractDominantColor } from "@/lib/image-analysis";
+import { ColorPicker } from "@/components/color-picker";
 
 const COSTUMES_STORAGE_KEY = "costumes";
 
@@ -49,9 +50,12 @@ export default function AddCostumeScreen() {
   const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#FF6B9D");
+  const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
+  const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
   const [pattern, setPattern] = useState<"solid" | "floral" | "stripe" | "dot" | "other">("solid");
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -82,7 +86,15 @@ export default function AddCostumeScreen() {
 
       // Simple color extraction (using a default color for now)
       // In a real implementation, you would analyze the image pixels
-      setPrimaryColor("#FF6B9D");
+      try {
+        const extractedColor = await extractDominantColor(uri);
+        if (extractedColor) {
+          setPrimaryColor(extractedColor);
+        }
+      } catch (error) {
+        console.error("Color extraction failed:", error);
+        setPrimaryColor("#FF6B9D");
+      }
     }
   };
 
@@ -112,7 +124,15 @@ export default function AddCostumeScreen() {
       );
       setThumbnailUri(thumbnail.uri);
 
-      setPrimaryColor("#FF6B9D");
+      try {
+        const extractedColor = await extractDominantColor(uri);
+        if (extractedColor) {
+          setPrimaryColor(extractedColor);
+        }
+      } catch (error) {
+        console.error("Color extraction failed:", error);
+        setPrimaryColor("#FF6B9D");
+      }
     }
   };
 
@@ -126,7 +146,11 @@ export default function AddCostumeScreen() {
 
     try {
       // Analyze color
-      const colorAnalysis = analyzeColor(primaryColor);
+      if (!colorCategory || !tone) {
+        Alert.alert("入力エラー", "色系統とトーンを選択してください");
+        setLoading(false);
+        return;
+      }
 
       const newCostume: CostumeData = {
         id: Date.now().toString(),
@@ -136,8 +160,8 @@ export default function AddCostumeScreen() {
         colors: {
           primary: primaryColor,
         },
-        colorCategory: colorAnalysis.colorCategory,
-        tone: colorAnalysis.tone,
+        colorCategory,
+        tone,
         pattern,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         usageHistory: [],
@@ -248,11 +272,172 @@ export default function AddCostumeScreen() {
         {/* Color Picker */}
         <View style={styles.inputSection}>
           <ThemedText type="subtitle">メインカラー</ThemedText>
-          <View style={styles.colorPicker}>
+          <View
+            style={[
+              styles.colorPicker,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <View style={[styles.colorPreview, { backgroundColor: primaryColor }]} />
-            <ThemedText style={{ color: colors.textSecondary }}>
-              {getColorName(primaryColor)}
-            </ThemedText>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={{ color: colors.textSecondary }}>
+                {getColorName(primaryColor)}
+              </ThemedText>
+              <ThemedText>{primaryColor}</ThemedText>
+            </View>
+            <Pressable onPress={() => setShowColorPicker(!showColorPicker)}>
+              <ThemedText style={{ color: colors.tint }}>変更</ThemedText>
+            </Pressable>
+          </View>
+
+          {showColorPicker && (
+            <ColorPicker
+              selectedColor={primaryColor}
+              onColorSelect={(color) => setPrimaryColor(color)}
+            />
+          )}
+        </View>
+
+        {/* Color Category Selection */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">色系統</ThemedText>
+          <View style={styles.patternButtons}>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: colorCategory === "warm" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setColorCategory("warm")}
+            >
+              <ThemedText
+                style={{
+                  color: colorCategory === "warm" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                暖色系
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: colorCategory === "cool" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setColorCategory("cool")}
+            >
+              <ThemedText
+                style={{
+                  color: colorCategory === "cool" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                寒色系
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: colorCategory === "neutral" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setColorCategory("neutral")}
+            >
+              <ThemedText
+                style={{
+                  color: colorCategory === "neutral" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                中間色
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Tone Selection */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">トーン</ThemedText>
+          <View style={styles.patternButtons}>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: tone === "pastel" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setTone("pastel")}
+            >
+              <ThemedText
+                style={{
+                  color: tone === "pastel" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                パステル
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: tone === "vivid" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setTone("vivid")}
+            >
+              <ThemedText
+                style={{
+                  color: tone === "vivid" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                ビビッド
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: tone === "dark" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setTone("dark")}
+            >
+              <ThemedText
+                style={{
+                  color: tone === "dark" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                ダーク
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.patternButton,
+                {
+                  backgroundColor: tone === "neutral" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setTone("neutral")}
+            >
+              <ThemedText
+                style={{
+                  color: tone === "neutral" ? "#FFFFFF" : colors.text,
+                }}
+              >
+                ニュートラル
+              </ThemedText>
+            </Pressable>
           </View>
         </View>
 
@@ -390,18 +575,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.m,
     marginTop: Spacing.s,
+    padding: Spacing.m,
+    borderRadius: BorderRadius.button,
+    borderWidth: 1,
   },
   colorPreview: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: "#CCCCCC",
   },
   patternButtons: {
     flexDirection: "row",
