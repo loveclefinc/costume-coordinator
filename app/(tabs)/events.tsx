@@ -24,7 +24,7 @@ export default function EventsScreen() {
   };
 
   const handleJoinByUrl = () => {
-    router.push("/modal");
+    router.push("/join-event" as any);
   };
 
   const handleEventPress = (eventId: number) => {
