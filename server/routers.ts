@@ -47,6 +47,7 @@ export const appRouter = router({
               .object({
                 allowFloral: z.boolean(),
                 floralMaxCount: z.number().optional(),
+                patternPreferences: z.array(z.enum(["solid", "floral", "stripe", "dot", "check", "geometric", "animal", "other"])).optional(),
               })
               .optional(),
             avoidSimilarColors: z.boolean(),

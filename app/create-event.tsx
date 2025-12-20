@@ -17,6 +17,20 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 
+// 拡充された柄の種類
+const PATTERN_OPTIONS = [
+  { value: "solid", label: "無地" },
+  { value: "floral", label: "花柄" },
+  { value: "stripe", label: "ストライプ" },
+  { value: "dot", label: "ドット" },
+  { value: "check", label: "チェック" },
+  { value: "geometric", label: "幾何学模様" },
+  { value: "animal", label: "アニマル柄" },
+  { value: "other", label: "その他" },
+] as const;
+
+type PatternType = typeof PATTERN_OPTIONS[number]["value"];
+
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -26,8 +40,12 @@ export default function CreateEventScreen() {
   const [eventDate, setEventDate] = useState("");
   const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
   const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
-  const [allowFloral, setAllowFloral] = useState(true);
-  const [floralMaxCount, setFloralMaxCount] = useState("");
+  
+  // 柄希望順位制
+  const [patternPreference1, setPatternPreference1] = useState<PatternType | null>(null);
+  const [patternPreference2, setPatternPreference2] = useState<PatternType | null>(null);
+  const [patternPreference3, setPatternPreference3] = useState<PatternType | null>(null);
+  
   const [avoidSimilarColors, setAvoidSimilarColors] = useState(true);
   const [recentUsageExcludeDays, setRecentUsageExcludeDays] = useState("30");
   const [loading, setLoading] = useState(false);
@@ -43,6 +61,10 @@ export default function CreateEventScreen() {
     setLoading(true);
 
     try {
+      const patternPreferences = [patternPreference1, patternPreference2, patternPreference3].filter(
+        (p): p is PatternType => p !== null
+      );
+
       const result = await createEventMutation.mutateAsync({
         name: name.trim(),
         eventDate: new Date(eventDate).toISOString(),
@@ -50,8 +72,8 @@ export default function CreateEventScreen() {
           colorCategory: colorCategory || undefined,
           tone: tone || undefined,
           patternRules: {
-            allowFloral,
-            floralMaxCount: floralMaxCount ? parseInt(floralMaxCount, 10) : undefined,
+            allowFloral: true, // 互換性のため残す
+            patternPreferences, // 新しい柄希望順位
           },
           avoidSimilarColors,
           recentUsageExcludeDays: parseInt(recentUsageExcludeDays, 10),
@@ -89,6 +111,11 @@ export default function CreateEventScreen() {
     { value: "vivid", label: "ビビッド" },
     { value: "dark", label: "ダーク" },
     { value: "neutral", label: "ニュートラル" },
+  ];
+
+  const patternOptionsWithNull: Array<{ value: PatternType | null; label: string }> = [
+    { value: null, label: "指定なし" },
+    ...PATTERN_OPTIONS,
   ];
 
   return (
@@ -205,46 +232,98 @@ export default function CreateEventScreen() {
           </View>
         </View>
 
-        {/* Floral Pattern Settings */}
+        {/* Pattern Preference 1 */}
         <View style={styles.inputSection}>
-          <View style={styles.switchRow}>
-            <ThemedText type="subtitle">花柄を許可</ThemedText>
-            <Switch
-              value={allowFloral}
-              onValueChange={setAllowFloral}
-              trackColor={{ false: colors.border, true: colors.tint }}
-              thumbColor="#FFFFFF"
-            />
+          <ThemedText type="subtitle">柄 - 第1希望</ThemedText>
+          <View style={styles.optionButtons}>
+            {patternOptionsWithNull.map((option) => (
+              <Pressable
+                key={option.label}
+                style={[
+                  styles.optionButton,
+                  {
+                    backgroundColor: patternPreference1 === option.value ? colors.tint : colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => setPatternPreference1(option.value)}
+              >
+                <ThemedText
+                  style={{
+                    color: patternPreference1 === option.value ? "#FFFFFF" : colors.text,
+                  }}
+                >
+                  {option.label}
+                </ThemedText>
+              </Pressable>
+            ))}
           </View>
-          {allowFloral && (
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.card,
-                  color: colors.text,
-                  borderColor: colors.border,
-                  marginTop: Spacing.s,
-                },
-              ]}
-              placeholder="花柄の最大人数 (空欄=制限なし)"
-              placeholderTextColor={colors.textDisabled}
-              value={floralMaxCount}
-              onChangeText={setFloralMaxCount}
-              keyboardType="number-pad"
-            />
-          )}
+        </View>
+
+        {/* Pattern Preference 2 */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">柄 - 第2希望</ThemedText>
+          <View style={styles.optionButtons}>
+            {patternOptionsWithNull.map((option) => (
+              <Pressable
+                key={option.label}
+                style={[
+                  styles.optionButton,
+                  {
+                    backgroundColor: patternPreference2 === option.value ? colors.tint : colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => setPatternPreference2(option.value)}
+              >
+                <ThemedText
+                  style={{
+                    color: patternPreference2 === option.value ? "#FFFFFF" : colors.text,
+                  }}
+                >
+                  {option.label}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Pattern Preference 3 */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">柄 - 第3希望</ThemedText>
+          <View style={styles.optionButtons}>
+            {patternOptionsWithNull.map((option) => (
+              <Pressable
+                key={option.label}
+                style={[
+                  styles.optionButton,
+                  {
+                    backgroundColor: patternPreference3 === option.value ? colors.tint : colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => setPatternPreference3(option.value)}
+              >
+                <ThemedText
+                  style={{
+                    color: patternPreference3 === option.value ? "#FFFFFF" : colors.text,
+                  }}
+                >
+                  {option.label}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {/* Avoid Similar Colors */}
         <View style={styles.inputSection}>
           <View style={styles.switchRow}>
-            <ThemedText type="subtitle">類似色を回避</ThemedText>
+            <ThemedText type="subtitle">同系色の同時使用を回避</ThemedText>
             <Switch
               value={avoidSimilarColors}
               onValueChange={setAvoidSimilarColors}
-              trackColor={{ false: colors.border, true: colors.tint }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: colors.textDisabled, true: colors.tint }}
             />
           </View>
         </View>
@@ -309,8 +388,8 @@ const styles = StyleSheet.create({
   input: {
     marginTop: Spacing.s,
     padding: Spacing.m,
-    borderRadius: BorderRadius.button,
     borderWidth: 1,
+    borderRadius: BorderRadius.button,
     fontSize: 16,
   },
   optionButtons: {

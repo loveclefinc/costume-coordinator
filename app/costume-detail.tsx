@@ -17,8 +17,24 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ColorPicker } from "@/components/color-picker";
+import { getColorName } from "@/lib/image-analysis";
 
 const COSTUMES_STORAGE_KEY = "costumes";
+
+// 拡充された柄の種類
+const PATTERN_OPTIONS = [
+  { value: "solid", label: "無地" },
+  { value: "floral", label: "花柄" },
+  { value: "stripe", label: "ストライプ" },
+  { value: "dot", label: "ドット" },
+  { value: "check", label: "チェック" },
+  { value: "geometric", label: "幾何学模様" },
+  { value: "animal", label: "アニマル柄" },
+  { value: "other", label: "その他" },
+] as const;
+
+type PatternType = typeof PATTERN_OPTIONS[number]["value"];
 
 interface CostumeData {
   id: string;
@@ -31,7 +47,7 @@ interface CostumeData {
   };
   colorCategory: "warm" | "cool" | "neutral";
   tone: "pastel" | "vivid" | "dark" | "neutral";
-  pattern: "solid" | "floral" | "stripe" | "dot" | "other";
+  pattern: PatternType;
   tags: string[];
   usageHistory: Array<{ eventId: string; date: string }>;
   createdAt: string;
@@ -48,6 +64,11 @@ export default function CostumeDetailScreen() {
   const [costume, setCostume] = useState<CostumeData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [editedColor, setEditedColor] = useState("#FF6B9D");
+  const [editedColorCategory, setEditedColorCategory] = useState<"warm" | "cool" | "neutral">("warm");
+  const [editedTone, setEditedTone] = useState<"pastel" | "vivid" | "dark" | "neutral">("pastel");
+  const [editedPattern, setEditedPattern] = useState<PatternType>("solid");
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,6 +84,10 @@ export default function CostumeDetailScreen() {
         if (found) {
           setCostume(found);
           setEditedName(found.name);
+          setEditedColor(found.colors.primary);
+          setEditedColorCategory(found.colorCategory);
+          setEditedTone(found.tone);
+          setEditedPattern(found.pattern as PatternType);
         }
       }
     } catch (error) {
@@ -85,6 +110,13 @@ export default function CostumeDetailScreen() {
           costumes[index] = {
             ...costume,
             name: editedName,
+            colors: {
+              ...costume.colors,
+              primary: editedColor,
+            },
+            colorCategory: editedColorCategory,
+            tone: editedTone,
+            pattern: editedPattern,
             updatedAt: new Date().toISOString(),
           };
           await AsyncStorage.setItem(COSTUMES_STORAGE_KEY, JSON.stringify(costumes));
@@ -131,6 +163,11 @@ export default function CostumeDetailScreen() {
         style: "destructive",
       },
     ]);
+  };
+
+  const getPatternLabel = (value: PatternType) => {
+    const option = PATTERN_OPTIONS.find((o) => o.value === value);
+    return option ? option.label : value;
   };
 
   if (loading) {
@@ -224,65 +261,163 @@ export default function CostumeDetailScreen() {
 
         {/* Color Information */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <ThemedText type="subtitle">色情報</ThemedText>
+          <ThemedText type="subtitle">メインカラー</ThemedText>
 
-          <View style={styles.colorRow}>
-            <ThemedText style={{ color: colors.textSecondary }}>メインカラー:</ThemedText>
-            <View style={styles.colorDisplay}>
+          {isEditing ? (
+            <>
               <View
                 style={[
-                  styles.colorBox,
-                  { backgroundColor: costume.colors.primary },
+                  styles.colorPickerRow,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
                 ]}
-              />
-              <ThemedText>{costume.colors.primary}</ThemedText>
-            </View>
-          </View>
-
-          {costume.colors.secondary && (
+              >
+                <View style={[styles.colorBox, { backgroundColor: editedColor }]} />
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={{ color: colors.textSecondary }}>
+                    {getColorName(editedColor)}
+                  </ThemedText>
+                  <ThemedText>{editedColor}</ThemedText>
+                </View>
+                <Pressable onPress={() => setShowColorPicker(!showColorPicker)}>
+                  <ThemedText style={{ color: colors.tint }}>変更</ThemedText>
+                </Pressable>
+              </View>
+              {showColorPicker && (
+                <ColorPicker
+                  selectedColor={editedColor}
+                  onColorSelect={(color) => setEditedColor(color)}
+                />
+              )}
+            </>
+          ) : (
             <View style={styles.colorRow}>
-              <ThemedText style={{ color: colors.textSecondary }}>サブカラー:</ThemedText>
               <View style={styles.colorDisplay}>
                 <View
                   style={[
                     styles.colorBox,
-                    { backgroundColor: costume.colors.secondary },
+                    { backgroundColor: costume.colors.primary },
                   ]}
                 />
-                <ThemedText>{costume.colors.secondary}</ThemedText>
+                <ThemedText>{getColorName(costume.colors.primary)}</ThemedText>
+                <ThemedText style={{ color: colors.textSecondary, marginLeft: Spacing.s }}>
+                  {costume.colors.primary}
+                </ThemedText>
               </View>
             </View>
           )}
         </View>
 
-        {/* Category & Tone */}
+        {/* Color Category */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ color: colors.textSecondary }}>色系統:</ThemedText>
-              <ThemedText style={{ marginTop: Spacing.s }}>{costume.colorCategory}</ThemedText>
+          <ThemedText type="subtitle">色系統</ThemedText>
+          {isEditing ? (
+            <View style={styles.optionButtons}>
+              {(["warm", "cool", "neutral"] as const).map((category) => (
+                <Pressable
+                  key={category}
+                  style={[
+                    styles.optionButton,
+                    {
+                      backgroundColor: editedColorCategory === category ? colors.tint : colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => setEditedColorCategory(category)}
+                >
+                  <ThemedText
+                    style={{
+                      color: editedColorCategory === category ? "#FFFFFF" : colors.text,
+                    }}
+                  >
+                    {category === "warm" ? "暖色系" : category === "cool" ? "寒色系" : "中間色"}
+                  </ThemedText>
+                </Pressable>
+              ))}
             </View>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ color: colors.textSecondary }}>トーン:</ThemedText>
-              <ThemedText style={{ marginTop: Spacing.s }}>{costume.tone}</ThemedText>
-            </View>
-          </View>
+          ) : (
+            <ThemedText style={{ marginTop: Spacing.s }}>
+              {costume.colorCategory === "warm" ? "暖色系" : costume.colorCategory === "cool" ? "寒色系" : "中間色"}
+            </ThemedText>
+          )}
         </View>
 
-        {/* Pattern & Tags */}
+        {/* Tone */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ color: colors.textSecondary }}>柄:</ThemedText>
-              <ThemedText style={{ marginTop: Spacing.s }}>{costume.pattern}</ThemedText>
+          <ThemedText type="subtitle">トーン</ThemedText>
+          {isEditing ? (
+            <View style={styles.optionButtons}>
+              {(["pastel", "vivid", "dark", "neutral"] as const).map((tone) => (
+                <Pressable
+                  key={tone}
+                  style={[
+                    styles.optionButton,
+                    {
+                      backgroundColor: editedTone === tone ? colors.tint : colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => setEditedTone(tone)}
+                >
+                  <ThemedText
+                    style={{
+                      color: editedTone === tone ? "#FFFFFF" : colors.text,
+                    }}
+                  >
+                    {tone === "pastel" ? "パステル" : tone === "vivid" ? "ビビッド" : tone === "dark" ? "ダーク" : "ニュートラル"}
+                  </ThemedText>
+                </Pressable>
+              ))}
             </View>
-            <View style={{ flex: 1 }}>
-              <ThemedText style={{ color: colors.textSecondary }}>タグ:</ThemedText>
-              <ThemedText style={{ marginTop: Spacing.s }}>
-                {costume.tags.length > 0 ? costume.tags.join(", ") : "なし"}
-              </ThemedText>
+          ) : (
+            <ThemedText style={{ marginTop: Spacing.s }}>
+              {costume.tone === "pastel" ? "パステル" : costume.tone === "vivid" ? "ビビッド" : costume.tone === "dark" ? "ダーク" : "ニュートラル"}
+            </ThemedText>
+          )}
+        </View>
+
+        {/* Pattern */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <ThemedText type="subtitle">柄</ThemedText>
+          {isEditing ? (
+            <View style={styles.optionButtons}>
+              {PATTERN_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.optionButton,
+                    {
+                      backgroundColor: editedPattern === option.value ? colors.tint : colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => setEditedPattern(option.value)}
+                >
+                  <ThemedText
+                    style={{
+                      color: editedPattern === option.value ? "#FFFFFF" : colors.text,
+                    }}
+                  >
+                    {option.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
             </View>
-          </View>
+          ) : (
+            <ThemedText style={{ marginTop: Spacing.s }}>
+              {getPatternLabel(costume.pattern as PatternType)}
+            </ThemedText>
+          )}
+        </View>
+
+        {/* Tags */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <ThemedText type="subtitle">タグ</ThemedText>
+          <ThemedText style={{ marginTop: Spacing.s }}>
+            {costume.tags.length > 0 ? costume.tags.join(", ") : "なし"}
+          </ThemedText>
         </View>
 
         {/* Usage History */}
@@ -338,6 +473,10 @@ export default function CostumeDetailScreen() {
               onPress={() => {
                 setIsEditing(false);
                 setEditedName(costume.name);
+                setEditedColor(costume.colors.primary);
+                setEditedColorCategory(costume.colorCategory);
+                setEditedTone(costume.tone);
+                setEditedPattern(costume.pattern as PatternType);
               }}
             >
               <ThemedText style={styles.actionButtonText}>キャンセル</ThemedText>
@@ -352,7 +491,7 @@ export default function CostumeDetailScreen() {
               <ThemedText style={styles.actionButtonText}>編集</ThemedText>
             </Pressable>
             <Pressable
-              style={[styles.actionButton, { backgroundColor: colors.error }]}
+              style={[styles.actionButton, { backgroundColor: colors.error || "#FF3B30" }]}
               onPress={deleteCostume}
             >
               <ThemedText style={styles.actionButtonText}>削除</ThemedText>
@@ -380,7 +519,7 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 3 / 4,
     borderRadius: BorderRadius.card,
-    marginBottom: Spacing.l,
+    marginBottom: Spacing.m,
   },
   section: {
     padding: Spacing.m,
@@ -390,13 +529,12 @@ const styles = StyleSheet.create({
   input: {
     marginTop: Spacing.s,
     padding: Spacing.m,
-    borderRadius: BorderRadius.button,
     borderWidth: 1,
+    borderRadius: BorderRadius.button,
     fontSize: 16,
   },
   colorRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     marginTop: Spacing.s,
   },
@@ -406,18 +544,38 @@ const styles = StyleSheet.create({
     gap: Spacing.s,
   },
   colorBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#CCCCCC",
   },
+  colorPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.m,
+    marginTop: Spacing.s,
+    padding: Spacing.m,
+    borderRadius: BorderRadius.button,
+    borderWidth: 1,
+  },
+  optionButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.s,
+    marginTop: Spacing.s,
+  },
+  optionButton: {
+    paddingVertical: Spacing.s,
+    paddingHorizontal: Spacing.m,
+    borderRadius: BorderRadius.button,
+    borderWidth: 1,
+  },
   row: {
     flexDirection: "row",
-    gap: Spacing.m,
   },
   historyItem: {
-    paddingVertical: Spacing.s,
+    marginTop: Spacing.s,
   },
   metaRow: {
     flexDirection: "row",

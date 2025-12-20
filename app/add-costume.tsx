@@ -23,6 +23,20 @@ import { ColorPicker } from "@/components/color-picker";
 
 const COSTUMES_STORAGE_KEY = "costumes";
 
+// 拡充された柄の種類
+const PATTERN_OPTIONS = [
+  { value: "solid", label: "無地" },
+  { value: "floral", label: "花柄" },
+  { value: "stripe", label: "ストライプ" },
+  { value: "dot", label: "ドット" },
+  { value: "check", label: "チェック" },
+  { value: "geometric", label: "幾何学模様" },
+  { value: "animal", label: "アニマル柄" },
+  { value: "other", label: "その他" },
+] as const;
+
+type PatternType = typeof PATTERN_OPTIONS[number]["value"];
+
 interface CostumeData {
   id: string;
   name: string;
@@ -34,7 +48,7 @@ interface CostumeData {
   };
   colorCategory: "warm" | "cool" | "neutral";
   tone: "pastel" | "vivid" | "dark" | "neutral";
-  pattern: "solid" | "floral" | "stripe" | "dot" | "other";
+  pattern: PatternType;
   tags: string[];
   usageHistory: Array<{ eventId: string; date: string }>;
   createdAt: string;
@@ -52,7 +66,7 @@ export default function AddCostumeScreen() {
   const [primaryColor, setPrimaryColor] = useState("#FF6B9D");
   const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
   const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
-  const [pattern, setPattern] = useState<"solid" | "floral" | "stripe" | "dot" | "other">("solid");
+  const [pattern, setPattern] = useState<PatternType>("solid");
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -193,13 +207,7 @@ export default function AddCostumeScreen() {
     }
   };
 
-  const patternOptions: Array<{ value: typeof pattern; label: string }> = [
-    { value: "solid", label: "無地" },
-    { value: "floral", label: "花柄" },
-    { value: "stripe", label: "ストライプ" },
-    { value: "dot", label: "ドット" },
-    { value: "other", label: "その他" },
-  ];
+  // PATTERN_OPTIONSを使用（ファイル上部で定義済み）
 
   return (
     <ThemedView style={styles.container}>
@@ -445,7 +453,7 @@ export default function AddCostumeScreen() {
         <View style={styles.inputSection}>
           <ThemedText type="subtitle">柄</ThemedText>
           <View style={styles.patternButtons}>
-            {patternOptions.map((option) => (
+            {PATTERN_OPTIONS.map((option) => (
               <Pressable
                 key={option.value}
                 style={[
