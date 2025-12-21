@@ -43,6 +43,7 @@ export const appRouter = router({
           conditions: z.object({
             colorCategory: z.enum(["warm", "cool", "neutral"]).optional(),
             tone: z.enum(["pastel", "vivid", "dark", "neutral"]).optional(),
+            specificColors: z.array(z.enum(["red", "green", "yellow", "blue", "pink", "purple", "orange", "white", "black", "brown", "gray", "gold", "silver"])).optional(),
             patternRules: z
               .object({
                 allowFloral: z.boolean(),

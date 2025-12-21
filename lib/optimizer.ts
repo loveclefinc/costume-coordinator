@@ -4,6 +4,7 @@
  */
 
 import { areSimilarColors } from "./image-analysis";
+import { matchesSpecificColors, type ColorName } from "./color-utils";
 
 export interface CostumeData {
   id: number;
@@ -25,6 +26,7 @@ export interface CostumeData {
 export interface EventConditions {
   colorCategory?: "warm" | "cool" | "neutral";
   tone?: "pastel" | "vivid" | "dark" | "neutral";
+  specificColors?: ("red" | "green" | "yellow" | "blue" | "pink" | "purple" | "orange" | "white" | "black" | "brown" | "gray" | "gold" | "silver")[];
   patternRules?: {
     allowFloral: boolean;
     floralMaxCount?: number;
@@ -251,6 +253,14 @@ function checkConstraints(
   // Check tone
   if (conditions.tone && costume.tone !== conditions.tone) {
     violations.push(`${costume.costumeName}は指定トーン(${conditions.tone})に合致しません`);
+  }
+
+  // Check specific colors
+  if (conditions.specificColors && conditions.specificColors.length > 0) {
+    const matches = matchesSpecificColors(costume.colors.primary, conditions.specificColors as ColorName[]);
+    if (!matches) {
+      violations.push(`${costume.costumeName}の色は指定された色（${conditions.specificColors.join(", ")}）に合致しません`);
+    }
   }
 
   // Check floral pattern (backward compatibility)

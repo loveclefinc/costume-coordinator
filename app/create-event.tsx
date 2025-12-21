@@ -31,6 +31,25 @@ const PATTERN_OPTIONS = [
 
 type PatternType = typeof PATTERN_OPTIONS[number]["value"];
 
+// 色の選択肢
+const COLOR_OPTIONS = [
+  { value: "red", label: "赤", hex: "#FF0000" },
+  { value: "green", label: "緑", hex: "#00FF00" },
+  { value: "yellow", label: "黄色", hex: "#FFFF00" },
+  { value: "blue", label: "青", hex: "#0000FF" },
+  { value: "pink", label: "ピンク", hex: "#FF69B4" },
+  { value: "purple", label: "紫", hex: "#800080" },
+  { value: "orange", label: "オレンジ", hex: "#FFA500" },
+  { value: "white", label: "白", hex: "#FFFFFF" },
+  { value: "black", label: "黒", hex: "#000000" },
+  { value: "brown", label: "茶色", hex: "#8B4513" },
+  { value: "gray", label: "グレー", hex: "#808080" },
+  { value: "gold", label: "ゴールド", hex: "#FFD700" },
+  { value: "silver", label: "シルバー", hex: "#C0C0C0" },
+] as const;
+
+type ColorType = typeof COLOR_OPTIONS[number]["value"];
+
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -40,6 +59,9 @@ export default function CreateEventScreen() {
   const [eventDate, setEventDate] = useState("");
   const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
   const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
+  
+  // 特定の色指定
+  const [specificColors, setSpecificColors] = useState<ColorType[]>([]);
   
   // 柄希望順位制
   const [patternPreference1, setPatternPreference1] = useState<PatternType | null>(null);
@@ -71,6 +93,7 @@ export default function CreateEventScreen() {
         conditions: {
           colorCategory: colorCategory || undefined,
           tone: tone || undefined,
+          specificColors: specificColors.length > 0 ? specificColors : undefined,
           patternRules: {
             allowFloral: true, // 互換性のため残す
             patternPreferences, // 新しい柄希望順位
@@ -201,6 +224,52 @@ export default function CreateEventScreen() {
                 </ThemedText>
               </Pressable>
             ))}
+          </View>
+        </View>
+
+        {/* Specific Colors Selection */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">特定の色指定（複数選択可）</ThemedText>
+          <ThemedText style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
+            例: クリスマスなら赤、緑、黄色を選択
+          </ThemedText>
+          <View style={styles.colorGrid}>
+            {COLOR_OPTIONS.map((option) => {
+              const isSelected = specificColors.includes(option.value);
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.colorOption,
+                    {
+                      backgroundColor: option.hex,
+                      borderColor: isSelected ? colors.tint : colors.border,
+                      borderWidth: isSelected ? 3 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (isSelected) {
+                      setSpecificColors(specificColors.filter((c) => c !== option.value));
+                    } else {
+                      setSpecificColors([...specificColors, option.value]);
+                    }
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.colorLabel,
+                      {
+                        backgroundColor: "rgba(0, 0, 0, 0.6)",
+                      },
+                    ]}
+                  >
+                    <ThemedText style={{ color: "#FFFFFF", fontSize: 12 }}>
+                      {option.label}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -419,5 +488,23 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "600",
+  },
+  colorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.s,
+    marginTop: Spacing.s,
+  },
+  colorOption: {
+    width: 70,
+    height: 70,
+    borderRadius: BorderRadius.card,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  colorLabel: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    alignItems: "center",
   },
 });
