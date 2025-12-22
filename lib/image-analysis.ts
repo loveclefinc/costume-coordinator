@@ -189,6 +189,60 @@ export function getColorName(hex: string): string {
 
 
 /**
+ * Classify a HEX color into one of the 13 predefined color names
+ */
+export function classifyColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+
+  // Calculate color properties
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const saturation = max === min ? 0 : (max - min) / (255 - Math.abs(max + min - 255));
+
+  // White/Black/Gray detection
+  if (saturation < 0.1) {
+    if (lightness > 220) return "white";
+    if (lightness < 50) return "black";
+    return "gray";
+  }
+
+  // Gold/Silver detection (based on RGB ratios)
+  if (r > 200 && g > 180 && b < 100 && Math.abs(r - g) < 40) return "gold";
+  if (r > 180 && g > 180 && b > 180 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) return "silver";
+
+  // Hue-based color classification
+  let hue = 0;
+  if (max !== min) {
+    const delta = max - min;
+    if (max === r) {
+      hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
+    } else if (max === g) {
+      hue = ((b - r) / delta + 2) / 6;
+    } else {
+      hue = ((r - g) / delta + 4) / 6;
+    }
+  }
+  hue *= 360;
+
+  // Classify by hue ranges
+  if (hue >= 345 || hue < 15) return "red";
+  if (hue >= 15 && hue < 45) {
+    // Orange or brown based on lightness
+    return lightness < 100 ? "brown" : "orange";
+  }
+  if (hue >= 45 && hue < 75) return "yellow";
+  if (hue >= 75 && hue < 165) return "green";
+  if (hue >= 165 && hue < 255) return "blue";
+  if (hue >= 255 && hue < 285) return "purple";
+  if (hue >= 285 && hue < 345) return "pink";
+
+  return "gray"; // Fallback
+}
+
+/**
  * Extract dominant color from image URI
  * Returns the most prominent color in the image as HEX string
  */

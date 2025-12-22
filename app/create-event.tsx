@@ -16,6 +16,7 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
+import { EVENT_PRESETS, type EventPreset } from "@/lib/event-presets";
 
 // 拡充された柄の種類
 const PATTERN_OPTIONS = [
@@ -57,6 +58,7 @@ export default function CreateEventScreen() {
 
   const [name, setName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState<EventPreset | null>(null);
   const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
   const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
   
@@ -197,6 +199,64 @@ export default function CreateEventScreen() {
             value={eventDate}
             onChangeText={setEventDate}
           />
+        </View>
+
+        {/* Preset Selection */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">プリセットテーマ（任意）</ThemedText>
+          <ThemedText style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
+            プリセットを選択すると、条件が自動設定されます
+          </ThemedText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: Spacing.s }}>
+            <View style={styles.presetButtons}>
+              {EVENT_PRESETS.map((preset) => (
+                <Pressable
+                  key={preset.name}
+                  style={[
+                    styles.presetButton,
+                    {
+                      backgroundColor: selectedPreset?.name === preset.name ? colors.tint : colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedPreset(preset);
+                    // Apply preset conditions
+                    setColorCategory(preset.conditions.colorCategory || null);
+                    setTone(preset.conditions.tone || null);
+                    setSpecificColors((preset.conditions.specificColors as ColorType[]) || []);
+                    const patterns = (preset.conditions.patternRules?.patternPreferences as PatternType[]) || [];
+                    setPatternPreference1(patterns[0] || null);
+                    setPatternPreference2(patterns[1] || null);
+                    setPatternPreference3(patterns[2] || null);
+                    setAvoidSimilarColors(preset.conditions.avoidSimilarColors);
+                    setRecentUsageExcludeDays(preset.conditions.recentUsageExcludeDays.toString());
+                  }}
+                >
+                  <ThemedText style={{ fontSize: 32, marginBottom: 4 }}>{preset.icon}</ThemedText>
+                  <ThemedText
+                    style={{
+                      color: selectedPreset?.name === preset.name ? "#FFFFFF" : colors.text,
+                      fontSize: 14,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {preset.name}
+                  </ThemedText>
+                  <ThemedText
+                    style={{
+                      color: selectedPreset?.name === preset.name ? "#FFFFFF" : colors.textSecondary,
+                      fontSize: 10,
+                      marginTop: 2,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {preset.description}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         {/* Color Category Selection */}
@@ -505,6 +565,17 @@ const styles = StyleSheet.create({
   colorLabel: {
     paddingVertical: 4,
     paddingHorizontal: 6,
+    alignItems: "center",
+  },
+  presetButtons: {
+    flexDirection: "row",
+    gap: Spacing.m,
+  },
+  presetButton: {
+    width: 140,
+    padding: Spacing.m,
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
     alignItems: "center",
   },
 });

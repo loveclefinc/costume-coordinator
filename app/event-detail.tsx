@@ -18,6 +18,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { colorNameToHex, type ColorName } from "@/lib/color-utils";
 
 const COSTUMES_STORAGE_KEY = "costumes";
 
@@ -237,12 +238,56 @@ export default function EventDetailScreen() {
           <ThemedText style={{ color: colors.textSecondary }}>👥 参加者:</ThemedText>
           <ThemedText>0人</ThemedText>
         </View>
-        <View style={styles.infoRow}>
-          <ThemedText style={{ color: colors.textSecondary }}>🎨 条件:</ThemedText>
-          <ThemedText>
-            {currentEvent.conditions?.colorCategory || "指定なし"} / {currentEvent.conditions?.tone || "指定なし"}
-          </ThemedText>
-        </View>
+        
+        {/* Color Category */}
+        {currentEvent.conditions?.colorCategory && (
+          <View style={styles.infoRow}>
+            <ThemedText style={{ color: colors.textSecondary }}>🎨 色系統:</ThemedText>
+            <ThemedText>{currentEvent.conditions.colorCategory}</ThemedText>
+          </View>
+        )}
+        
+        {/* Tone */}
+        {currentEvent.conditions?.tone && (
+          <View style={styles.infoRow}>
+            <ThemedText style={{ color: colors.textSecondary }}>🎵 トーン:</ThemedText>
+            <ThemedText>{currentEvent.conditions.tone}</ThemedText>
+          </View>
+        )}
+        
+        {/* Specific Colors */}
+        {currentEvent.conditions?.specificColors && currentEvent.conditions.specificColors.length > 0 && (
+          <View style={styles.infoColumn}>
+            <ThemedText style={{ color: colors.textSecondary, marginBottom: 8 }}>🎨 指定色:</ThemedText>
+            <View style={styles.colorChips}>
+              {currentEvent.conditions.specificColors.map((colorName: string) => (
+                <View
+                  key={colorName}
+                  style={[
+                    styles.colorChip,
+                    { backgroundColor: colorNameToHex(colorName as ColorName) },
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+        
+        {/* Pattern Preferences */}
+        {currentEvent.conditions?.patternRules?.patternPreferences && currentEvent.conditions.patternRules.patternPreferences.length > 0 && (
+          <View style={styles.infoColumn}>
+            <ThemedText style={{ color: colors.textSecondary, marginBottom: 8 }}>👗 柄希望:</ThemedText>
+            <View style={styles.patternTags}>
+              {currentEvent.conditions.patternRules.patternPreferences.map((pattern: string, index: number) => (
+                <View key={pattern} style={[styles.patternTag, { backgroundColor: colors.elevated }]}>
+                  <ThemedText style={{ fontSize: 12 }}>
+                    {index + 1}. {pattern}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Costume Selection */}
@@ -335,6 +380,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  infoColumn: {
+    gap: Spacing.xs,
+  },
+  colorChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+  },
+  colorChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  patternTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+  },
+  patternTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: BorderRadius.button,
   },
   selectionHeader: {
     padding: Spacing.m,
