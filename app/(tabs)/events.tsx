@@ -111,9 +111,14 @@ export default function EventsScreen() {
         ]}
       >
         <ThemedText type="title">イベント</ThemedText>
-        <Pressable onPress={handleCreateEvent}>
-          <ThemedText style={{ fontSize: 32 }}>+</ThemedText>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: Spacing.m }}>
+          <Pressable onPress={() => router.push("/event-history" as any)}>
+            <ThemedText style={{ fontSize: 24 }}>📜</ThemedText>
+          </Pressable>
+          <Pressable onPress={handleCreateEvent}>
+            <ThemedText style={{ fontSize: 32 }}>+</ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       {displayEvents.length === 0 ? (

@@ -44,7 +44,8 @@ export default function CostumesListScreen() {
 
   const [costumes, setCostumes] = useState<CostumeData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "warm" | "cool" | "neutral">("all");
+  const [colorFilter, setColorFilter] = useState<"all" | "warm" | "cool" | "neutral">("all");
+  const [patternFilter, setPatternFilter] = useState<"all" | "solid" | "floral" | "stripe" | "dot" | "check" | "geometric" | "animal" | "other">("all");
 
   useEffect(() => {
     loadCostumes();
@@ -65,10 +66,11 @@ export default function CostumesListScreen() {
     }
   };
 
-  const filteredCostumes =
-    filter === "all"
-      ? costumes
-      : costumes.filter((costume) => costume.colorCategory === filter);
+  const filteredCostumes = costumes.filter((costume) => {
+    const matchesColor = colorFilter === "all" || costume.colorCategory === colorFilter;
+    const matchesPattern = patternFilter === "all" || costume.pattern === patternFilter;
+    return matchesColor && matchesPattern;
+  });
 
   const renderCostumeCard = ({ item }: { item: CostumeData }) => (
     <Pressable
@@ -141,15 +143,15 @@ export default function CostumesListScreen() {
           style={[
             styles.filterButton,
             {
-              backgroundColor: filter === "all" ? colors.tint : colors.card,
+              backgroundColor: colorFilter === "all" ? colors.tint : colors.card,
               borderColor: colors.border,
             },
           ]}
-          onPress={() => setFilter("all")}
+          onPress={() => setColorFilter("all")}
         >
           <ThemedText
             style={{
-              color: filter === "all" ? "#FFFFFF" : colors.text,
+              color: colorFilter === "all" ? "#FFFFFF" : colors.text,
               fontSize: 14,
             }}
           >
@@ -160,15 +162,15 @@ export default function CostumesListScreen() {
           style={[
             styles.filterButton,
             {
-              backgroundColor: filter === "warm" ? colors.tint : colors.card,
+              backgroundColor: colorFilter === "warm" ? colors.tint : colors.card,
               borderColor: colors.border,
             },
           ]}
-          onPress={() => setFilter("warm")}
+          onPress={() => setColorFilter("warm")}
         >
           <ThemedText
             style={{
-              color: filter === "warm" ? "#FFFFFF" : colors.text,
+              color: colorFilter === "warm" ? "#FFFFFF" : colors.text,
               fontSize: 14,
             }}
           >
@@ -179,15 +181,15 @@ export default function CostumesListScreen() {
           style={[
             styles.filterButton,
             {
-              backgroundColor: filter === "cool" ? colors.tint : colors.card,
+              backgroundColor: colorFilter === "cool" ? colors.tint : colors.card,
               borderColor: colors.border,
             },
           ]}
-          onPress={() => setFilter("cool")}
+          onPress={() => setColorFilter("cool")}
         >
           <ThemedText
             style={{
-              color: filter === "cool" ? "#FFFFFF" : colors.text,
+              color: colorFilter === "cool" ? "#FFFFFF" : colors.text,
               fontSize: 14,
             }}
           >
@@ -198,21 +200,127 @@ export default function CostumesListScreen() {
           style={[
             styles.filterButton,
             {
-              backgroundColor: filter === "neutral" ? colors.tint : colors.card,
+              backgroundColor: colorFilter === "neutral" ? colors.tint : colors.card,
               borderColor: colors.border,
             },
           ]}
-          onPress={() => setFilter("neutral")}
+          onPress={() => setColorFilter("neutral")}
         >
           <ThemedText
             style={{
-              color: filter === "neutral" ? "#FFFFFF" : colors.text,
+              color: colorFilter === "neutral" ? "#FFFFFF" : colors.text,
               fontSize: 14,
             }}
           >
             中間色
           </ThemedText>
         </Pressable>
+      </View>
+
+      {/* Pattern Filter */}
+      <View style={styles.filterSection}>
+        <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: Spacing.s }}>
+          柄で絞り込み
+        </ThemedText>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: patternFilter === "all" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setPatternFilter("all")}
+            >
+              <ThemedText
+                style={{
+                  color: patternFilter === "all" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                すべて
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: patternFilter === "solid" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setPatternFilter("solid")}
+            >
+              <ThemedText
+                style={{
+                  color: patternFilter === "solid" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                無地
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: patternFilter === "floral" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setPatternFilter("floral")}
+            >
+              <ThemedText
+                style={{
+                  color: patternFilter === "floral" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                花柄
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: patternFilter === "stripe" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setPatternFilter("stripe")}
+            >
+              <ThemedText
+                style={{
+                  color: patternFilter === "stripe" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                ストライプ
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: patternFilter === "dot" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setPatternFilter("dot")}
+            >
+              <ThemedText
+                style={{
+                  color: patternFilter === "dot" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                ドット
+              </ThemedText>
+            </Pressable>
+          </View>
+        </ScrollView>
       </View>
 
       {/* Costumes List */}
@@ -265,10 +373,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.m,
   },
   filterSection: {
-    flexDirection: "row",
-    gap: Spacing.s,
     paddingHorizontal: Spacing.m,
     paddingVertical: Spacing.s,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: Spacing.s,
   },
   filterButton: {
     paddingVertical: Spacing.s,

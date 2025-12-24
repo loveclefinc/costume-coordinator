@@ -17,9 +17,17 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 
+interface ScoreBreakdown {
+  priorityScore: number;
+  conditionScore: number;
+  diversityScore: number;
+  totalScore: number;
+}
+
 interface OptimizationProposal {
   id: string;
   score: number;
+  scoreBreakdown: ScoreBreakdown;
   assignments: Array<{
     participantId: number;
     participantName: string;
@@ -58,6 +66,12 @@ export default function OptimizationResultsScreen() {
         {
           id: "proposal-1",
           score: 280,
+          scoreBreakdown: {
+            priorityScore: 150,
+            conditionScore: 80,
+            diversityScore: 50,
+            totalScore: 280,
+          },
           assignments: [
             {
               participantId: 1,
@@ -79,6 +93,12 @@ export default function OptimizationResultsScreen() {
         {
           id: "proposal-2",
           score: 260,
+          scoreBreakdown: {
+            priorityScore: 130,
+            conditionScore: 90,
+            diversityScore: 40,
+            totalScore: 260,
+          },
           assignments: [
             {
               participantId: 1,
@@ -253,6 +273,76 @@ export default function OptimizationResultsScreen() {
             <ThemedText style={styles.scoreValue}>{currentProposal.score}</ThemedText>
             <ThemedText style={{ color: colors.textSecondary }}>点</ThemedText>
           </View>
+          
+          {/* Score Breakdown */}
+          <View style={styles.scoreBreakdown}>
+            <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: Spacing.m }}>
+              スコア内訳
+            </ThemedText>
+            
+            {/* Priority Score */}
+            <View style={styles.scoreItem}>
+              <View style={styles.scoreItemHeader}>
+                <ThemedText style={{ fontSize: 13 }}>🎯 希望順位</ThemedText>
+                <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>
+                  {currentProposal.scoreBreakdown.priorityScore}点
+                </ThemedText>
+              </View>
+              <View style={styles.scoreBar}>
+                <View
+                  style={[
+                    styles.scoreBarFill,
+                    {
+                      width: `${(currentProposal.scoreBreakdown.priorityScore / currentProposal.scoreBreakdown.totalScore) * 100}%`,
+                      backgroundColor: "#4CAF50",
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+            
+            {/* Condition Score */}
+            <View style={styles.scoreItem}>
+              <View style={styles.scoreItemHeader}>
+                <ThemedText style={{ fontSize: 13 }}>✅ 条件適合度</ThemedText>
+                <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>
+                  {currentProposal.scoreBreakdown.conditionScore}点
+                </ThemedText>
+              </View>
+              <View style={styles.scoreBar}>
+                <View
+                  style={[
+                    styles.scoreBarFill,
+                    {
+                      width: `${(currentProposal.scoreBreakdown.conditionScore / currentProposal.scoreBreakdown.totalScore) * 100}%`,
+                      backgroundColor: "#2196F3",
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+            
+            {/* Diversity Score */}
+            <View style={styles.scoreItem}>
+              <View style={styles.scoreItemHeader}>
+                <ThemedText style={{ fontSize: 13 }}>🎨 多様性</ThemedText>
+                <ThemedText style={{ fontSize: 13, fontWeight: "600" }}>
+                  {currentProposal.scoreBreakdown.diversityScore}点
+                </ThemedText>
+              </View>
+              <View style={styles.scoreBar}>
+                <View
+                  style={[
+                    styles.scoreBarFill,
+                    {
+                      width: `${(currentProposal.scoreBreakdown.diversityScore / currentProposal.scoreBreakdown.totalScore) * 100}%`,
+                      backgroundColor: "#FF9800",
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Assignments */}
@@ -370,6 +460,28 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     gap: Spacing.s,
     marginTop: Spacing.m,
+  },
+  scoreBreakdown: {
+    marginTop: Spacing.l,
+    gap: Spacing.m,
+  },
+  scoreItem: {
+    gap: Spacing.xs,
+  },
+  scoreItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  scoreBar: {
+    height: 8,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  scoreBarFill: {
+    height: "100%",
+    borderRadius: 4,
   },
   scoreValue: {
     fontSize: 48,
