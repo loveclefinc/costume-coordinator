@@ -6,7 +6,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Switch,
 } from "react-native";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +17,6 @@ import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import { EVENT_PRESETS, type EventPreset } from "@/lib/event-presets";
 
-// 拡充された柄の種類
 const PATTERN_OPTIONS = [
   { value: "solid", label: "無地" },
   { value: "floral", label: "花柄" },
@@ -32,7 +30,6 @@ const PATTERN_OPTIONS = [
 
 type PatternType = typeof PATTERN_OPTIONS[number]["value"];
 
-// 色の選択肢
 const COLOR_OPTIONS = [
   { value: "red", label: "赤", hex: "#FF0000" },
   { value: "green", label: "緑", hex: "#00FF00" },
@@ -51,6 +48,15 @@ const COLOR_OPTIONS = [
 
 type ColorType = typeof COLOR_OPTIONS[number]["value"];
 
+const TONE_OPTIONS = [
+  { value: "pastel", label: "パステル" },
+  { value: "vivid", label: "ビビッド" },
+  { value: "dark", label: "ダーク" },
+  { value: "neutral", label: "ニュートラル" },
+] as const;
+
+type ToneType = typeof TONE_OPTIONS[number]["value"];
+
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -59,17 +65,22 @@ export default function CreateEventScreen() {
   const [name, setName] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<EventPreset | null>(null);
-  const [colorCategory, setColorCategory] = useState<"warm" | "cool" | "neutral" | null>(null);
-  const [tone, setTone] = useState<"pastel" | "vivid" | "dark" | "neutral" | null>(null);
-  
-  // 特定の色指定
-  const [specificColors, setSpecificColors] = useState<ColorType[]>([]);
-  
+
+  // 色希望順位制
+  const [colorPreference1, setColorPreference1] = useState<ColorType[]>([]);
+  const [colorPreference2, setColorPreference2] = useState<ColorType[]>([]);
+  const [colorPreference3, setColorPreference3] = useState<ColorType[]>([]);
+
+  // トーン希望順位制
+  const [tonePreference1, setTonePreference1] = useState<ToneType | null>(null);
+  const [tonePreference2, setTonePreference2] = useState<ToneType | null>(null);
+  const [tonePreference3, setTonePreference3] = useState<ToneType | null>(null);
+
   // 柄希望順位制
   const [patternPreference1, setPatternPreference1] = useState<PatternType | null>(null);
   const [patternPreference2, setPatternPreference2] = useState<PatternType | null>(null);
   const [patternPreference3, setPatternPreference3] = useState<PatternType | null>(null);
-  
+
   const [avoidSimilarColors, setAvoidSimilarColors] = useState(true);
   const [recentUsageExcludeDays, setRecentUsageExcludeDays] = useState("30");
   const [loading, setLoading] = useState(false);
@@ -85,6 +96,16 @@ export default function CreateEventScreen() {
     setLoading(true);
 
     try {
+      const colorPreferences = [
+        colorPreference1.length > 0 ? colorPreference1 : null,
+        colorPreference2.length > 0 ? colorPreference2 : null,
+        colorPreference3.length > 0 ? colorPreference3 : null,
+      ].filter((c): c is ColorType[] => c !== null);
+
+      const tonePreferences = [tonePreference1, tonePreference2, tonePreference3].filter(
+        (t): t is ToneType => t !== null
+      );
+
       const patternPreferences = [patternPreference1, patternPreference2, patternPreference3].filter(
         (p): p is PatternType => p !== null
       );
@@ -93,13 +114,9 @@ export default function CreateEventScreen() {
         name: name.trim(),
         eventDate: new Date(eventDate).toISOString(),
         conditions: {
-          colorCategory: colorCategory || undefined,
-          tone: tone || undefined,
-          specificColors: specificColors.length > 0 ? specificColors : undefined,
-          patternRules: {
-            allowFloral: true, // 互換性のため残す
-            patternPreferences, // 新しい柄希望順位
-          },
+          colorPreferences: colorPreferences.length > 0 ? colorPreferences : undefined,
+          tonePreferences: tonePreferences.length > 0 ? tonePreferences : undefined,
+          patternPreferences: patternPreferences.length > 0 ? patternPreferences : undefined,
           avoidSimilarColors,
           recentUsageExcludeDays: parseInt(recentUsageExcludeDays, 10),
         },
@@ -123,25 +140,143 @@ export default function CreateEventScreen() {
     }
   };
 
-  const colorOptions: Array<{ value: typeof colorCategory; label: string }> = [
-    { value: null, label: "指定なし" },
-    { value: "warm", label: "暖色系" },
-    { value: "cool", label: "寒色系" },
-    { value: "neutral", label: "中間色" },
-  ];
+  const renderColorSelector = (
+    label: string,
+    selectedColors: ColorType[],
+    setSelectedColors: (colors: ColorType[]) => void
+  ) => (
+    <View style={styles.preferenceSection}>
+      <ThemedText type="defaultSemiBold">{label}</ThemedText>
+      <View style={styles.colorGrid}>
+        {COLOR_OPTIONS.map((color) => (
+          <Pressable
+            key={color.value}
+            onPress={() => {
+              const isSelected = selectedColors.includes(color.value);
+              if (isSelected) {
+                setSelectedColors(selectedColors.filter((c) => c !== color.value));
+              } else {
+                setSelectedColors([...selectedColors, color.value]);
+              }
+            }}
+            style={[
+              styles.colorOption,
+              {
+                backgroundColor: color.hex,
+                borderWidth: selectedColors.includes(color.value) ? 3 : 1,
+                borderColor: selectedColors.includes(color.value) ? colors.text : colors.border,
+              },
+            ]}
+          >
+            {selectedColors.includes(color.value) && (
+              <ThemedText style={{ fontSize: 18 }}>✓</ThemedText>
+            )}
+          </Pressable>
+        ))}
+      </View>
+      {selectedColors.length > 0 && (
+        <View style={styles.selectedChips}>
+          {selectedColors.map((color) => (
+            <View
+              key={color}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: COLOR_OPTIONS.find((c) => c.value === color)?.hex || "#ccc",
+                },
+              ]}
+            >
+              <ThemedText style={{ fontSize: 12, color: "#fff" }}>
+                {COLOR_OPTIONS.find((c) => c.value === color)?.label}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 
-  const toneOptions: Array<{ value: typeof tone; label: string }> = [
-    { value: null, label: "指定なし" },
-    { value: "pastel", label: "パステル" },
-    { value: "vivid", label: "ビビッド" },
-    { value: "dark", label: "ダーク" },
-    { value: "neutral", label: "ニュートラル" },
-  ];
+  const renderToneSelector = (
+    label: string,
+    selectedTone: ToneType | null,
+    setSelectedTone: (tone: ToneType | null) => void
+  ) => (
+    <View style={styles.preferenceSection}>
+      <ThemedText type="defaultSemiBold">{label}</ThemedText>
+      <View style={styles.optionGrid}>
+        <Pressable
+          onPress={() => setSelectedTone(null)}
+          style={[
+            styles.optionButton,
+            {
+              backgroundColor: selectedTone === null ? colors.tint : colors.card,
+            },
+          ]}
+        >
+          <ThemedText style={{ color: selectedTone === null ? "#fff" : colors.text }}>
+            指定なし
+          </ThemedText>
+        </Pressable>
+        {TONE_OPTIONS.map((tone) => (
+          <Pressable
+            key={tone.value}
+            onPress={() => setSelectedTone(tone.value)}
+            style={[
+              styles.optionButton,
+              {
+                backgroundColor: selectedTone === tone.value ? colors.tint : colors.card,
+              },
+            ]}
+          >
+            <ThemedText style={{ color: selectedTone === tone.value ? "#fff" : colors.text }}>
+              {tone.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
 
-  const patternOptionsWithNull: Array<{ value: PatternType | null; label: string }> = [
-    { value: null, label: "指定なし" },
-    ...PATTERN_OPTIONS,
-  ];
+  const renderPatternSelector = (
+    label: string,
+    selectedPattern: PatternType | null,
+    setSelectedPattern: (pattern: PatternType | null) => void
+  ) => (
+    <View style={styles.preferenceSection}>
+      <ThemedText type="defaultSemiBold">{label}</ThemedText>
+      <View style={styles.optionGrid}>
+        <Pressable
+          onPress={() => setSelectedPattern(null)}
+          style={[
+            styles.optionButton,
+            {
+              backgroundColor: selectedPattern === null ? colors.tint : colors.card,
+            },
+          ]}
+        >
+          <ThemedText style={{ color: selectedPattern === null ? "#fff" : colors.text }}>
+            指定なし
+          </ThemedText>
+        </Pressable>
+        {PATTERN_OPTIONS.map((pattern) => (
+          <Pressable
+            key={pattern.value}
+            onPress={() => setSelectedPattern(pattern.value)}
+            style={[
+              styles.optionButton,
+              {
+                backgroundColor: selectedPattern === pattern.value ? colors.tint : colors.card,
+              },
+            ]}
+          >
+            <ThemedText style={{ color: selectedPattern === pattern.value ? "#fff" : colors.text }}>
+              {pattern.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -194,303 +329,94 @@ export default function CreateEventScreen() {
                 borderColor: colors.border,
               },
             ]}
-            placeholder="2025-03-15"
+            placeholder="例: 2024-05-15"
             placeholderTextColor={colors.textDisabled}
             value={eventDate}
             onChangeText={setEventDate}
           />
         </View>
 
-        {/* Preset Selection */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">プリセットテーマ（任意）</ThemedText>
-          <ThemedText style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
-            プリセットを選択すると、条件が自動設定されます
-          </ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: Spacing.s }}>
-            <View style={styles.presetButtons}>
-              {EVENT_PRESETS.map((preset) => (
-                <Pressable
-                  key={preset.name}
-                  style={[
-                    styles.presetButton,
-                    {
-                      backgroundColor: selectedPreset?.name === preset.name ? colors.tint : colors.card,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedPreset(preset);
-                    // Apply preset conditions
-                    setColorCategory(preset.conditions.colorCategory || null);
-                    setTone(preset.conditions.tone || null);
-                    setSpecificColors((preset.conditions.specificColors as ColorType[]) || []);
-                    const patterns = (preset.conditions.patternRules?.patternPreferences as PatternType[]) || [];
-                    setPatternPreference1(patterns[0] || null);
-                    setPatternPreference2(patterns[1] || null);
-                    setPatternPreference3(patterns[2] || null);
-                    setAvoidSimilarColors(preset.conditions.avoidSimilarColors);
-                    setRecentUsageExcludeDays(preset.conditions.recentUsageExcludeDays.toString());
-                  }}
-                >
-                  <ThemedText style={{ fontSize: 32, marginBottom: 4 }}>{preset.icon}</ThemedText>
-                  <ThemedText
-                    style={{
-                      color: selectedPreset?.name === preset.name ? "#FFFFFF" : colors.text,
-                      fontSize: 14,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {preset.name}
-                  </ThemedText>
-                  <ThemedText
-                    style={{
-                      color: selectedPreset?.name === preset.name ? "#FFFFFF" : colors.textSecondary,
-                      fontSize: 10,
-                      marginTop: 2,
-                    }}
-                    numberOfLines={2}
-                  >
-                    {preset.description}
-                  </ThemedText>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-
-        {/* Color Category Selection */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">色系統</ThemedText>
-          <View style={styles.optionButtons}>
-            {colorOptions.map((option) => (
+        {/* Presets */}
+        <View style={styles.presetsSection}>
+          <ThemedText type="subtitle">プリセット</ThemedText>
+          <View style={styles.presetButtons}>
+            {EVENT_PRESETS.map((preset) => (
               <Pressable
-                key={option.label}
+                key={preset.name}
+                onPress={() => {
+                  setSelectedPreset(preset);
+                  if (preset.conditions.specificColors) {
+                    setColorPreference1(preset.conditions.specificColors as ColorType[]);
+                  }
+                  if (preset.conditions.tone) {
+                    setTonePreference1(preset.conditions.tone as ToneType);
+                  }
+                  if (preset.conditions.patternRules?.patternPreferences?.[0]) {
+                    setPatternPreference1(preset.conditions.patternRules.patternPreferences[0] as PatternType);
+                  }
+                }}
                 style={[
-                  styles.optionButton,
+                  styles.presetButton,
                   {
-                    backgroundColor: colorCategory === option.value ? colors.tint : colors.card,
-                    borderColor: colors.border,
+                    backgroundColor:
+                      selectedPreset?.name === preset.name ? colors.tint : colors.card,
                   },
                 ]}
-                onPress={() => setColorCategory(option.value)}
               >
                 <ThemedText
                   style={{
-                    color: colorCategory === option.value ? "#FFFFFF" : colors.text,
+                    color: selectedPreset?.name === preset.name ? "#fff" : colors.text,
                   }}
                 >
-                  {option.label}
+                  {preset.name}
                 </ThemedText>
               </Pressable>
             ))}
           </View>
         </View>
 
-        {/* Specific Colors Selection */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">特定の色指定（複数選択可）</ThemedText>
-          <ThemedText style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
-            例: クリスマスなら赤、緑、黄色を選択
-          </ThemedText>
-          <View style={styles.colorGrid}>
-            {COLOR_OPTIONS.map((option) => {
-              const isSelected = specificColors.includes(option.value);
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.colorOption,
-                    {
-                      backgroundColor: option.hex,
-                      borderColor: isSelected ? colors.tint : colors.border,
-                      borderWidth: isSelected ? 3 : 1,
-                    },
-                  ]}
-                  onPress={() => {
-                    if (isSelected) {
-                      setSpecificColors(specificColors.filter((c) => c !== option.value));
-                    } else {
-                      setSpecificColors([...specificColors, option.value]);
-                    }
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.colorLabel,
-                      {
-                        backgroundColor: "rgba(0, 0, 0, 0.6)",
-                      },
-                    ]}
-                  >
-                    <ThemedText style={{ color: "#FFFFFF", fontSize: 12 }}>
-                      {option.label}
-                    </ThemedText>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+        {/* Color Preferences */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">色の希望</ThemedText>
+          {renderColorSelector("第1希望", colorPreference1, setColorPreference1)}
+          {renderColorSelector("第2希望", colorPreference2, setColorPreference2)}
+          {renderColorSelector("第3希望", colorPreference3, setColorPreference3)}
         </View>
 
-        {/* Tone Selection */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">トーン</ThemedText>
-          <View style={styles.optionButtons}>
-            {toneOptions.map((option) => (
-              <Pressable
-                key={option.label}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: tone === option.value ? colors.tint : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => setTone(option.value)}
-              >
-                <ThemedText
-                  style={{
-                    color: tone === option.value ? "#FFFFFF" : colors.text,
-                  }}
-                >
-                  {option.label}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
+        {/* Tone Preferences */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">トーンの希望</ThemedText>
+          {renderToneSelector("第1希望", tonePreference1, setTonePreference1)}
+          {renderToneSelector("第2希望", tonePreference2, setTonePreference2)}
+          {renderToneSelector("第3希望", tonePreference3, setTonePreference3)}
         </View>
 
-        {/* Pattern Preference 1 */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">柄 - 第1希望</ThemedText>
-          <View style={styles.optionButtons}>
-            {patternOptionsWithNull.map((option) => (
-              <Pressable
-                key={option.label}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: patternPreference1 === option.value ? colors.tint : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => setPatternPreference1(option.value)}
-              >
-                <ThemedText
-                  style={{
-                    color: patternPreference1 === option.value ? "#FFFFFF" : colors.text,
-                  }}
-                >
-                  {option.label}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Pattern Preference 2 */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">柄 - 第2希望</ThemedText>
-          <View style={styles.optionButtons}>
-            {patternOptionsWithNull.map((option) => (
-              <Pressable
-                key={option.label}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: patternPreference2 === option.value ? colors.tint : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => setPatternPreference2(option.value)}
-              >
-                <ThemedText
-                  style={{
-                    color: patternPreference2 === option.value ? "#FFFFFF" : colors.text,
-                  }}
-                >
-                  {option.label}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Pattern Preference 3 */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">柄 - 第3希望</ThemedText>
-          <View style={styles.optionButtons}>
-            {patternOptionsWithNull.map((option) => (
-              <Pressable
-                key={option.label}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: patternPreference3 === option.value ? colors.tint : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() => setPatternPreference3(option.value)}
-              >
-                <ThemedText
-                  style={{
-                    color: patternPreference3 === option.value ? "#FFFFFF" : colors.text,
-                  }}
-                >
-                  {option.label}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Avoid Similar Colors */}
-        <View style={styles.inputSection}>
-          <View style={styles.switchRow}>
-            <ThemedText type="subtitle">同系色の同時使用を回避</ThemedText>
-            <Switch
-              value={avoidSimilarColors}
-              onValueChange={setAvoidSimilarColors}
-              trackColor={{ false: colors.textDisabled, true: colors.tint }}
-            />
-          </View>
-        </View>
-
-        {/* Recent Usage Exclude Days */}
-        <View style={styles.inputSection}>
-          <ThemedText type="subtitle">直近使用除外日数</ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.card,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="30"
-            placeholderTextColor={colors.textDisabled}
-            value={recentUsageExcludeDays}
-            onChangeText={setRecentUsageExcludeDays}
-            keyboardType="number-pad"
-          />
+        {/* Pattern Preferences */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">柄の希望</ThemedText>
+          {renderPatternSelector("第1希望", patternPreference1, setPatternPreference1)}
+          {renderPatternSelector("第2希望", patternPreference2, setPatternPreference2)}
+          {renderPatternSelector("第3希望", patternPreference3, setPatternPreference3)}
         </View>
 
         {/* Create Button */}
         <Pressable
-          style={[
-            styles.createButton,
-            { backgroundColor: colors.tint },
-            loading && { opacity: 0.6 },
-          ]}
           onPress={createEvent}
           disabled={loading}
+          style={[
+            styles.createButton,
+            {
+              backgroundColor: colors.tint,
+              opacity: loading ? 0.6 : 1,
+            },
+          ]}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <ThemedText style={styles.createButtonText}>イベントを作成</ThemedText>
+            <ThemedText style={{ color: "#fff", fontWeight: "bold" }}>
+              イベントを作成
+            </ThemedText>
           )}
         </Pressable>
       </ScrollView>
@@ -503,51 +429,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: Spacing.m,
+    paddingHorizontal: Spacing.m,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: Spacing.l,
   },
   inputSection: {
     marginBottom: Spacing.l,
   },
   input: {
-    marginTop: Spacing.s,
-    padding: Spacing.m,
     borderWidth: 1,
     borderRadius: BorderRadius.button,
-    fontSize: 16,
+    paddingHorizontal: Spacing.m,
+    paddingVertical: Spacing.m,
+    marginTop: Spacing.s,
   },
-  optionButtons: {
+  presetsSection: {
+    marginBottom: Spacing.l,
+  },
+  presetButtons: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.s,
     marginTop: Spacing.s,
   },
-  optionButton: {
+  presetButton: {
     paddingVertical: Spacing.s,
     paddingHorizontal: Spacing.m,
     borderRadius: BorderRadius.button,
-    borderWidth: 1,
   },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  section: {
+    marginBottom: Spacing.l,
   },
-  createButton: {
-    paddingVertical: Spacing.m,
-    borderRadius: BorderRadius.button,
-    alignItems: "center",
-    marginTop: Spacing.l,
-  },
-  createButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
+  preferenceSection: {
+    marginBottom: Spacing.m,
+    paddingBottom: Spacing.m,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
   },
   colorGrid: {
     flexDirection: "row",
@@ -556,26 +477,41 @@ const styles = StyleSheet.create({
     marginTop: Spacing.s,
   },
   colorOption: {
-    width: 70,
-    height: 70,
-    borderRadius: BorderRadius.card,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-  },
-  colorLabel: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    width: "22%",
+    aspectRatio: 1,
+    borderRadius: BorderRadius.button,
+    justifyContent: "center",
     alignItems: "center",
   },
-  presetButtons: {
+  selectedChips: {
     flexDirection: "row",
-    gap: Spacing.m,
+    flexWrap: "wrap",
+    gap: Spacing.s,
+    marginTop: Spacing.s,
   },
-  presetButton: {
-    width: 140,
-    padding: Spacing.m,
-    borderRadius: BorderRadius.card,
-    borderWidth: 1,
+  chip: {
+    paddingHorizontal: Spacing.m,
+    paddingVertical: Spacing.s,
+    borderRadius: BorderRadius.button,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.s,
+    marginTop: Spacing.s,
+  },
+  optionButton: {
+    flex: 1,
+    minWidth: "45%",
+    paddingVertical: Spacing.m,
+    paddingHorizontal: Spacing.s,
+    borderRadius: BorderRadius.button,
     alignItems: "center",
+  },
+  createButton: {
+    paddingVertical: Spacing.m,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+    marginTop: Spacing.l,
   },
 });

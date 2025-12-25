@@ -41,16 +41,9 @@ export const appRouter = router({
           name: z.string().min(1).max(255),
           eventDate: z.string(), // ISO date string
           conditions: z.object({
-            colorCategory: z.enum(["warm", "cool", "neutral"]).optional(),
-            tone: z.enum(["pastel", "vivid", "dark", "neutral"]).optional(),
-            specificColors: z.array(z.enum(["red", "green", "yellow", "blue", "pink", "purple", "orange", "white", "black", "brown", "gray", "gold", "silver"])).optional(),
-            patternRules: z
-              .object({
-                allowFloral: z.boolean(),
-                floralMaxCount: z.number().optional(),
-                patternPreferences: z.array(z.enum(["solid", "floral", "stripe", "dot", "check", "geometric", "animal", "other"])).optional(),
-              })
-              .optional(),
+            colorPreferences: z.array(z.array(z.string())).optional(),
+            tonePreferences: z.array(z.enum(["pastel", "vivid", "dark", "neutral"])).optional(),
+            patternPreferences: z.array(z.enum(["solid", "floral", "stripe", "dot", "check", "geometric", "animal", "other"])).optional(),
             avoidSimilarColors: z.boolean(),
             recentUsageExcludeDays: z.number().default(30),
           }),
