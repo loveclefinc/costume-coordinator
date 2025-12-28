@@ -24,13 +24,14 @@ interface CostumeData {
   name: string;
   imageUri: string;
   thumbnailUri: string;
+  wearingPhotos?: string[];
   colors: {
     primary: string;
     secondary?: string;
   };
   colorCategory: "warm" | "cool" | "neutral";
   tone: "pastel" | "vivid" | "dark" | "neutral";
-  pattern: "solid" | "floral" | "stripe" | "dot" | "other";
+  pattern: "solid" | "floral" | "stripe" | "dot" | "check" | "geometric" | "animal" | "other";
   tags: string[];
   usageHistory: Array<{ eventId: string; date: string }>;
   createdAt: string;
@@ -78,6 +79,30 @@ export default function CostumesListScreen() {
       onPress={() => router.push(`/costume-detail?id=${item.id}` as any)}
     >
       <Image source={{ uri: item.imageUri }} style={styles.costumeImage} />
+      
+      {/* Wearing Photos Thumbnails */}
+      {item.wearingPhotos && item.wearingPhotos.length > 0 && (
+        <View style={styles.wearingPhotosThumbnails}>
+          {item.wearingPhotos.slice(0, 3).map((photo, index) => (
+            <Image
+              key={index}
+              source={{ uri: photo }}
+              style={[
+                styles.wearingPhotoThumbnail,
+                { marginLeft: index > 0 ? -12 : 0 },
+              ]}
+            />
+          ))}
+          {item.wearingPhotos.length > 3 && (
+            <View style={styles.morePhotosIndicator}>
+              <ThemedText style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "bold" }}>
+                +{item.wearingPhotos.length - 3}
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      )}
+      
       <View style={styles.costumeInfo}>
         <ThemedText type="defaultSemiBold" numberOfLines={1}>
           {item.name}
@@ -438,5 +463,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#CCCCCC",
+  },
+  wearingPhotosThumbnails: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 8,
+    paddingRight: 8,
+  },
+  wearingPhotoThumbnail: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  morePhotosIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: -12,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
 });

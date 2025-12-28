@@ -35,6 +35,8 @@ interface OptimizationProposal {
     costumeName: string;
     priority: number;
     thumbnailUrl?: string;
+    imageUri?: string;
+    wearingPhotos?: string[];
   }>;
   violations: string[];
 }
@@ -129,7 +131,12 @@ export default function OptimizationResultsScreen() {
   const renderAssignmentCard = ({ item }: { item: OptimizationProposal["assignments"][0] }) => (
     <View style={[styles.assignmentCard, { backgroundColor: colors.card }]}>
       <View style={styles.assignmentHeader}>
-        <ThemedText type="defaultSemiBold">{item.participantName}</ThemedText>
+        <View style={{ flex: 1 }}>
+          <ThemedText type="defaultSemiBold">{item.participantName}</ThemedText>
+          <ThemedText style={{ color: colors.textSecondary, marginTop: Spacing.s }}>
+            {item.costumeName}
+          </ThemedText>
+        </View>
         <View
           style={[
             styles.priorityBadge,
@@ -141,9 +148,28 @@ export default function OptimizationResultsScreen() {
           <ThemedText style={styles.priorityText}>第{item.priority}希望</ThemedText>
         </View>
       </View>
-      <ThemedText style={{ color: colors.textSecondary, marginTop: Spacing.s }}>
-        {item.costumeName}
-      </ThemedText>
+      
+      {/* Costume Image and Wearing Photos */}
+      <View style={styles.costumeImageContainer}>
+        {item.imageUri && (
+          <Image source={{ uri: item.imageUri }} style={styles.costumeMainImage} />
+        )}
+        
+        {item.wearingPhotos && item.wearingPhotos.length > 0 && (
+          <View style={styles.wearingPhotosPreview}>
+            {item.wearingPhotos.slice(0, 2).map((photo, index) => (
+              <Image
+                key={index}
+                source={{ uri: photo }}
+                style={[
+                  styles.wearingPhotoPreview,
+                  { marginLeft: index > 0 ? -8 : 0 },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
     </View>
   );
 
@@ -543,5 +569,27 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  costumeImageContainer: {
+    marginTop: Spacing.m,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: Spacing.m,
+  },
+  costumeMainImage: {
+    width: 80,
+    height: 120,
+    borderRadius: BorderRadius.button,
+  },
+  wearingPhotosPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  wearingPhotoPreview: {
+    width: 60,
+    height: 90,
+    borderRadius: BorderRadius.button,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
 });

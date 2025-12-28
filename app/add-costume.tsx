@@ -42,6 +42,7 @@ interface CostumeData {
   name: string;
   imageUri: string;
   thumbnailUri: string;
+  wearingPhotos?: string[]; // 着用写真のURI配列
   colors: {
     primary: string;
     secondary?: string;
@@ -70,6 +71,7 @@ export default function AddCostumeScreen() {
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [wearingPhotos, setWearingPhotos] = useState<string[]>([]);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -171,6 +173,7 @@ export default function AddCostumeScreen() {
         name: name.trim(),
         imageUri,
         thumbnailUri: thumbnailUri || imageUri,
+        wearingPhotos: wearingPhotos.length > 0 ? wearingPhotos : undefined,
         colors: {
           primary: primaryColor,
         },
@@ -617,4 +620,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
+  wearingPhotosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.m,
+    marginTop: Spacing.m,
+  },
+  wearingPhotoItem: {
+    position: "relative",
+    width: "30%",
+    aspectRatio: 3 / 4,
+    borderRadius: BorderRadius.button,
+    overflow: "hidden",
+  },
+  wearingPhoto: {
+    width: "100%",
+    height: "100%",
+  },
+  removePhotoButton: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  wearingPhotoButtons: {
+    flexDirection: "row",
+    gap: Spacing.m,
+    marginTop: Spacing.m,
+  },
+  wearingPhotoButton: {
+    flex: 1,
+    paddingVertical: Spacing.m,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+  },
+  wearingPhotoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
 });
