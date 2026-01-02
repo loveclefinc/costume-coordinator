@@ -73,6 +73,30 @@ export default function AddCostumeScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [wearingPhotos, setWearingPhotos] = useState<string[]>([]);
 
+  const addWearingPhoto = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      Alert.alert("権限が必要です", "ギャラリーへのアクセス権限を許可してください");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setWearingPhotos([...wearingPhotos, result.assets[0].uri]);
+    }
+  };
+
+  const removeWearingPhoto = (index: number) => {
+    setWearingPhotos(wearingPhotos.filter((_, i) => i !== index));
+  };
+
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -480,6 +504,31 @@ export default function AddCostumeScreen() {
           </View>
         </View>
 
+        {/* Wearing Photos */}
+        <View style={styles.inputSection}>
+          <ThemedText type="subtitle">着用写真 (複数選択可能)</ThemedText>
+          <View style={styles.wearingPhotosContainer}>
+            {wearingPhotos.map((photo, index) => (
+              <View key={index} style={styles.wearingPhotoWrapper}>
+                <Image source={{ uri: photo }} style={styles.wearingPhoto} />
+                <Pressable
+                  style={[styles.removePhotoButton, { backgroundColor: colors.error }]}
+                  onPress={() => removeWearingPhoto(index)}
+                >
+                  <ThemedText style={{ color: "#FFFFFF", fontSize: 18 }}>×</ThemedText>
+                </Pressable>
+              </View>
+            ))}
+            <Pressable
+              style={[styles.addPhotoButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={addWearingPhoto}
+            >
+              <ThemedText style={{ fontSize: 24 }}>+</ThemedText>
+              <ThemedText style={{ color: colors.textSecondary, fontSize: 12 }}>写真追加</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Tags Input */}
         <View style={styles.inputSection}>
           <ThemedText type="subtitle">タグ (カンマ区切り)</ThemedText>
@@ -663,6 +712,29 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  wearingPhotosContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.m,
+    marginTop: Spacing.m,
+  },
+  wearingPhotoWrapper: {
+    position: "relative",
+    width: "30%",
+    aspectRatio: 3 / 4,
+    borderRadius: BorderRadius.button,
+    overflow: "hidden",
+  },
+  addPhotoButton: {
+    width: "30%",
+    aspectRatio: 3 / 4,
+    borderRadius: BorderRadius.button,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: Spacing.s,
   },
 
 });

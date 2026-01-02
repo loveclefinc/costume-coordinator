@@ -41,6 +41,7 @@ interface CostumeData {
   name: string;
   imageUri: string;
   thumbnailUri: string;
+  wearingPhotos?: string[];
   colors: {
     primary: string;
     secondary?: string;
@@ -238,6 +239,26 @@ export default function CostumeDetailScreen() {
       >
         {/* Image */}
         <Image source={{ uri: costume.imageUri }} style={styles.image} />
+
+        {/* Wearing Photos Gallery */}
+        {costume.wearingPhotos && costume.wearingPhotos.length > 0 && (
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <ThemedText type="subtitle">着用写真</ThemedText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.wearingPhotosScroll}
+            >
+              {costume.wearingPhotos.map((photo, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: photo }}
+                  style={styles.wearingPhotoGallery}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Name Section */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -602,5 +623,14 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  wearingPhotosScroll: {
+    marginTop: Spacing.s,
+  },
+  wearingPhotoGallery: {
+    width: 120,
+    height: 160,
+    borderRadius: BorderRadius.button,
+    marginRight: Spacing.m,
   },
 });

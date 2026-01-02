@@ -16,6 +16,7 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
+import { Share, Alert } from "react-native";
 
 interface ScoreBreakdown {
   priorityScore: number;
@@ -51,9 +52,34 @@ export default function OptimizationResultsScreen() {
   const [selectedProposalIndex, setSelectedProposalIndex] = useState(0);
   const [proposals, setProposals] = useState<OptimizationProposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   const { data: event } = trpc.events.list.useQuery();
   const currentEvent = event?.find((e) => e.id === eventId);
+
+  const handleShare = async () => {
+    try {
+      setIsSharing(true);
+      const currentProposal = proposals[selectedProposalIndex];
+      
+      // Create share message
+      const assignmentText = currentProposal.assignments
+        .map((a) => `${a.participantName}: ${a.costumeName}`)
+        .join("\n");
+      
+      const message = `${currentEvent?.name || "イベント"}の衣装割り当て\n\n${assignmentText}\n\nスコア: ${currentProposal.score}点`;
+      
+      await Share.share({
+        message,
+        title: `${currentEvent?.name || "イベント"}の衣装割り当て`,
+      });
+    } catch (error) {
+      console.error("Share error:", error);
+      Alert.alert("エラー", "共有に失敗しました");
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   useEffect(() => {
     loadResults();
@@ -437,10 +463,17 @@ export default function OptimizationResultsScreen() {
         ]}
       >
         <Pressable
+          style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+          onPress={handleShare}
+          disabled={isSharing}
+        >
+          <ThemedText style={styles.actionButtonText}>{isSharing ? "共有中..." : "📤 共有"}</ThemedText>
+        </Pressable>
+        <Pressable
           style={[styles.actionButton, { backgroundColor: colors.tint }]}
           onPress={() => router.back()}
         >
-          <ThemedText style={styles.actionButtonText}>この提案を確定</ThemedText>
+          <ThemedText style={styles.actionButtonText}>確定</ThemedText>
         </Pressable>
       </View>
     </ThemedView>
@@ -559,8 +592,11 @@ const styles = StyleSheet.create({
   },
   actionBar: {
     padding: Spacing.m,
+    flexDirection: "row",
+    gap: Spacing.m,
   },
   actionButton: {
+    flex: 1,
     paddingVertical: Spacing.m,
     borderRadius: BorderRadius.button,
     alignItems: "center",
