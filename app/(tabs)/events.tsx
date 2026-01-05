@@ -8,6 +8,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,14 @@ export default function EventsScreen() {
 
   const handleJoinByUrl = () => {
     router.push("/join-event" as any);
+  };
+
+  const handleConcertInfo = async () => {
+    try {
+      await WebBrowser.openBrowserAsync("https://concert-jp.info");
+    } catch (error) {
+      console.error("Failed to open concert info:", error);
+    }
   };
 
   const handleEventPress = (eventId: number) => {
@@ -87,6 +96,12 @@ export default function EventsScreen() {
         >
           <ThemedText style={styles.emptyButtonText}>URLから参加</ThemedText>
         </Pressable>
+        <Pressable
+          style={[styles.emptyButton, { backgroundColor: colors.warning || "#FF9800" }]}
+          onPress={handleConcertInfo}
+        >
+          <ThemedText style={styles.emptyButtonText}>🎤 コンサートを告知</ThemedText>
+        </Pressable>
       </View>
     </View>
   );
@@ -137,11 +152,11 @@ export default function EventsScreen() {
         />
       )}
 
-      {/* Join by URL button */}
+      {/* Action buttons */}
       {displayEvents.length > 0 && (
         <View
           style={[
-            styles.bottomButton,
+            styles.bottomButtons,
             {
               paddingBottom: Math.max(insets.bottom, Spacing.m) + 56,
               paddingHorizontal: Spacing.m,
@@ -153,6 +168,12 @@ export default function EventsScreen() {
             onPress={handleJoinByUrl}
           >
             <ThemedText style={styles.joinButtonText}>招待URLから参加</ThemedText>
+          </Pressable>
+          <Pressable
+            style={[styles.joinButton, { backgroundColor: colors.warning || "#FF9800" }]}
+            onPress={handleConcertInfo}
+          >
+            <ThemedText style={styles.joinButtonText}>🎤 コンサートを告知</ThemedText>
           </Pressable>
         </View>
       )}
@@ -236,6 +257,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  bottomButtons: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    gap: Spacing.m,
   },
   joinButton: {
     paddingVertical: Spacing.m,
