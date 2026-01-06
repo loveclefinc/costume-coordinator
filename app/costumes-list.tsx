@@ -47,6 +47,8 @@ export default function CostumesListScreen() {
   const [loading, setLoading] = useState(true);
   const [colorFilter, setColorFilter] = useState<"all" | "warm" | "cool" | "neutral">("all");
   const [patternFilter, setPatternFilter] = useState<"all" | "solid" | "floral" | "stripe" | "dot" | "check" | "geometric" | "animal" | "other">("all");
+  const [toneFilter, setToneFilter] = useState<"all" | "pastel" | "vivid" | "dark" | "neutral">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadCostumes();
@@ -70,7 +72,9 @@ export default function CostumesListScreen() {
   const filteredCostumes = costumes.filter((costume) => {
     const matchesColor = colorFilter === "all" || costume.colorCategory === colorFilter;
     const matchesPattern = patternFilter === "all" || costume.pattern === patternFilter;
-    return matchesColor && matchesPattern;
+    const matchesTone = toneFilter === "all" || costume.tone === toneFilter;
+    const matchesSearch = searchQuery === "" || costume.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesColor && matchesPattern && matchesTone && matchesSearch;
   });
 
   const renderCostumeCard = ({ item }: { item: CostumeData }) => (
@@ -240,6 +244,112 @@ export default function CostumesListScreen() {
             中間色
           </ThemedText>
         </Pressable>
+      </View>
+
+      {/* Tone Filter */}
+      <View style={styles.filterSection}>
+        <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: Spacing.s }}>
+          トーンで絞り込み
+        </ThemedText>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: toneFilter === "all" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setToneFilter("all")}
+            >
+              <ThemedText
+                style={{
+                  color: toneFilter === "all" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                すべて
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: toneFilter === "pastel" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setToneFilter("pastel")}
+            >
+              <ThemedText
+                style={{
+                  color: toneFilter === "pastel" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                パステル
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: toneFilter === "vivid" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setToneFilter("vivid")}
+            >
+              <ThemedText
+                style={{
+                  color: toneFilter === "vivid" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                鮮やか
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: toneFilter === "dark" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setToneFilter("dark")}
+            >
+              <ThemedText
+                style={{
+                  color: toneFilter === "dark" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                深い
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: toneFilter === "neutral" ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setToneFilter("neutral")}
+            >
+              <ThemedText
+                style={{
+                  color: toneFilter === "neutral" ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                中立
+              </ThemedText>
+            </Pressable>
+          </View>
+        </ScrollView>
       </View>
 
       {/* Pattern Filter */}
