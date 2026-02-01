@@ -9,20 +9,41 @@ import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const [localEvents, setLocalEvents] = useState<any[]>([]);
+  const [isLoadingLocal, setIsLoadingLocal] = useState(true);
 
   // Allow local mode - fetch events only if authenticated
   const { data: events, isLoading, refetch } = trpc.events.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
-  // Use empty array if not authenticated (local mode)
-  const displayEvents = events || [];
+  // Load local events from AsyncStorage
+  useEffect(() => {
+    loadLocalEvents();
+  }, []);
+
+  const loadLocalEvents = async () => {
+    try {
+      const data = await AsyncStorage.getItem("local_events");
+      if (data) {
+        setLocalEvents(JSON.parse(data));
+      }
+    } catch (error) {
+      console.error("Failed to load local events:", error);
+    } finally {
+      setIsLoadingLocal(false);
+    }
+  };
+
+  // Use server events if authenticated, otherwise use local events
+  const displayEvents = isAuthenticated ? (events || []) : localEvents;
 
   const handleCreateEvent = () => {
     router.push("/create-event" as any);

@@ -16,6 +16,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import { EVENT_PRESETS, type EventPreset } from "@/lib/event-presets";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/hooks/use-auth";
 
 const PATTERN_OPTIONS = [
   { value: "solid", label: "無地" },
@@ -61,6 +63,7 @@ export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const { isAuthenticated } = useAuth();
 
   const [name, setName] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -84,8 +87,26 @@ export default function CreateEventScreen() {
   const [avoidSimilarColors, setAvoidSimilarColors] = useState(true);
   const [recentUsageExcludeDays, setRecentUsageExcludeDays] = useState("30");
   const [loading, setLoading] = useState(false);
-
   const createEventMutation = trpc.events.create.useMutation();
+
+  // Save local event to AsyncStorage
+  const saveLocalEvent = async (eventData: any) => {
+    try {
+      const existingEvents = await AsyncStorage.getItem("local_events");
+      const events = existingEvents ? JSON.parse(existingEvents) : [];
+      const newEvent = {
+        id: Date.now(),
+        ...eventData,
+        createdAt: new Date().toISOString(),
+      };
+      events.push(newEvent);
+      await AsyncStorage.setItem("local_events", JSON.stringify(events));
+      return newEvent;
+    } catch (error) {
+      console.error("Failed to save local event:", error);
+      throw error;
+    }
+  };
 
   const createEvent = async () => {
     if (!name.trim() || !eventDate.trim()) {
@@ -110,28 +131,56 @@ export default function CreateEventScreen() {
         (p): p is PatternType => p !== null
       );
 
-      const result = await createEventMutation.mutateAsync({
-        name: name.trim(),
-        eventDate: new Date(eventDate).toISOString(),
-        conditions: {
-          colorPreferences: colorPreferences.length > 0 ? colorPreferences : undefined,
-          tonePreferences: tonePreferences.length > 0 ? tonePreferences : undefined,
-          patternPreferences: patternPreferences.length > 0 ? patternPreferences : undefined,
-          avoidSimilarColors,
-          recentUsageExcludeDays: parseInt(recentUsageExcludeDays, 10),
-        },
-      });
-
-      Alert.alert(
-        "イベント作成完了",
-        `招待コード: ${result.inviteCode}\n\nこのコードを共有してください`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
+      // Use local mode if not authenticated
+      if (!isAuthenticated) {
+        const localEvent = await saveLocalEvent({
+          name: name.trim(),
+          eventDate: new Date(eventDate).toISOString(),
+          conditions: {
+            colorPreferences: colorPreferences.length > 0 ? colorPreferences : undefined,
+            tonePreferences: tonePreferences.length > 0 ? tonePreferences : undefined,
+            patternPreferences: patternPreferences.length > 0 ? patternPreferences : undefined,
+            avoidSimilarColors,
+            recentUsageExcludeDays: parseInt(recentUsageExcludeDays, 10),
           },
-        ],
-      );
+          status: "active",
+          participants: [],
+        });
+
+        Alert.alert(
+          "イベント作成完了",
+          "ローカルモードでイベントが作成されました",
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ],
+        );
+      } else {
+        const result = await createEventMutation.mutateAsync({
+          name: name.trim(),
+          eventDate: new Date(eventDate).toISOString(),
+          conditions: {
+            colorPreferences: colorPreferences.length > 0 ? colorPreferences : undefined,
+            tonePreferences: tonePreferences.length > 0 ? tonePreferences : undefined,
+            patternPreferences: patternPreferences.length > 0 ? patternPreferences : undefined,
+            avoidSimilarColors,
+            recentUsageExcludeDays: parseInt(recentUsageExcludeDays, 10),
+          },
+        });
+
+        Alert.alert(
+          "イベント作成完了",
+          `招待コード: ${result.inviteCode}\n\nこのコードを共有してください`,
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ],
+        );
+      }
     } catch (error) {
       console.error("Failed to create event:", error);
       Alert.alert("エラー", "イベントの作成に失敗しました");
