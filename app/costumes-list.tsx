@@ -34,6 +34,7 @@ interface CostumeData {
   pattern: "solid" | "floral" | "stripe" | "dot" | "check" | "geometric" | "animal" | "other";
   tags: string[];
   usageHistory: Array<{ eventId: string; date: string }>;
+  scheduledUsageDates?: string[]; // ISO date strings for scheduled usage
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +50,7 @@ export default function CostumesListScreen() {
   const [patternFilter, setPatternFilter] = useState<"all" | "solid" | "floral" | "stripe" | "dot" | "check" | "geometric" | "animal" | "other">("all");
   const [toneFilter, setToneFilter] = useState<"all" | "pastel" | "vivid" | "dark" | "neutral">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [excludePeriodDays, setExcludePeriodDays] = useState<number | null>(null);
 
   useEffect(() => {
     loadCostumes();
@@ -74,7 +76,23 @@ export default function CostumesListScreen() {
     const matchesPattern = patternFilter === "all" || costume.pattern === patternFilter;
     const matchesTone = toneFilter === "all" || costume.tone === toneFilter;
     const matchesSearch = searchQuery === "" || costume.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesColor && matchesPattern && matchesTone && matchesSearch;
+    
+    // Check if costume is scheduled for use within the exclude period
+    let isScheduledForUse = false;
+    if (excludePeriodDays !== null && costume.scheduledUsageDates && costume.scheduledUsageDates.length > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const excludeUntil = new Date(today);
+      excludeUntil.setDate(excludeUntil.getDate() + excludePeriodDays);
+      
+      isScheduledForUse = costume.scheduledUsageDates.some((dateStr) => {
+        const scheduleDate = new Date(dateStr);
+        scheduleDate.setHours(0, 0, 0, 0);
+        return scheduleDate >= today && scheduleDate <= excludeUntil;
+      });
+    }
+    
+    return matchesColor && matchesPattern && matchesTone && matchesSearch && !isScheduledForUse;
   });
 
   const renderCostumeCard = ({ item }: { item: CostumeData }) => (
@@ -452,6 +470,93 @@ export default function CostumesListScreen() {
                 }}
               >
                 ドット
+              </ThemedText>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Exclude Period Filter */}
+      <View style={styles.filterSection}>
+        <ThemedText style={{ fontSize: 14, fontWeight: "600", marginBottom: Spacing.s }}>
+          使用予定除外期間
+        </ThemedText>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: excludePeriodDays === null ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setExcludePeriodDays(null)}
+            >
+              <ThemedText
+                style={{
+                  color: excludePeriodDays === null ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                除外なし
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: excludePeriodDays === 3 ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setExcludePeriodDays(3)}
+            >
+              <ThemedText
+                style={{
+                  color: excludePeriodDays === 3 ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                3日
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: excludePeriodDays === 7 ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setExcludePeriodDays(7)}
+            >
+              <ThemedText
+                style={{
+                  color: excludePeriodDays === 7 ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                1週間
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: excludePeriodDays === 30 ? colors.tint : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setExcludePeriodDays(30)}
+            >
+              <ThemedText
+                style={{
+                  color: excludePeriodDays === 30 ? "#FFFFFF" : colors.text,
+                  fontSize: 14,
+                }}
+              >
+                1ヶ月
               </ThemedText>
             </Pressable>
           </View>
