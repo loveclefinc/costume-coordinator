@@ -144,9 +144,18 @@ export default function CreateEventScreen() {
     label: string,
     selectedColors: ColorType[],
     setSelectedColors: (colors: ColorType[]) => void
-  ) => (
+  ) => {
+    // Show placeholder when no colors are selected
+    const hasSelection = selectedColors.length > 0;
+    
+    return (
     <View style={styles.preferenceSection}>
       <ThemedText type="defaultSemiBold">{label}</ThemedText>
+      {!hasSelection && (
+        <ThemedText style={{ color: colors.textSecondary, fontSize: 14, marginTop: Spacing.s }}>
+          色を選択してください
+        </ThemedText>
+      )}
       <View style={styles.colorGrid}>
         {COLOR_OPTIONS.map((color) => (
           <Pressable
@@ -194,7 +203,8 @@ export default function CreateEventScreen() {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
   const renderToneSelector = (
     label: string,
