@@ -7,6 +7,7 @@ import {
   Alert,
   FlatList,
   Image,
+  TextInput,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,6 +41,15 @@ interface CostumeData {
   updatedAt: string;
 }
 
+interface Participant {
+  id: string;
+  name: string;
+  instrument: string;
+  photoUri?: string;
+  selectedCostumeId?: string;
+  createdAt: string;
+}
+
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -49,6 +59,10 @@ export default function EventDetailScreen() {
 
   const [costumes, setCostumes] = useState<CostumeData[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<Set<string>>(new Set());
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [participantName, setParticipantName] = useState("");
+  const [participantInstrument, setParticipantInstrument] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { data: event, isLoading: eventLoading } = trpc.events.list.useQuery();
@@ -58,6 +72,7 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     loadCostumes();
+    loadParticipants();
   }, []);
 
   const loadCostumes = async () => {
@@ -69,6 +84,53 @@ export default function EventDetailScreen() {
     } catch (error) {
       console.error("Failed to load costumes:", error);
     }
+  };
+
+  const loadParticipants = async () => {
+    try {
+      const key = `event_participants_${eventId}`;
+      const data = await AsyncStorage.getItem(key);
+      if (data) {
+        setParticipants(JSON.parse(data));
+      }
+    } catch (error) {
+      console.error("Failed to load participants:", error);
+    }
+  };
+
+  const saveParticipants = async (newParticipants: Participant[]) => {
+    try {
+      const key = `event_participants_${eventId}`;
+      await AsyncStorage.setItem(key, JSON.stringify(newParticipants));
+      setParticipants(newParticipants);
+    } catch (error) {
+      console.error("Failed to save participants:", error);
+    }
+  };
+
+  const addParticipant = async () => {
+    if (!participantName.trim() || !participantInstrument.trim()) {
+      Alert.alert("入力エラー", "名前と楽器を入力してください");
+      return;
+    }
+
+    const newParticipant: Participant = {
+      id: Date.now().toString(),
+      name: participantName.trim(),
+      instrument: participantInstrument.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedParticipants = [...participants, newParticipant];
+    await saveParticipants(updatedParticipants);
+    setParticipantName("");
+    setParticipantInstrument("");
+    setShowAddParticipant(false);
+  };
+
+  const removeParticipant = async (participantId: string) => {
+    const updatedParticipants = participants.filter((p) => p.id !== participantId);
+    await saveParticipants(updatedParticipants);
   };
 
   const toggleCostumeSelection = (costumeId: string) => {
@@ -236,7 +298,7 @@ export default function EventDetailScreen() {
         </View>
         <View style={styles.infoRow}>
           <ThemedText style={{ color: colors.textSecondary }}>👥 参加者:</ThemedText>
-          <ThemedText>0人</ThemedText>
+          <ThemedText>{participants.length}人</ThemedText>
         </View>
         
         {/* Color Category */}
@@ -286,6 +348,66 @@ export default function EventDetailScreen() {
                 </View>
               ))}
             </View>
+          </View>
+        )}
+      </View>
+
+      {/* Participants Section */}
+      <View style={[styles.section, { backgroundColor: colors.card, marginHorizontal: Spacing.m, marginTop: Spacing.m, borderRadius: BorderRadius.card, padding: Spacing.m }]}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.m }}>
+          <ThemedText type="subtitle">参加者管理</ThemedText>
+          <Pressable
+            style={[styles.addButton, { backgroundColor: colors.tint }]}
+            onPress={() => setShowAddParticipant(!showAddParticipant)}
+          >
+            <ThemedText style={{ color: "#FFFFFF", fontSize: 16 }}>+</ThemedText>
+          </Pressable>
+        </View>
+
+        {showAddParticipant && (
+          <View style={{ marginBottom: Spacing.m, gap: Spacing.s }}>
+            <TextInput
+              placeholder="名前を入力"
+              value={participantName}
+              onChangeText={setParticipantName}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholderTextColor={colors.textSecondary}
+            />
+            <TextInput
+              placeholder="担当楽器を入力（例：バイオリン）"
+              value={participantInstrument}
+              onChangeText={setParticipantInstrument}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholderTextColor={colors.textSecondary}
+            />
+            <Pressable
+              style={[styles.addButton, { backgroundColor: colors.tint, paddingVertical: Spacing.m }]}
+              onPress={addParticipant}
+            >
+              <ThemedText style={{ color: "#FFFFFF", fontWeight: "600" }}>参加者を追加</ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {participants.length > 0 && (
+          <View style={{ gap: Spacing.s }}>
+            {participants.map((participant) => (
+              <View
+                key={participant.id}
+                style={[styles.participantCard, { backgroundColor: colors.elevated, borderColor: colors.border, borderWidth: 1 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold">{participant.name}</ThemedText>
+                  <ThemedText style={{ color: colors.textSecondary, fontSize: 12 }}>{participant.instrument}</ThemedText>
+                </View>
+                <Pressable
+                  onPress={() => removeParticipant(participant.id)}
+                  style={{ padding: Spacing.s }}
+                >
+                  <ThemedText style={{ color: "#FF3B30", fontSize: 16 }}>×</ThemedText>
+                </Pressable>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -475,5 +597,28 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  section: {
+    marginVertical: Spacing.s,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.button,
+    paddingHorizontal: Spacing.m,
+    paddingVertical: Spacing.s,
+    fontSize: 14,
+  },
+  addButton: {
+    paddingHorizontal: Spacing.m,
+    paddingVertical: Spacing.s,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  participantCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.m,
+    borderRadius: BorderRadius.button,
   },
 });
