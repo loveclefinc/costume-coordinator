@@ -20,8 +20,11 @@ import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colorNameToHex, type ColorName } from "@/lib/color-utils";
+import { Share } from "react-native";
 
 const COSTUMES_STORAGE_KEY = "costumes";
+const EVENTS_STORAGE_KEY = "events";
+const PARTICIPANTS_STORAGE_KEY = "event_participants";
 
 interface CostumeData {
   id: string;
@@ -212,6 +215,21 @@ export default function EventDetailScreen() {
       Alert.alert("エラー", "最適化の実行に失敗しました");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const shareEventInfo = async () => {
+    try {
+      const conditions = currentEvent?.conditions || {};
+      const message = `イベント: ${currentEvent?.name}\n日程: ${currentEvent?.eventDate}\n参加者: ${participants.length}名`;
+
+      await Share.share({
+        message,
+        title: "イベント情報を共有",
+      });
+    } catch (error) {
+      console.error("Failed to share event info:", error);
+      Alert.alert("エラー", "共有に失敗しました");
     }
   };
 
@@ -477,6 +495,16 @@ export default function EventDetailScreen() {
           ) : (
             <ThemedText style={styles.actionButtonText}>最適化実行</ThemedText>
           )}
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionButton,
+            { backgroundColor: "#666666" },
+          ]}
+          onPress={shareEventInfo}
+        >
+          <ThemedText style={styles.actionButtonText}>共有</ThemedText>
         </Pressable>
       </View>
     </ThemedView>
