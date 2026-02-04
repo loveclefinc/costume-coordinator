@@ -23,6 +23,7 @@ import { colorNameToHex, type ColorName } from "@/lib/color-utils";
 import { Share } from "react-native";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as ImagePicker from "expo-image-picker";
 
 const COSTUMES_STORAGE_KEY = "costumes";
 const EVENTS_STORAGE_KEY = "events";
@@ -53,6 +54,8 @@ interface Participant {
   instrument: string;
   photoUri?: string;
   selectedCostumeId?: string;
+  selectedCostumeName?: string;
+  selectedCostumeImage?: string;
   createdAt: string;
 }
 
@@ -136,6 +139,48 @@ export default function EventDetailScreen() {
 
   const removeParticipant = async (participantId: string) => {
     const updatedParticipants = participants.filter((p) => p.id !== participantId);
+    await saveParticipants(updatedParticipants);
+  };
+
+  const pickParticipantPhoto = async (participantId: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const updatedParticipants = participants.map((p) =>
+          p.id === participantId
+            ? { ...p, photoUri: result.assets[0].uri }
+            : p
+        );
+        await saveParticipants(updatedParticipants);
+      }
+    } catch (error) {
+      console.error("Failed to pick photo:", error);
+      Alert.alert("エラー", "写真の選択に失敗しました");
+    }
+  };
+
+  const updateParticipantCostume = async (
+    participantId: string,
+    costumeId: string,
+    costumeName: string,
+    costumeImage: string
+  ) => {
+    const updatedParticipants = participants.map((p) =>
+      p.id === participantId
+        ? {
+            ...p,
+            selectedCostumeId: costumeId,
+            selectedCostumeName: costumeName,
+            selectedCostumeImage: costumeImage,
+          }
+        : p
+    );
     await saveParticipants(updatedParticipants);
   };
 
@@ -439,12 +484,27 @@ export default function EventDetailScreen() {
             {participants.map((participant) => (
               <View
                 key={participant.id}
-                style={[styles.participantCard, { backgroundColor: colors.elevated, borderColor: colors.border, borderWidth: 1 }]}
+                style={[styles.participantCard, { backgroundColor: colors.elevated, borderColor: colors.border, borderWidth: 1, flexDirection: "row", alignItems: "center" }]}
               >
+                {participant.photoUri && (
+                  <Image
+                    source={{ uri: participant.photoUri }}
+                    style={{ width: 50, height: 50, borderRadius: 25, marginRight: Spacing.m }}
+                  />
+                )}
                 <View style={{ flex: 1 }}>
                   <ThemedText type="defaultSemiBold">{participant.name}</ThemedText>
                   <ThemedText style={{ color: colors.textSecondary, fontSize: 12 }}>{participant.instrument}</ThemedText>
+                  {participant.selectedCostumeName && (
+                    <ThemedText style={{ color: colors.tint, fontSize: 11, marginTop: 2 }}>衣装: {participant.selectedCostumeName}</ThemedText>
+                  )}
                 </View>
+                <Pressable
+                  onPress={() => pickParticipantPhoto(participant.id)}
+                  style={{ padding: Spacing.s }}
+                >
+                  <ThemedText style={{ fontSize: 16 }}>📷</ThemedText>
+                </Pressable>
                 <Pressable
                   onPress={() => removeParticipant(participant.id)}
                   style={{ padding: Spacing.s }}
@@ -685,5 +745,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: Spacing.m,
     borderRadius: BorderRadius.button,
+  },
+  smallButton: {
+    paddingHorizontal: Spacing.s,
+    paddingVertical: Spacing.s,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
