@@ -21,10 +21,13 @@ import { trpc } from "@/lib/trpc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colorNameToHex, type ColorName } from "@/lib/color-utils";
 import { Share } from "react-native";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 
 const COSTUMES_STORAGE_KEY = "costumes";
 const EVENTS_STORAGE_KEY = "events";
 const PARTICIPANTS_STORAGE_KEY = "event_participants";
+const SELECTED_COSTUMES_STORAGE_KEY = "event_selected_costumes";
 
 interface CostumeData {
   id: string;
@@ -229,6 +232,30 @@ export default function EventDetailScreen() {
       });
     } catch (error) {
       console.error("Failed to share event info:", error);
+      Alert.alert("エラー", "共有に失敗しました");
+    }
+  };
+
+  const exportParticipantsCostumesToPDF = async () => {
+    try {
+      if (participants.length === 0) {
+        Alert.alert("警告", "参加者が登録されていません");
+        return;
+      }
+
+      let message = `衣装情報 - ${currentEvent?.name}\n\n`;
+      for (const participant of participants) {
+        message += `${participant.name} (楽器: ${participant.instrument})\n`;
+      }
+
+      await Share.share({
+        message,
+        title: "衣装情報を共有",
+      });
+
+      Alert.alert("成功", "衣装情報を共有しました");
+    } catch (error) {
+      console.error("Failed to export:", error);
       Alert.alert("エラー", "共有に失敗しました");
     }
   };
@@ -505,6 +532,16 @@ export default function EventDetailScreen() {
           onPress={shareEventInfo}
         >
           <ThemedText style={styles.actionButtonText}>共有</ThemedText>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionButton,
+            { backgroundColor: "#FF6B6B" },
+          ]}
+          onPress={exportParticipantsCostumesToPDF}
+        >
+          <ThemedText style={styles.actionButtonText}>参加者情報を出力</ThemedText>
         </Pressable>
       </View>
     </ThemedView>
