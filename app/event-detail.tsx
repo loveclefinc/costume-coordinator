@@ -281,6 +281,57 @@ export default function EventDetailScreen() {
     }
   };
 
+  const generatePDF = async () => {
+    try {
+      if (participants.length === 0) {
+        Alert.alert("警告", "参加者が登録されていません");
+        return;
+      }
+
+      let pdfContent = `衣装情報レポート\n`;
+      pdfContent += `イベント: ${currentEvent?.name}\n`;
+      pdfContent += `開催日: ${new Date(currentEvent?.eventDate || "").toLocaleDateString("ja-JP")}\n`;
+      pdfContent += `\n参加者衣装情報:\n\n`;
+
+      for (const participant of participants) {
+        pdfContent += `${participant.name}\n`;
+        pdfContent += `  楽器: ${participant.instrument}\n`;
+        if (participant.selectedCostumeName) {
+          pdfContent += `  衣装: ${participant.selectedCostumeName}\n`;
+        }
+        pdfContent += `\n`;
+      }
+
+      const fileName = `costume_info_${currentEvent?.id}_${Date.now()}.txt`;
+      const filePath = `/tmp/${fileName}`;
+      
+      await FileSystem.writeAsStringAsync(filePath, pdfContent);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: "text/plain",
+          dialogTitle: "衣装情報を共有",
+        });
+      } else {
+        let message = `衣装情報 - ${currentEvent?.name}\n\n`;
+        for (const participant of participants) {
+          message += `${participant.name} (楽器: ${participant.instrument})`;
+          if (participant.selectedCostumeName) {
+            message += ` - 衣装: ${participant.selectedCostumeName}`;
+          }
+          message += `\n`;
+        }
+        await Share.share({
+          message,
+          title: "衣装情報を共有",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      Alert.alert("エラー", "PDF生成に失敗しました");
+    }
+  };
+
   const exportParticipantsCostumesToPDF = async () => {
     try {
       if (participants.length === 0) {
@@ -598,6 +649,16 @@ export default function EventDetailScreen() {
           style={[
             styles.actionButton,
             { backgroundColor: "#FF6B6B" },
+          ]}
+          onPress={generatePDF}
+        >
+          <ThemedText style={styles.actionButtonText}>PDF出力</ThemedText>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionButton,
+            { backgroundColor: "#FF9500" },
           ]}
           onPress={exportParticipantsCostumesToPDF}
         >
