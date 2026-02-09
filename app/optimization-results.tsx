@@ -17,6 +17,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import { Share, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface ScoreBreakdown {
   priorityScore: number;
@@ -42,6 +43,14 @@ interface OptimizationProposal {
   violations: string[];
 }
 
+interface ParticipantCostumeSelection {
+  participantId: string;
+  participantName: string;
+  selectedCostumeId: string;
+  selectedCostumeName: string;
+  selectedCostumeImage?: string;
+}
+
 export default function OptimizationResultsScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -53,9 +62,52 @@ export default function OptimizationResultsScreen() {
   const [proposals, setProposals] = useState<OptimizationProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [selections, setSelections] = useState<Map<string, ParticipantCostumeSelection>>(new Map());
 
   const { data: event } = trpc.events.list.useQuery();
   const currentEvent = event?.find((e) => e.id === eventId);
+
+  const handleSelectCostume = async (participantId: string, participantName: string, costumeId: number, costumeName: string, imageUri?: string) => {
+    try {
+      const newSelections = new Map(selections);
+      newSelections.set(participantId, {
+        participantId,
+        participantName,
+        selectedCostumeId: costumeId.toString(),
+        selectedCostumeName: costumeName,
+        selectedCostumeImage: imageUri,
+      });
+      setSelections(newSelections);
+      
+      // Save to AsyncStorage
+      const selectionsArray = Array.from(newSelections.values());
+      await AsyncStorage.setItem(
+        `event_selected_costumes_${eventId}`,
+        JSON.stringify(selectionsArray)
+      );
+      
+      Alert.alert("成功", `${participantName}の衣装を「${costumeName}」に選択しました`);
+    } catch (error) {
+      console.error("Failed to select costume:", error);
+      Alert.alert("エラー", "衣装選択に失敗しました");
+    }
+  };
+
+  const handleConfirmSelections = async () => {
+    try {
+      if (selections.size === 0) {
+        Alert.alert("警告", "衣装を選択してください");
+        return;
+      }
+      
+      // Save selections and navigate back
+      Alert.alert("成功", "衣装選択を確定しました");
+      router.back();
+    } catch (error) {
+      console.error("Failed to confirm selections:", error);
+      Alert.alert("エラー", "確定に失敗しました");
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -154,50 +206,79 @@ export default function OptimizationResultsScreen() {
     }
   };
 
-  const renderAssignmentCard = ({ item }: { item: OptimizationProposal["assignments"][0] }) => (
-    <View style={[styles.assignmentCard, { backgroundColor: colors.card }]}>
-      <View style={styles.assignmentHeader}>
-        <View style={{ flex: 1 }}>
-          <ThemedText type="defaultSemiBold">{item.participantName}</ThemedText>
-          <ThemedText style={{ color: colors.textSecondary, marginTop: Spacing.s }}>
-            {item.costumeName}
-          </ThemedText>
+  const renderAssignmentCard = ({ item }: { item: OptimizationProposal["assignments"][0] }) => {
+    const isSelected = selections.has(item.participantId.toString());
+    const selectedCostume = selections.get(item.participantId.toString());
+    
+    return (
+      <View style={[styles.assignmentCard, { backgroundColor: colors.card, borderWidth: isSelected ? 2 : 0, borderColor: isSelected ? colors.tint : "transparent" }]}>
+        <View style={styles.assignmentHeader}>
+          <View style={{ flex: 1 }}>
+            <ThemedText type="defaultSemiBold">{item.participantName}</ThemedText>
+            <ThemedText style={{ color: colors.textSecondary, marginTop: Spacing.s }}>
+              {isSelected ? selectedCostume?.selectedCostumeName : item.costumeName}
+            </ThemedText>
+          </View>
+          <View
+            style={[
+              styles.priorityBadge,
+              {
+                backgroundColor: item.priority === 1 ? colors.success : colors.warning,
+              },
+            ]}
+          >
+            <ThemedText style={styles.priorityText}>第{item.priority}希望</ThemedText>
+          </View>
         </View>
-        <View
+        
+        {/* Costume Image and Wearing Photos */}
+        <View style={styles.costumeImageContainer}>
+          {item.imageUri && (
+            <Image source={{ uri: item.imageUri }} style={styles.costumeMainImage} />
+          )}
+          
+          {item.wearingPhotos && item.wearingPhotos.length > 0 && (
+            <View style={styles.wearingPhotosPreview}>
+              {item.wearingPhotos.slice(0, 2).map((photo, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: photo }}
+                  style={[
+                    styles.wearingPhotoPreview,
+                    { marginLeft: index > 0 ? -8 : 0 },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+        
+        {/* Selection Button */}
+        <Pressable
           style={[
-            styles.priorityBadge,
+            styles.selectButton,
             {
-              backgroundColor: item.priority === 1 ? colors.success : colors.warning,
+              backgroundColor: isSelected ? colors.success : colors.tint,
+              marginTop: Spacing.m,
             },
           ]}
+          onPress={() =>
+            handleSelectCostume(
+              item.participantId.toString(),
+              item.participantName,
+              item.costumeId,
+              item.costumeName,
+              item.imageUri
+            )
+          }
         >
-          <ThemedText style={styles.priorityText}>第{item.priority}希望</ThemedText>
-        </View>
+          <ThemedText style={styles.selectButtonText}>
+            {isSelected ? "✓ 選択済み" : "この衣装を選択"}
+          </ThemedText>
+        </Pressable>
       </View>
-      
-      {/* Costume Image and Wearing Photos */}
-      <View style={styles.costumeImageContainer}>
-        {item.imageUri && (
-          <Image source={{ uri: item.imageUri }} style={styles.costumeMainImage} />
-        )}
-        
-        {item.wearingPhotos && item.wearingPhotos.length > 0 && (
-          <View style={styles.wearingPhotosPreview}>
-            {item.wearingPhotos.slice(0, 2).map((photo, index) => (
-              <Image
-                key={index}
-                source={{ uri: photo }}
-                style={[
-                  styles.wearingPhotoPreview,
-                  { marginLeft: index > 0 ? -8 : 0 },
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderProposalTab = ({ item, index }: { item: OptimizationProposal; index: number }) => (
     <Pressable
@@ -471,9 +552,9 @@ export default function OptimizationResultsScreen() {
         </Pressable>
         <Pressable
           style={[styles.actionButton, { backgroundColor: colors.tint }]}
-          onPress={() => router.back()}
+          onPress={handleConfirmSelections}
         >
-          <ThemedText style={styles.actionButtonText}>確定</ThemedText>
+          <ThemedText style={styles.actionButtonText}>衣装選択を確定</ThemedText>
         </Pressable>
       </View>
     </ThemedView>
@@ -627,5 +708,15 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.button,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  selectButton: {
+    paddingVertical: Spacing.m,
+    borderRadius: BorderRadius.button,
+    alignItems: "center",
+  },
+  selectButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
