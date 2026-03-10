@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costume Coordinator - ダウンロード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .features {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .features li {
+            color: #555;
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .download-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 30px;
+            color: white;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .download-section h3 {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+            border-color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border-color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .version-info {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        .version-info strong {
+            color: #667eea;
+        }
+
+        .requirements {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #856404;
+        }
+
+        .requirements strong {
+            color: #856404;
+        }
+
+        .faq {
+            margin-top: 40px;
+        }
+
+        .faq-item {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .faq-item h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .faq-item p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .footer p {
+            margin: 10px 0;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Costume Coordinator</h1>
+            <p>スマートな衣装コーディネーション管理アプリ</p>
+        </div>
+
+        <div class="card">
+            <h2>アプリについて</h2>
+            <p>Costume Coordinatorは、音楽イベントの参加者に対して、最適な衣装コーディネーションを提案するアプリです。</p>
+            
+            <h3 style="color: #667eea; margin-top: 20px; margin-bottom: 15px;">主な機能</h3>
+            <ul class="features">
+                <li>スーツ、ネクタイ、蝶ネクタイ、ワイシャツの統合管理</li>
+                <li>AI画像認識による衣装の色・素材・特徴抽出</li>
+                <li>参加者の楽器に基づいた最適な衣装推奨</li>
+                <li>複数デバイス間でのリアルタイム同期（Supabase）</li>
+                <li>8言語対応（日本語、英語、中国語、韓国語、スペイン語、フランス語、ドイツ語）</li>
+                <li>PDF出力・共有機能</li>
+                <li>使用履歴・統計表示</li>
+                <li>完全無料・オープンソース</li>
+            </ul>
+        </div>
+
+        <div class="download-section">
+            <h3>📱 ダウンロード</h3>
+            
+            <div class="version-info">
+                <strong>最新バージョン：</strong> v1.0.0<br>
+                <strong>リリース日：</strong> 2024年3月10日<br>
+                <strong>ファイルサイズ：</strong> 約80MB
+            </div>
+
+            <div class="download-buttons">
+                <a href="https://github.com/loveclefinc/costume-coordinator/releases/download/v1.0.0/app-release.apk" class="btn btn-primary">
+                    📥 APKをダウンロード
+                </a>
+                <a href="https://github.com/loveclefinc/costume-coordinator/releases/tag/v1.0.0" class="btn btn-secondary">
+                    📋 リリースノート
+                </a>
+            </div>
+
+            <div class="requirements">
+                <strong>⚠️ 必要な環境：</strong><br>
+                • Android 8.0以上<br>
+                • インターネット接続<br>
+                • ストレージ容量：100MB以上
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>インストール方法</h2>
+            
+            <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong>ステップ1：</strong> 上の「APKをダウンロード」ボタンをタップ<br><br>
+                <strong>ステップ2：</strong> ダウンロード完了後、ファイルをタップしてインストール<br><br>
+                <strong>ステップ3：</strong> 「インストール」を確認して完了<br><br>
+                <strong>ステップ4：</strong> ホーム画面から「Costume Coordinator」を起動
+            </div>
+
+            <p style="color: #666; font-size: 0.95em; margin-top: 20px;">
+                <strong>注意：</strong> 初回インストール時に、Playストア以外からのアプリインストールを許可する必要があります。設定 > セキュリティ > 提供元不明のアプリを許可 をオンにしてください。
+            </p>
+        </div>
+
+        <div class="card faq">
+            <h2>よくある質問</h2>
+
+            <div class="faq-item">
+                <h4>Q: 本当に無料ですか？</h4>
+                <p>A: はい、完全無料です。広告もなく、課金要素もありません。オープンソースプロジェクトとして開発されています。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: データはどこに保存されますか？</h4>
+                <p>A: ローカルストレージに保存されます。Supabaseを使用すれば、複数デバイス間でのクラウド同期も可能です。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: 複数デバイスでデータを共有できますか？</h4>
+                <p>A: はい、Supabaseを設定することで、複数デバイス間でのリアルタイム同期が可能です。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: サポートはありますか？</h4>
+                <p>A: GitHubのIssuesで機能リクエストやバグ報告ができます。コミュニティサポートを受けられます。</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Q: ソースコードは公開されていますか？</h4>
+                <p>A: はい、<a href="https://github.com/loveclefinc/costume-coordinator" style="color: #667eea; font-weight: 600;">GitHub</a>で完全に公開されています。</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>システム要件</h2>
+            <ul class="features">
+                <li>Android 8.0以上</li>
+                <li>RAM 2GB以上（推奨 4GB以上）</li>
+                <li>ストレージ容量 100MB以上</li>
+                <li>インターネット接続（クラウド同期時）</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Costume Coordinator. All rights reserved.</p>
+            <p>
+                <a href="https://github.com/loveclefinc/costume-coordinator">GitHub</a> | 
+                <a href="https://github.com/loveclefinc/costume-coordinator/issues">サポート</a>
+            </p>
+            <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.7;">
+                Made with ❤️ for music event coordinators
+            </p>
+        </div>
+    </div>
+</body>
+</html>
