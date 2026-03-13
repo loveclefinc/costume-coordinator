@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release with Expo EAS
 
 on:
   push:
@@ -30,42 +30,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      - name: Setup Expo CLI
+        run: npm install -g eas-cli
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Build with EAS
+        run: eas build --platform all --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK with Gradle
-        run: |
-          pnpm expo prebuild --clean
-          cd android
-          ./gradlew assembleRelease
-          cd ..
-
-      - name: Upload APK to artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
-          path: android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Download APK from artifacts
-        run: |
-          echo "APK built successfully!"
-          echo "APK location: android/app/build/outputs/apk/release/app-release.apk"
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
+          name: builds
+          path: |
+            *.apk
+            *.ipa
 
       - name: Notify on Success
         if: success()
         run: |
-          echo "✅ APK build successful!"
-          echo "Download from: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "✅ Build successful!"
+          echo "Expo Hosted: https://expo.dev/@loveclef.inc/costume-coordinator"
 
       - name: Notify on Failure
         if: failure()
         run: |
-          echo "❌ APK build failed!"
+          echo "❌ Build failed!"
           echo "Check logs for details"
