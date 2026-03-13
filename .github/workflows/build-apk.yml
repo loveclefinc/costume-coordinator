@@ -34,7 +34,9 @@ jobs:
         run: npm install -g eas-cli
 
       - name: Build with EAS
-        run: eas build --platform all --non-interactive
+        run: |
+          echo "EXPO_TOKEN is set: $([ -z "$EXPO_TOKEN" ] && echo 'NO' || echo 'YES')"
+          eas build --platform all --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
