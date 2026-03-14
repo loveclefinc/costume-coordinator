@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     
     steps:
       - name: Checkout code
@@ -37,8 +39,6 @@ jobs:
         run: |
           echo "EXPO_TOKEN is set: $([ -z "$EXPO_TOKEN" ] && echo 'NO' || echo 'YES')"
           eas build --platform all --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
