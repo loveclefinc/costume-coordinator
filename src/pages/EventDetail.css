@@ -1,0 +1,378 @@
+.event-detail-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1rem;
+  transition: opacity 0.2s;
+}
+
+.back-button:hover {
+  opacity: 0.8;
+}
+
+.event-detail-header {
+  margin-bottom: 2rem;
+}
+
+.event-detail-header h1 {
+  margin-bottom: 0.5rem;
+}
+
+.event-date {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.event-description {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.error-message {
+  background-color: #fee;
+  color: #c00;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #c00;
+}
+
+.event-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.section {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.section h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Participants Section */
+.participant-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.participant-input input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: var(--background);
+  color: var(--text);
+}
+
+.participant-input input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.add-button {
+  padding: 10px 20px;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.add-button:hover {
+  background-color: #0056b3;
+}
+
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.empty-text {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1rem;
+}
+
+.participant-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--background);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.participant-info h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+}
+
+.assigned-costume {
+  color: var(--primary);
+  font-size: 0.9rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.remove-button {
+  padding: 6px 12px;
+  background-color: #fee;
+  color: #c00;
+  border: 1px solid #c00;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.remove-button:hover {
+  background-color: #fdd;
+}
+
+/* Preferences Section */
+.preferences-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.preference-card {
+  background-color: var(--background);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+}
+
+.preference-card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.preference-ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rank-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rank-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rank-group select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: var(--background);
+  color: var(--text);
+}
+
+.rank-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Optimization Section */
+.optimization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.optimize-button {
+  padding: 10px 20px;
+  background-color: var(--success);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.optimize-button:hover {
+  background-color: #2ba84a;
+  transform: translateY(-2px);
+}
+
+.harmony-score {
+  background-color: var(--background);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  border: 2px solid var(--primary);
+}
+
+.harmony-score p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.harmony-score strong {
+  color: var(--primary);
+  font-size: 1.3rem;
+}
+
+.optimization-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.result-card {
+  background-color: var(--background);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 2px solid var(--primary);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.result-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.score {
+  background-color: var(--primary);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.result-costume {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.result-costume img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.costume-details {
+  flex: 1;
+}
+
+.costume-details h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.colors {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.color-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tone {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reasons p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .event-detail-page {
+    padding: 1rem;
+  }
+
+  .optimization-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .optimize-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .preferences-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .optimization-results {
+    grid-template-columns: 1fr;
+  }
+
+  .participant-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .remove-button {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+  }
+}

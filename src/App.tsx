@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import Navigation from './components/Navigation'
 import Home from './pages/Home'
 import Costumes from './pages/Costumes'
+import AddCostume from './pages/AddCostume'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
-import AddCostume from './pages/AddCostume'
 import './App.css'
 
 function App() {
