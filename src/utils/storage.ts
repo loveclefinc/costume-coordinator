@@ -1,0 +1,272 @@
+// IndexedDB storage utility for PWA local persistence
+
+const DB_NAME = 'CostumeCoordinator'
+const DB_VERSION = 1
+
+export interface Costume {
+  id: string
+  name: string
+  image: string // Base64 encoded image
+  colors: string[]
+  tone: string // 'warm' | 'cool' | 'neutral'
+  pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'
+  season: string[] // ['spring', 'summer', 'autumn', 'winter']
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Event {
+  id: string
+  name: string
+  date: string
+  description: string
+  participants: string[]
+  costumes: { [participantId: string]: string } // participantId -> costumeId
+  createdAt: number
+  updatedAt: number
+}
+
+export interface UsageHistory {
+  id: string
+  costumeId: string
+  eventId: string
+  participantName: string
+  usedAt: number
+}
+
+class CostumeStorage {
+  private db: IDBDatabase | null = null
+
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        this.db = request.result
+        resolve()
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+
+        // Create Costumes store
+        if (!db.objectStoreNames.contains('costumes')) {
+          const costumeStore = db.createObjectStore('costumes', { keyPath: 'id' })
+          costumeStore.createIndex('name', 'name', { unique: false })
+          costumeStore.createIndex('createdAt', 'createdAt', { unique: false })
+        }
+
+        // Create Events store
+        if (!db.objectStoreNames.contains('events')) {
+          const eventStore = db.createObjectStore('events', { keyPath: 'id' })
+          eventStore.createIndex('date', 'date', { unique: false })
+          eventStore.createIndex('createdAt', 'createdAt', { unique: false })
+        }
+
+        // Create Usage History store
+        if (!db.objectStoreNames.contains('usageHistory')) {
+          const historyStore = db.createObjectStore('usageHistory', { keyPath: 'id' })
+          historyStore.createIndex('costumeId', 'costumeId', { unique: false })
+          historyStore.createIndex('eventId', 'eventId', { unique: false })
+          historyStore.createIndex('usedAt', 'usedAt', { unique: false })
+        }
+      }
+    })
+  }
+
+  // Costume operations
+  async addCostume(costume: Costume): Promise<string> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes'], 'readwrite')
+      const store = transaction.objectStore('costumes')
+      const request = store.add(costume)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result as string)
+    })
+  }
+
+  async getCostume(id: string): Promise<Costume | undefined> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes'], 'readonly')
+      const store = transaction.objectStore('costumes')
+      const request = store.get(id)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async getAllCostumes(): Promise<Costume[]> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes'], 'readonly')
+      const store = transaction.objectStore('costumes')
+      const request = store.getAll()
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async updateCostume(costume: Costume): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes'], 'readwrite')
+      const store = transaction.objectStore('costumes')
+      const request = store.put(costume)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
+    })
+  }
+
+  async deleteCostume(id: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes'], 'readwrite')
+      const store = transaction.objectStore('costumes')
+      const request = store.delete(id)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
+    })
+  }
+
+  // Event operations
+  async addEvent(event: Event): Promise<string> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['events'], 'readwrite')
+      const store = transaction.objectStore('events')
+      const request = store.add(event)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result as string)
+    })
+  }
+
+  async getEvent(id: string): Promise<Event | undefined> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['events'], 'readonly')
+      const store = transaction.objectStore('events')
+      const request = store.get(id)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async getAllEvents(): Promise<Event[]> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['events'], 'readonly')
+      const store = transaction.objectStore('events')
+      const request = store.getAll()
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async updateEvent(event: Event): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['events'], 'readwrite')
+      const store = transaction.objectStore('events')
+      const request = store.put(event)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
+    })
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['events'], 'readwrite')
+      const store = transaction.objectStore('events')
+      const request = store.delete(id)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
+    })
+  }
+
+  // Usage History operations
+  async addUsageHistory(history: UsageHistory): Promise<string> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['usageHistory'], 'readwrite')
+      const store = transaction.objectStore('usageHistory')
+      const request = store.add(history)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result as string)
+    })
+  }
+
+  async getUsageHistoryByCostume(costumeId: string): Promise<UsageHistory[]> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['usageHistory'], 'readonly')
+      const store = transaction.objectStore('usageHistory')
+      const index = store.index('costumeId')
+      const request = index.getAll(costumeId)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async getRecentUsageHistory(days: number = 30): Promise<UsageHistory[]> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    const cutoffTime = Date.now() - days * 24 * 60 * 60 * 1000
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['usageHistory'], 'readonly')
+      const store = transaction.objectStore('usageHistory')
+      const index = store.index('usedAt')
+      const range = IDBKeyRange.lowerBound(cutoffTime)
+      const request = index.getAll(range)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async clearAllData(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['costumes', 'events', 'usageHistory'], 'readwrite')
+
+      transaction.objectStore('costumes').clear()
+      transaction.objectStore('events').clear()
+      transaction.objectStore('usageHistory').clear()
+
+      transaction.onerror = () => reject(transaction.error)
+      transaction.oncomplete = () => resolve()
+    })
+  }
+}
+
+// Export singleton instance
+export const storage = new CostumeStorage()
