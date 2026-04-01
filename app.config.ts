@@ -31,7 +31,7 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
-  newArchEnabled: false,
+  newArchEnabled: true,
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -89,7 +89,7 @@ const config: ExpoConfig = {
   },
   extra: {
     eas: {
-      projectId: "loveclef.inc/costume-coordinator",
+      projectId: "8e8250c6-4acb-4d7f-908e-7bea911ea27f",
     },
   },
 };
