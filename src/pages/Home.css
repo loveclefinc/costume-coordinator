@@ -1,0 +1,156 @@
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero {
+  text-align: center;
+  padding: 3rem 0;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: white;
+  border-radius: 12px;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.hero p {
+  font-size: 1.25rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.feature-card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.cta-section {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-button {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-block;
+  border: none;
+  cursor: pointer;
+}
+
+.cta-button.primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.cta-button.primary:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.cta-button.secondary {
+  background-color: var(--surface);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.cta-button.secondary:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.info-section {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.info-section h2 {
+  margin-top: 0;
+}
+
+.info-section ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.info-section li {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .home-page {
+    padding: 1rem;
+    gap: 2rem;
+  }
+
+  .hero {
+    padding: 2rem 1rem;
+  }
+
+  .hero h1 {
+    font-size: 1.75rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-section {
+    flex-direction: column;
+  }
+
+  .cta-button {
+    width: 100%;
+    text-align: center;
+  }
+}
