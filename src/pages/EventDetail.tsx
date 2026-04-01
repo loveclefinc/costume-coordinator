@@ -4,6 +4,7 @@ import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/optimizer'
+import { recordCostumeUsage } from '../utils/usage-tracker'
 import './EventDetail.css'
 
 export default function EventDetail() {
@@ -19,6 +20,8 @@ export default function EventDetail() {
   const [harmonyScore, setHarmonyScore] = useState(0)
   const [newParticipant, setNewParticipant] = useState('')
   const [participantPreferences, setParticipantPreferences] = useState<{ [key: string]: string[] }>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [isConfirmed, setIsConfirmed] = useState(false)
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -117,6 +120,26 @@ export default function EventDetail() {
       setEvent(updatedEvent)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Optimization failed')
+    }
+  }
+
+  const handleConfirmAssignments = async () => {
+    if (!event || optimizationResults.length === 0) return
+
+    setIsSaving(true)
+    try {
+      // Record usage history
+      const assignments: { [key: string]: string } = {}
+      optimizationResults.forEach(r => {
+        assignments[r.participantId] = r.costumeId
+      })
+
+      await recordCostumeUsage(event.id, assignments)
+      setIsConfirmed(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save assignments')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -248,6 +271,33 @@ export default function EventDetail() {
                   <p>調和スコア: <strong>{(harmonyScore * 100).toFixed(1)}%</strong></p>
                 </div>
 
+                {!isConfirmed && (
+                  <button
+                    onClick={handleConfirmAssignments}
+                    disabled={isSaving}
+                    className="confirm-button"
+                  >
+                    {isSaving ? '保存中...' : 'この組み合わせを確定'}
+                  </button>
+                )}
+
+                {isConfirmed && (
+                  <div className="confirmation-message">
+                    <p>✅ 組み合わせが確定されました。使用履歴に記録されました。</p>
+                    <button
+                      onClick={() => {
+                        setIsConfirmed(false)
+                        setOptimizationResults([])
+                        navigate('/events')
+                      }}
+                      className="back-to-events-button"
+                    >
+                      イベント一覧に戻る
+                    </button>
+                  </div>
+                )}
+
+                {!isConfirmed && (
                 <div className="optimization-results">
                   {optimizationResults.map((result) => (
                     <div key={result.participantId} className="result-card">
@@ -284,6 +334,7 @@ export default function EventDetail() {
                     </div>
                   ))}
                 </div>
+                )}
               </>
             )}
           </section>

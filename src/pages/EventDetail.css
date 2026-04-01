@@ -252,6 +252,61 @@
   font-size: 1.3rem;
 }
 
+.confirm-button {
+  background-color: #34c759;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 1rem;
+  width: 100%;
+  text-align: center;
+}
+
+.confirm-button:hover:not(:disabled) {
+  background-color: #2ba84a;
+  transform: translateY(-2px);
+}
+
+.confirm-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirmation-message {
+  background-color: #e8f5e9;
+  border: 2px solid #34c759;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.confirmation-message p {
+  color: #1b5e20;
+  font-size: 1.1rem;
+  margin: 0 0 1rem 0;
+  font-weight: 500;
+}
+
+.back-to-events-button {
+  background-color: var(--primary);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-to-events-button:hover {
+  background-color: #0056b3;
+}
+
 .optimization-results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -374,5 +429,13 @@
   .remove-button {
     align-self: flex-start;
     margin-top: 0.5rem;
+  }
+
+  .confirm-button {
+    width: 100%;
+  }
+
+  .confirmation-message {
+    padding: 1rem;
   }
 }
