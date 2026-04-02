@@ -1,14 +1,20 @@
 .add-costume-page {
-  padding: 2rem;
-  max-width: 600px;
+  padding: 2rem 1rem;
+  max-width: 100%;
   margin: 0 auto;
   width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-container {
   background-color: var(--surface);
   border-radius: 12px;
   padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .form-container h1 {
@@ -202,6 +208,7 @@
 
   .form-container {
     padding: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   .season-buttons {
@@ -210,5 +217,22 @@
 
   .form-actions {
     flex-direction: column;
+    gap: 0.75rem;
+    position: sticky;
+    bottom: 0;
+    background-color: var(--surface);
+    padding: 1rem 0;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .submit-button,
+  .cancel-button {
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+
+  .color-palette {
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
   }
 }
