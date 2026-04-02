@@ -204,6 +204,7 @@
 @media (max-width: 768px) {
   .add-costume-page {
     padding: 1rem;
+    margin-bottom: 2rem;
   }
 
   .form-container {
@@ -218,12 +219,8 @@
   .form-actions {
     flex-direction: column;
     gap: 0.75rem;
-    position: sticky;
-    bottom: 0;
-    background-color: var(--surface);
-    padding: 1rem 0;
     margin-top: 2rem;
-    border-top: 1px solid var(--border);
+    margin-bottom: 1rem;
   }
 
   .submit-button,

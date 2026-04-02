@@ -42,8 +42,9 @@ body {
 .main-content {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-top: 60px;
   padding-bottom: 60px;
 }
@@ -51,6 +52,7 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
   .main-content {
+    min-height: calc(100vh - 100px);
     padding-top: 50px;
     padding-bottom: 50px;
   }
