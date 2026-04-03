@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/optimizer'
 import { recordCostumeUsage } from '../utils/usage-tracker'
+import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
 import './EventDetail.css'
 
 export default function EventDetail() {
@@ -22,6 +23,7 @@ export default function EventDetail() {
   const [participantPreferences, setParticipantPreferences] = useState<{ [key: string]: string[] }>({})
   const [isSaving, setIsSaving] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -103,23 +105,10 @@ export default function EventDetail() {
         usageHistory,
       })
 
-      setOptimizationResults(results)
-      setHarmonyScore(calculateHarmonyScore(results))
-
-      // Save assignments
-      const assignments: { [key: string]: string } = {}
-      results.forEach(r => {
-        assignments[r.participantId] = r.costumeId
-      })
-
-      const updatedEvent = {
-        ...event,
-        costumes: assignments,
-      }
-      await updateEvent(event.id, updatedEvent)
-      setEvent(updatedEvent)
+      setOptimizationResults(results.assignments)
+      setHarmonyScore(results.harmonyScore)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Optimization failed')
+      setError(err instanceof Error ? err.message : 'Failed to optimize')
     }
   }
 
@@ -128,18 +117,130 @@ export default function EventDetail() {
 
     setIsSaving(true)
     try {
-      // Record usage history
-      const assignments: { [key: string]: string } = {}
-      optimizationResults.forEach(r => {
-        assignments[r.participantId] = r.costumeId
+      const costumesMap: { [key: string]: string } = {}
+      optimizationResults.forEach(result => {
+        costumesMap[result.participantName] = result.costume.id
       })
 
-      await recordCostumeUsage(event.id, assignments)
+      const updatedEvent = {
+        ...event,
+        costumes: costumesMap,
+        confirmed: true,
+      }
+
+      await updateEvent(event.id, updatedEvent)
+
+      for (const result of optimizationResults) {
+        await recordCostumeUsage(result.costume.id, event.id)
+      }
+
       setIsConfirmed(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save assignments')
+      setError(err instanceof Error ? err.message : 'Failed to confirm assignments')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleShareEvent = async () => {
+    if (!event) return
+    try {
+      const eventData = {
+        id: event.id,
+        name: event.name,
+        eventDate: event.date,
+        participants: event.participants.map((name: string) => ({
+          id: name,
+          name,
+          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+        })),
+        costumes: [],
+      }
+      await shareEvent(eventData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to share event')
+    }
+  }
+
+  const handleExportCSV = () => {
+    if (!event) return
+    try {
+      const eventData = {
+        id: event.id,
+        name: event.name,
+        eventDate: event.date,
+        participants: event.participants.map((name: string) => ({
+          id: name,
+          name,
+          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+        })),
+        costumes: optimizationResults.map(r => ({
+          participantId: r.participantId,
+          participantName: r.participantName,
+          costumeId: r.costume.id,
+          costumeName: r.costume.name,
+          colors: r.costume.colors,
+        })),
+      }
+      exportEventAsCSV(eventData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export CSV')
+    }
+  }
+
+  const handleExportJSON = () => {
+    if (!event) return
+    try {
+      const eventData = {
+        id: event.id,
+        name: event.name,
+        eventDate: event.date,
+        participants: event.participants.map((name: string) => ({
+          id: name,
+          name,
+          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+        })),
+        costumes: optimizationResults.map(r => ({
+          participantId: r.participantId,
+          participantName: r.participantName,
+          costumeId: r.costume.id,
+          costumeName: r.costume.name,
+          colors: r.costume.colors,
+        })),
+      }
+      exportEventAsJSON(eventData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export JSON')
+    }
+  }
+
+  const handleGenerateQR = async () => {
+    if (!event) return
+    try {
+      const url = await generateEventQRCode(event.id, event.name)
+      setQrCodeUrl(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate QR code')
+    }
+  }
+
+  const handleShareWithQR = async () => {
+    if (!event || !qrCodeUrl) return
+    try {
+      const eventData = {
+        id: event.id,
+        name: event.name,
+        eventDate: event.date,
+        participants: event.participants.map((name: string) => ({
+          id: name,
+          name,
+          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+        })),
+        costumes: [],
+      }
+      await shareEventWithQR(eventData, qrCodeUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to share with QR')
     }
   }
 
@@ -172,11 +273,37 @@ export default function EventDetail() {
         <h1>{event.name}</h1>
         <p className="event-date">📅 {new Date(event.date).toLocaleDateString('ja-JP')}</p>
         {event.description && <p className="event-description">{event.description}</p>}
+        
+        <div className="event-actions">
+          <button onClick={handleShareEvent} className="action-button share-button" title="イベント情報を共有">
+            📤 共有
+          </button>
+          <button onClick={handleExportCSV} className="action-button export-button" title="CSV形式でエクスポート">
+            📊 CSV
+          </button>
+          <button onClick={handleExportJSON} className="action-button export-button" title="JSON形式でエクスポート">
+            📋 JSON
+          </button>
+          <button onClick={handleGenerateQR} className="action-button qr-button" title="QRコードを生成">
+            🔲 QR
+          </button>
+        </div>
+        
+        {qrCodeUrl && (
+          <div className="qr-code-section">
+            <h3>イベント参加用QRコード</h3>
+            <img src={qrCodeUrl} alt="Event QR Code" className="qr-code-image" />
+            <button onClick={handleShareWithQR} className="action-button share-button">
+              🔲📤 QRコードを共有
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
         <div className="error-message">
-          {error}
+          <p>{error}</p>
+          <button onClick={() => setError('')} className="close-error">×</button>
         </div>
       )}
 
@@ -272,13 +399,18 @@ export default function EventDetail() {
                 </div>
 
                 {!isConfirmed && (
-                  <button
-                    onClick={handleConfirmAssignments}
-                    disabled={isSaving}
-                    className="confirm-button"
-                  >
-                    {isSaving ? '保存中...' : 'この組み合わせを確定'}
-                  </button>
+                  <div className="confirmation-actions">
+                    <button
+                      onClick={handleConfirmAssignments}
+                      disabled={isSaving}
+                      className="confirm-button"
+                    >
+                      {isSaving ? '保存中...' : 'この組み合わせを確定'}
+                    </button>
+                    <button onClick={handleExportCSV} className="action-button export-button">
+                      📊 結果をCSVで出力
+                    </button>
+                  </div>
                 )}
 
                 {isConfirmed && (
