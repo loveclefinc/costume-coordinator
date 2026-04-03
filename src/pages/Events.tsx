@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
+import { ConcertLink } from '../components/ConcertLink'
 import './Events.css'
 
 export default function Events() {
@@ -120,6 +121,10 @@ export default function Events() {
           >
             最初のイベントを作成する
           </button>
+          <div className="concert-section">
+            <p>コンサート情報を確認:</p>
+            <ConcertLink variant="button" size="medium" />
+          </div>
         </div>
       ) : (
         <div className="events-list">

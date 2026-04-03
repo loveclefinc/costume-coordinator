@@ -1,0 +1,61 @@
+.concert-button,
+.concert-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  background-color: #FF9800;
+  color: white;
+  font-family: inherit;
+}
+
+.concert-button:hover,
+.concert-link:hover {
+  background-color: #F57C00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+}
+
+.concert-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(255, 152, 0, 0.2);
+}
+
+/* Size variants */
+.concert-button-small,
+.concert-link-small {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.concert-button-medium,
+.concert-link-medium {
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.concert-button-large,
+.concert-link-large {
+  padding: 14px 28px;
+  font-size: 1.125rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .concert-button,
+  .concert-link {
+    background-color: #FF9800;
+    color: white;
+  }
+
+  .concert-button:hover,
+  .concert-link:hover {
+    background-color: #FFB74D;
+  }
+}

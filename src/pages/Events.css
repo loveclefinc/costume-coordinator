@@ -131,6 +131,22 @@
   transform: translateY(-2px);
 }
 
+.concert-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.concert-section p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
 .events-list {
   display: flex;
   flex-direction: column;
