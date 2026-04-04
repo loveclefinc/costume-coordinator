@@ -15,6 +15,27 @@ export interface Costume {
   updatedAt: number
 }
 
+export interface EventThemePreferences {
+  // Color preferences (1st/2nd/3rd choice)
+  colors1stChoice: string[] // Array of color names
+  colors2ndChoice: string[]
+  colors3rdChoice: string[]
+  
+  // Tone preferences (1st/2nd/3rd choice)
+  tones1stChoice: string[] // 'warm' | 'cool' | 'neutral' | 'pastel' | 'vivid' | 'dark'
+  tones2ndChoice: string[]
+  tones3rdChoice: string[]
+  
+  // Pattern preferences (1st/2nd/3rd choice)
+  patterns1stChoice: string[] // 'plain' | 'floral' | 'stripe' | 'dot' | 'check' | 'geometric' | 'animal'
+  patterns2ndChoice: string[]
+  patterns3rdChoice: string[]
+  
+  // Additional settings
+  avoidSimilarColors: boolean
+  recentUsageExcludeDays: number
+}
+
 export interface Event {
   id: string
   name: string
@@ -22,6 +43,7 @@ export interface Event {
   description: string
   participants: string[]
   costumes: { [participantId: string]: string } // participantId -> costumeId
+  themePreferences?: EventThemePreferences // Optional for backward compatibility
   createdAt: number
   updatedAt: number
 }

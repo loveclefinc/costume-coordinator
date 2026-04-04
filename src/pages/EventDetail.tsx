@@ -103,6 +103,7 @@ export default function EventDetail() {
         participants,
         costumes,
         usageHistory,
+        themePreferences: event.themePreferences,
       })
 
       setOptimizationResults(results.assignments)
@@ -308,6 +309,119 @@ export default function EventDetail() {
       )}
 
       <div className="event-detail-content">
+        {/* Theme Preferences Section */}
+        {event.themePreferences && (
+          <section className="section theme-preferences-section">
+            <h2>🎨 イベントテーマ設定</h2>
+            <div className="theme-preferences-display">
+              {event.themePreferences.colors1stChoice.length > 0 && (
+                <div className="preference-display">
+                  <h4>色の好み</h4>
+                  <div className="preference-items">
+                    {event.themePreferences.colors1stChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第1希望:</span>
+                        <div className="color-display">
+                          {event.themePreferences.colors1stChoice.map(color => (
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {event.themePreferences.colors2ndChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第2希望:</span>
+                        <div className="color-display">
+                          {event.themePreferences.colors2ndChoice.map(color => (
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {event.themePreferences.colors3rdChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <div className="color-display">
+                          {event.themePreferences.colors3rdChoice.map(color => (
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {event.themePreferences.tones1stChoice.length > 0 && (
+                <div className="preference-display">
+                  <h4>トーンの好み</h4>
+                  <div className="preference-items">
+                    {event.themePreferences.tones1stChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第1希望:</span>
+                        <span className="tone-tags">{event.themePreferences.tones1stChoice.join(', ')}</span>
+                      </div>
+                    )}
+                    {event.themePreferences.tones2ndChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第2希望:</span>
+                        <span className="tone-tags">{event.themePreferences.tones2ndChoice.join(', ')}</span>
+                      </div>
+                    )}
+                    {event.themePreferences.tones3rdChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <span className="tone-tags">{event.themePreferences.tones3rdChoice.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {event.themePreferences.patterns1stChoice.length > 0 && (
+                <div className="preference-display">
+                  <h4>柄の好み</h4>
+                  <div className="preference-items">
+                    {event.themePreferences.patterns1stChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第1希望:</span>
+                        <span className="pattern-tags">{event.themePreferences.patterns1stChoice.join(', ')}</span>
+                      </div>
+                    )}
+                    {event.themePreferences.patterns2ndChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第2希望:</span>
+                        <span className="pattern-tags">{event.themePreferences.patterns2ndChoice.join(', ')}</span>
+                      </div>
+                    )}
+                    {event.themePreferences.patterns3rdChoice.length > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <span className="pattern-tags">{event.themePreferences.patterns3rdChoice.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {(event.themePreferences.avoidSimilarColors || event.themePreferences.recentUsageExcludeDays > 0) && (
+                <div className="preference-display">
+                  <h4>追加設定</h4>
+                  <div className="preference-items">
+                    {event.themePreferences.avoidSimilarColors && (
+                      <div className="preference-item">
+                        <span className="setting-tag">✓ 似た色を避ける</span>
+                      </div>
+                    )}
+                    {event.themePreferences.recentUsageExcludeDays > 0 && (
+                      <div className="preference-item">
+                        <span className="setting-tag">直近{event.themePreferences.recentUsageExcludeDays}日間除外</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Participants Section */}
         <section className="section">
           <h2>👥 参加者</h2>

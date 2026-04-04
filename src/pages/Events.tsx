@@ -2,7 +2,20 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
+import { EventThemePreferences } from '../utils/storage'
 import './Events.css'
+
+// Color options for theme preferences
+const COLOR_OPTIONS = [
+  'red', 'pink', 'purple', 'blue', 'cyan', 'green',
+  'yellow', 'orange', 'brown', 'gray', 'white', 'black'
+]
+
+// Tone options
+const TONE_OPTIONS = ['pastel', 'vivid', 'dark', 'neutral']
+
+// Pattern options
+const PATTERN_OPTIONS = ['plain', 'floral', 'stripe', 'dot', 'check', 'geometric', 'animal']
 
 export default function Events() {
   const { events, loading, error, addEvent, deleteEvent } = useEvents()
@@ -12,6 +25,62 @@ export default function Events() {
     date: '',
     description: '',
   })
+
+  // Theme preferences state
+  const [themePrefs, setThemePrefs] = useState<EventThemePreferences>({
+    colors1stChoice: [],
+    colors2ndChoice: [],
+    colors3rdChoice: [],
+    tones1stChoice: [],
+    tones2ndChoice: [],
+    tones3rdChoice: [],
+    patterns1stChoice: [],
+    patterns2ndChoice: [],
+    patterns3rdChoice: [],
+    avoidSimilarColors: false,
+    recentUsageExcludeDays: 30,
+  })
+
+  const [showThemeSettings, setShowThemeSettings] = useState(false)
+
+  // Toggle color selection
+  const toggleColor = (color: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `colors${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(color)
+      ? current.filter(c => c !== color)
+      : [...current, color]
+    setThemePrefs(prev => ({
+      ...prev,
+      [key]: updated,
+    }))
+  }
+
+  // Toggle tone selection
+  const toggleTone = (tone: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `tones${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(tone)
+      ? current.filter(t => t !== tone)
+      : [...current, tone]
+    setThemePrefs(prev => ({
+      ...prev,
+      [key]: updated,
+    }))
+  }
+
+  // Toggle pattern selection
+  const togglePattern = (pattern: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `patterns${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(pattern)
+      ? current.filter(p => p !== pattern)
+      : [...current, pattern]
+    setThemePrefs(prev => ({
+      ...prev,
+      [key]: updated,
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,9 +93,24 @@ export default function Events() {
         description: formData.description,
         participants: [],
         costumes: {},
+        themePreferences: themePrefs,
       })
       setFormData({ name: '', date: '', description: '' })
+      setThemePrefs({
+        colors1stChoice: [],
+        colors2ndChoice: [],
+        colors3rdChoice: [],
+        tones1stChoice: [],
+        tones2ndChoice: [],
+        tones3rdChoice: [],
+        patterns1stChoice: [],
+        patterns2ndChoice: [],
+        patterns3rdChoice: [],
+        avoidSimilarColors: false,
+        recentUsageExcludeDays: 30,
+      })
       setShowForm(false)
+      setShowThemeSettings(false)
     } catch (err) {
       console.error('Failed to add event:', err)
     }
@@ -106,6 +190,218 @@ export default function Events() {
             />
           </div>
 
+          {/* Theme Settings Toggle */}
+          <div className="form-group">
+            <button
+              type="button"
+              onClick={() => setShowThemeSettings(!showThemeSettings)}
+              className="theme-settings-toggle"
+            >
+              {showThemeSettings ? '▼ テーマ設定を非表示' : '▶ テーマ設定を表示'}
+            </button>
+          </div>
+
+          {/* Theme Settings Section */}
+          {showThemeSettings && (
+            <div className="theme-settings-section">
+              {/* Color Preferences */}
+              <div className="theme-subsection">
+                <h4>色の好み</h4>
+                
+                <div className="preference-group">
+                  <label>第1希望</label>
+                  <div className="color-grid">
+                    {COLOR_OPTIONS.map(color => (
+                      <button
+                        key={`color-1st-${color}`}
+                        type="button"
+                        onClick={() => toggleColor(color, '1st')}
+                        className={`color-button ${themePrefs.colors1stChoice.includes(color) ? 'selected' : ''}`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第2希望</label>
+                  <div className="color-grid">
+                    {COLOR_OPTIONS.map(color => (
+                      <button
+                        key={`color-2nd-${color}`}
+                        type="button"
+                        onClick={() => toggleColor(color, '2nd')}
+                        className={`color-button ${themePrefs.colors2ndChoice.includes(color) ? 'selected' : ''}`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第3希望</label>
+                  <div className="color-grid">
+                    {COLOR_OPTIONS.map(color => (
+                      <button
+                        key={`color-3rd-${color}`}
+                        type="button"
+                        onClick={() => toggleColor(color, '3rd')}
+                        className={`color-button ${themePrefs.colors3rdChoice.includes(color) ? 'selected' : ''}`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tone Preferences */}
+              <div className="theme-subsection">
+                <h4>トーンの好み</h4>
+                
+                <div className="preference-group">
+                  <label>第1希望</label>
+                  <div className="option-grid">
+                    {TONE_OPTIONS.map(tone => (
+                      <button
+                        key={`tone-1st-${tone}`}
+                        type="button"
+                        onClick={() => toggleTone(tone, '1st')}
+                        className={`option-button ${themePrefs.tones1stChoice.includes(tone) ? 'selected' : ''}`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第2希望</label>
+                  <div className="option-grid">
+                    {TONE_OPTIONS.map(tone => (
+                      <button
+                        key={`tone-2nd-${tone}`}
+                        type="button"
+                        onClick={() => toggleTone(tone, '2nd')}
+                        className={`option-button ${themePrefs.tones2ndChoice.includes(tone) ? 'selected' : ''}`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第3希望</label>
+                  <div className="option-grid">
+                    {TONE_OPTIONS.map(tone => (
+                      <button
+                        key={`tone-3rd-${tone}`}
+                        type="button"
+                        onClick={() => toggleTone(tone, '3rd')}
+                        className={`option-button ${themePrefs.tones3rdChoice.includes(tone) ? 'selected' : ''}`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pattern Preferences */}
+              <div className="theme-subsection">
+                <h4>柄の好み</h4>
+                
+                <div className="preference-group">
+                  <label>第1希望</label>
+                  <div className="option-grid">
+                    {PATTERN_OPTIONS.map(pattern => (
+                      <button
+                        key={`pattern-1st-${pattern}`}
+                        type="button"
+                        onClick={() => togglePattern(pattern, '1st')}
+                        className={`option-button ${themePrefs.patterns1stChoice.includes(pattern) ? 'selected' : ''}`}
+                      >
+                        {pattern}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第2希望</label>
+                  <div className="option-grid">
+                    {PATTERN_OPTIONS.map(pattern => (
+                      <button
+                        key={`pattern-2nd-${pattern}`}
+                        type="button"
+                        onClick={() => togglePattern(pattern, '2nd')}
+                        className={`option-button ${themePrefs.patterns2ndChoice.includes(pattern) ? 'selected' : ''}`}
+                      >
+                        {pattern}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="preference-group">
+                  <label>第3希望</label>
+                  <div className="option-grid">
+                    {PATTERN_OPTIONS.map(pattern => (
+                      <button
+                        key={`pattern-3rd-${pattern}`}
+                        type="button"
+                        onClick={() => togglePattern(pattern, '3rd')}
+                        className={`option-button ${themePrefs.patterns3rdChoice.includes(pattern) ? 'selected' : ''}`}
+                      >
+                        {pattern}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Settings */}
+              <div className="theme-subsection">
+                <h4>追加設定</h4>
+                
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={themePrefs.avoidSimilarColors}
+                      onChange={(e) => setThemePrefs(prev => ({
+                        ...prev,
+                        avoidSimilarColors: e.target.checked,
+                      }))}
+                    />
+                    似た色を避ける
+                  </label>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="recentUsageExcludeDays">
+                    直近使用除外日数:
+                    <input
+                      id="recentUsageExcludeDays"
+                      type="number"
+                      min="0"
+                      max="365"
+                      value={themePrefs.recentUsageExcludeDays}
+                      onChange={(e) => setThemePrefs(prev => ({
+                        ...prev,
+                        recentUsageExcludeDays: parseInt(e.target.value) || 0,
+                      }))}
+                    />
+                    日
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button type="submit" className="submit-button">
             イベントを作成
           </button>
@@ -141,6 +437,23 @@ export default function Events() {
 
               {event.description && (
                 <p className="event-description">{event.description}</p>
+              )}
+
+              {event.themePreferences && (
+                <div className="event-theme-summary">
+                  <p className="theme-label">テーマ設定:</p>
+                  <div className="theme-info">
+                    {event.themePreferences.colors1stChoice.length > 0 && (
+                      <span>色: {event.themePreferences.colors1stChoice.join(', ')}</span>
+                    )}
+                    {event.themePreferences.tones1stChoice.length > 0 && (
+                      <span>トーン: {event.themePreferences.tones1stChoice.join(', ')}</span>
+                    )}
+                    {event.themePreferences.patterns1stChoice.length > 0 && (
+                      <span>柄: {event.themePreferences.patterns1stChoice.join(', ')}</span>
+                    )}
+                  </div>
+                </div>
               )}
 
               <div className="event-stats">

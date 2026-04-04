@@ -586,3 +586,117 @@
     max-width: 250px;
   }
 }
+
+
+/* Theme Preferences Display Section */
+.theme-preferences-section {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--background) 100%);
+  border: 2px solid var(--primary);
+}
+
+.theme-preferences-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.preference-display {
+  background-color: var(--background);
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid var(--primary);
+}
+
+.preference-display h4 {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.preference-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preference-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.preference-rank {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 60px;
+  font-size: 0.9rem;
+}
+
+.color-display {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.color-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tone-tags,
+.pattern-tags {
+  display: inline-block;
+  padding: 4px 12px;
+  background-color: var(--surface);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--text);
+  border: 1px solid var(--border);
+  text-transform: capitalize;
+}
+
+.setting-tag {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #1b5e20;
+  border: 1px solid #4caf50;
+  font-weight: 500;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .theme-preferences-display {
+    gap: 1rem;
+  }
+
+  .preference-display {
+    padding: 0.75rem;
+  }
+
+  .preference-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .color-display {
+    width: 100%;
+  }
+
+  .tone-tags,
+  .pattern-tags {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

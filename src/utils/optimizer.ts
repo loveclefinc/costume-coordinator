@@ -1,4 +1,4 @@
-import { Costume, UsageHistory } from './storage'
+import { Costume, UsageHistory, EventThemePreferences } from './storage'
 
 export interface OptimizationResult {
   participantId: string
@@ -13,17 +13,81 @@ export interface OptimizationInput {
   participants: Array<{ id: string; name: string; preferences: string[] }>
   costumes: Costume[]
   usageHistory: UsageHistory[]
+  themePreferences?: EventThemePreferences
+}
+
+/**
+ * Calculate color match score against theme preferences
+ * Returns 0-1 where 1 is perfect match
+ */
+function calculateColorThemeScore(costumeColors: string[], themePrefs?: EventThemePreferences): number {
+  if (!themePrefs) return 0.5 // Neutral if no theme preferences
+
+  // Check 1st choice colors
+  for (const color of costumeColors) {
+    if (themePrefs.colors1stChoice.includes(color)) return 1.0
+  }
+
+  // Check 2nd choice colors
+  for (const color of costumeColors) {
+    if (themePrefs.colors2ndChoice.includes(color)) return 0.8
+  }
+
+  // Check 3rd choice colors
+  for (const color of costumeColors) {
+    if (themePrefs.colors3rdChoice.includes(color)) return 0.6
+  }
+
+  return 0.3 // Low score if no match
+}
+
+/**
+ * Calculate tone match score against theme preferences
+ */
+function calculateToneThemeScore(costumeTone: string, themePrefs?: EventThemePreferences): number {
+  if (!themePrefs) return 0.5
+
+  // Check 1st choice tones
+  if (themePrefs.tones1stChoice.includes(costumeTone)) return 1.0
+
+  // Check 2nd choice tones
+  if (themePrefs.tones2ndChoice.includes(costumeTone)) return 0.8
+
+  // Check 3rd choice tones
+  if (themePrefs.tones3rdChoice.includes(costumeTone)) return 0.6
+
+  return 0.3
+}
+
+/**
+ * Calculate pattern match score against theme preferences
+ */
+function calculatePatternThemeScore(costumePattern: string, themePrefs?: EventThemePreferences): number {
+  if (!themePrefs) return 0.5
+
+  // Check 1st choice patterns
+  if (themePrefs.patterns1stChoice.includes(costumePattern)) return 1.0
+
+  // Check 2nd choice patterns
+  if (themePrefs.patterns2ndChoice.includes(costumePattern)) return 0.8
+
+  // Check 3rd choice patterns
+  if (themePrefs.patterns3rdChoice.includes(costumePattern)) return 0.6
+
+  return 0.3
 }
 
 /**
  * Calculate color compatibility score between two costumes
  * Returns 0-1 where 1 is perfect compatibility
  */
-function calculateColorCompatibility(colors1: string[], colors2: string[]): number {
+function calculateColorCompatibility(colors1: string[], colors2: string[], avoidSimilar: boolean = false): number {
   if (colors1.length === 0 || colors2.length === 0) return 1
 
   const commonColors = colors1.filter(c => colors2.includes(c))
-  if (commonColors.length > 0) return 0.3 // Penalize if colors overlap
+  if (commonColors.length > 0) {
+    return avoidSimilar ? 0.2 : 0.5 // Stronger penalty if avoidSimilarColors is enabled
+  }
 
   return 1
 }
@@ -40,17 +104,17 @@ function calculateToneCompatibility(tone1: string, tone2: string): number {
  * Calculate pattern compatibility score
  */
 function calculatePatternCompatibility(pattern1: string, pattern2: string): number {
-  if (pattern1 === pattern2 && pattern1 !== 'solid') return 0.5 // Same pattern is less ideal
+  if (pattern1 === pattern2 && pattern1 !== 'plain') return 0.5 // Same pattern is less ideal
   return 1
 }
 
 /**
  * Calculate usage history penalty (prefer less recently used)
  */
-function calculateUsagePenalty(costumeId: string, usageHistory: UsageHistory[]): number {
+function calculateUsagePenalty(costumeId: string, usageHistory: UsageHistory[], excludeDays: number = 30): number {
   const recentUsages = usageHistory.filter(h => {
     const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-    return daysSinceUse <= 30 && h.costumeId === costumeId
+    return daysSinceUse <= excludeDays && h.costumeId === costumeId
   })
 
   return Math.max(0, 1 - recentUsages.length * 0.1)
@@ -68,13 +132,13 @@ function calculatePreferenceScore(costumeId: string, preferences: string[]): num
 }
 
 /**
- * Main optimization algorithm
+ * Main optimization algorithm - prioritizes event theme preferences
  */
-export function optimizeCostumeAssignments(input: OptimizationInput): OptimizationResult[] {
-  const { participants, costumes, usageHistory } = input
+export function optimizeCostumeAssignments(input: OptimizationInput): { assignments: OptimizationResult[]; harmonyScore: number } {
+  const { participants, costumes, usageHistory, themePreferences } = input
 
   if (costumes.length === 0) {
-    return []
+    return { assignments: [], harmonyScore: 0 }
   }
 
   const results: OptimizationResult[] = []
@@ -96,32 +160,33 @@ export function optimizeCostumeAssignments(input: OptimizationInput): Optimizati
 
       let score = 0
 
-      // 1. Preference score (40%)
+      // PRIORITY 1: Event Theme Preferences (50%)
+      // This is the primary optimization criterion
+      const colorThemeScore = calculateColorThemeScore(costume.colors, themePreferences)
+      const toneThemeScore = calculateToneThemeScore(costume.tone, themePreferences)
+      const patternThemeScore = calculatePatternThemeScore(costume.pattern, themePreferences)
+      const themeScore = (colorThemeScore + toneThemeScore + patternThemeScore) / 3
+      score += themeScore * 0.5
+
+      // PRIORITY 2: Participant Preference (25%)
       const prefScore = calculatePreferenceScore(costume.id, participant.preferences)
-      score += prefScore * 0.4
+      score += prefScore * 0.25
 
-      // 2. Usage history penalty (30%)
-      const usagePenalty = calculateUsagePenalty(costume.id, usageHistory)
-      score += usagePenalty * 0.3
+      // PRIORITY 3: Usage history penalty (15%)
+      const excludeDays = themePreferences?.recentUsageExcludeDays || 30
+      const usagePenalty = calculateUsagePenalty(costume.id, usageHistory, excludeDays)
+      score += usagePenalty * 0.15
 
-      // 3. Compatibility with already assigned costumes (20%)
+      // PRIORITY 4: Compatibility with already assigned costumes (10%)
       let compatibilityScore = 1
       for (const result of results) {
-        const colorCompat = calculateColorCompatibility(costume.colors, result.costume.colors)
+        const avoidSimilar = themePreferences?.avoidSimilarColors || false
+        const colorCompat = calculateColorCompatibility(costume.colors, result.costume.colors, avoidSimilar)
         const toneCompat = calculateToneCompatibility(costume.tone, result.costume.tone)
         const patternCompat = calculatePatternCompatibility(costume.pattern, result.costume.pattern)
         compatibilityScore *= (colorCompat + toneCompat + patternCompat) / 3
       }
-      score += compatibilityScore * 0.2
-
-      // 4. Season availability (10%)
-      const currentMonth = new Date().getMonth()
-      let seasonScore = 0.5
-      if (currentMonth >= 2 && currentMonth <= 4 && costume.season.includes('spring')) seasonScore = 1
-      else if (currentMonth >= 5 && currentMonth <= 7 && costume.season.includes('summer')) seasonScore = 1
-      else if (currentMonth >= 8 && currentMonth <= 10 && costume.season.includes('autumn')) seasonScore = 1
-      else if ((currentMonth >= 11 || currentMonth <= 1) && costume.season.includes('winter')) seasonScore = 1
-      score += seasonScore * 0.1
+      score += compatibilityScore * 0.1
 
       if (score > bestScore) {
         bestScore = score
@@ -132,17 +197,34 @@ export function optimizeCostumeAssignments(input: OptimizationInput): Optimizati
     if (bestCostume) {
       assignedCostumes.add(bestCostume.id)
 
+      // Build reason explanation
+      if (themePreferences) {
+        const colorMatch = calculateColorThemeScore(bestCostume.colors, themePreferences)
+        if (colorMatch >= 0.9) reasons.push('テーマ色第1希望')
+        else if (colorMatch >= 0.7) reasons.push('テーマ色第2希望')
+        else if (colorMatch >= 0.5) reasons.push('テーマ色第3希望')
+
+        const toneMatch = calculateToneThemeScore(bestCostume.tone, themePreferences)
+        if (toneMatch >= 0.9) reasons.push('テーマトーン第1希望')
+        else if (toneMatch >= 0.7) reasons.push('テーマトーン第2希望')
+
+        const patternMatch = calculatePatternThemeScore(bestCostume.pattern, themePreferences)
+        if (patternMatch >= 0.9) reasons.push('テーマ柄第1希望')
+        else if (patternMatch >= 0.7) reasons.push('テーマ柄第2希望')
+      }
+
       const prefIndex = participant.preferences.indexOf(bestCostume.id)
       if (prefIndex !== -1) {
         reasons.push(`希望順位: ${prefIndex + 1}位`)
       }
 
+      const excludeDays = themePreferences?.recentUsageExcludeDays || 30
       const recentUsages = usageHistory.filter(h => {
         const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-        return daysSinceUse <= 30 && h.costumeId === bestCostume!.id
+        return daysSinceUse <= excludeDays && h.costumeId === bestCostume!.id
       })
       if (recentUsages.length === 0) {
-        reasons.push('直近30日間未使用')
+        reasons.push(`直近${excludeDays}日間未使用`)
       }
 
       reasons.push(`スコア: ${(bestScore * 100).toFixed(1)}`)
@@ -158,7 +240,8 @@ export function optimizeCostumeAssignments(input: OptimizationInput): Optimizati
     }
   }
 
-  return results
+  const harmonyScore = calculateHarmonyScore(results)
+  return { assignments: results, harmonyScore }
 }
 
 /**
