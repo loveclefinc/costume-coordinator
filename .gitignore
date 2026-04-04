@@ -5,7 +5,9 @@ node_modules/
 
 # Expo
 .expo/
+# dist/ is ignored except for 404.html which is needed for GitHub Pages SPA routing
 dist/
+!dist/404.html
 web-build/
 expo-env.d.ts
 
