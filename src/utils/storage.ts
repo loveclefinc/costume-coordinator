@@ -16,18 +16,21 @@ export interface Costume {
 }
 
 export interface EventThemePreferences {
+  // Color unification strategy
+  colorUnification: 'unified' | 'varied'
+  
   // Color preferences (1st/2nd/3rd choice)
-  colors1stChoice: string[] // Array of color names
+  colors1stChoice: string[]
   colors2ndChoice: string[]
   colors3rdChoice: string[]
   
   // Tone preferences (1st/2nd/3rd choice)
-  tones1stChoice: string[] // 'warm' | 'cool' | 'neutral' | 'pastel' | 'vivid' | 'dark'
+  tones1stChoice: string[]
   tones2ndChoice: string[]
   tones3rdChoice: string[]
   
   // Pattern preferences (1st/2nd/3rd choice)
-  patterns1stChoice: string[] // 'plain' | 'floral' | 'stripe' | 'dot' | 'check' | 'geometric' | 'animal'
+  patterns1stChoice: string[]
   patterns2ndChoice: string[]
   patterns3rdChoice: string[]
   

@@ -28,6 +28,7 @@ export default function Events() {
 
   // Theme preferences state
   const [themePrefs, setThemePrefs] = useState<EventThemePreferences>({
+    colorUnification: 'unified',
     colors1stChoice: [],
     colors2ndChoice: [],
     colors3rdChoice: [],
@@ -204,6 +205,35 @@ export default function Events() {
           {/* Theme Settings Section */}
           {showThemeSettings && (
             <div className="theme-settings-section">
+              {/* Color Unification Strategy */}
+              <div className="theme-subsection">
+                <h4>色味の統一方針</h4>
+                <div className="preference-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="colorUnification"
+                      value="unified"
+                      checked={themePrefs.colorUnification === 'unified'}
+                      onChange={() => setThemePrefs(prev => ({ ...prev, colorUnification: 'unified' }))}
+                    />
+                    色を統一する（同じ色系で揃える）
+                  </label>
+                </div>
+                <div className="preference-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="colorUnification"
+                      value="varied"
+                      checked={themePrefs.colorUnification === 'varied'}
+                      onChange={() => setThemePrefs(prev => ({ ...prev, colorUnification: 'varied' }))}
+                    />
+                    色をバラける（異なる色を組み合わせる）
+                  </label>
+                </div>
+              </div>
+
               {/* Color Preferences */}
               <div className="theme-subsection">
                 <h4>色の好み</h4>
