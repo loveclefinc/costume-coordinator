@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import QRScanner from '../components/QRScanner'
 import './Home.css'
 
 export default function Home() {
+  const [showQRScanner, setShowQRScanner] = useState(false)
+
   return (
     <div className="home-page">
       <div className="hero">
@@ -42,7 +46,18 @@ export default function Home() {
         <Link to="/events" className="cta-button secondary">
           イベントを作成する
         </Link>
+        <button
+          onClick={() => setShowQRScanner(true)}
+          className="cta-button qr-button"
+          title="イベント参加用QRコードをスキャン"
+        >
+          🔲 QRコードをスキャン
+        </button>
       </div>
+
+      {showQRScanner && (
+        <QRScanner onClose={() => setShowQRScanner(false)} />
+      )}
 
       <div className="info-section">
         <h2>使い方</h2>

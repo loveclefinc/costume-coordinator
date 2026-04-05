@@ -102,6 +102,17 @@
   color: white;
 }
 
+.cta-button.qr-button {
+  background-color: #10b981;
+  color: white;
+  border: none;
+}
+
+.cta-button.qr-button:hover {
+  background-color: #059669;
+  transform: translateY(-2px);
+}
+
 .info-section {
   background-color: var(--surface);
   border-radius: 12px;
