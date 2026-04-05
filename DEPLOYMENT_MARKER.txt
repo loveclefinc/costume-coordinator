@@ -1,0 +1,12 @@
+Deployment Marker - Event Theme Optimization Release
+Generated: 2026-04-04
+
+This file marks the deployment of:
+- Event theme preferences (color/tone/pattern selection)
+- Updated optimizer algorithm (50% theme weight)
+- GitHub Pages SPA routing fix (404.html)
+- 16 passing tests for theme optimization
+
+Commits to deploy:
+- a2d6480: Fix: Add 404.html for GitHub Pages SPA routing
+- 3f5f59b: Add event theme preferences and update optimizer algorithm
