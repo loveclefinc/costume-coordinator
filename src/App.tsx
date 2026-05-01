@@ -9,6 +9,7 @@ import AddCostume from './pages/AddCostume'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
 import Settings from './pages/Settings'
+import OAuthCallback from './pages/OAuthCallback'
 import './App.css'
 
 function App() {
@@ -46,6 +47,8 @@ function App() {
               <Route path="/events" element={<Events />} />
               <Route path="/events/:id" element={<EventDetail />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/auth/dropbox" element={<OAuthCallback />} />
+              <Route path="/auth/google-drive" element={<OAuthCallback />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
