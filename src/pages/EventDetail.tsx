@@ -8,6 +8,18 @@ import { recordCostumeUsage } from '../utils/usage-tracker'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
 import './EventDetail.css'
 
+// Tone labels for display
+const TONE_LABELS: Record<string, string> = {
+  'pastel': 'パステル',
+  'vivid': 'ビビッド',
+  'dark': 'ダーク',
+  'neutral': 'ニュートラル'
+}
+
+const translateTones = (tones: string[]): string => {
+  return tones.map(tone => TONE_LABELS[tone] || tone).join(', ')
+}
+
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -358,19 +370,19 @@ export default function EventDetail() {
                     {event.themePreferences.tones1stChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第1希望:</span>
-                        <span className="tone-tags">{event.themePreferences.tones1stChoice.join(', ')}</span>
+                        <span className="tone-tags">{translateTones(event.themePreferences.tones1stChoice)}</span>
                       </div>
                     )}
                     {event.themePreferences.tones2ndChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第2希望:</span>
-                        <span className="tone-tags">{event.themePreferences.tones2ndChoice.join(', ')}</span>
+                        <span className="tone-tags">{translateTones(event.themePreferences.tones2ndChoice)}</span>
                       </div>
                     )}
                     {event.themePreferences.tones3rdChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第3希望:</span>
-                        <span className="tone-tags">{event.themePreferences.tones3rdChoice.join(', ')}</span>
+                        <span className="tone-tags">{translateTones(event.themePreferences.tones3rdChoice)}</span>
                       </div>
                     )}
                   </div>

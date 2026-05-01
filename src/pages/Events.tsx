@@ -13,6 +13,12 @@ const COLOR_OPTIONS = [
 
 // Tone options
 const TONE_OPTIONS = ['pastel', 'vivid', 'dark', 'neutral']
+const TONE_LABELS: Record<string, string> = {
+  'pastel': 'パステル',
+  'vivid': 'ビビッド',
+  'dark': 'ダーク',
+  'neutral': 'ニュートラル'
+}
 
 // Pattern options
 const PATTERN_OPTIONS = ['plain', 'floral', 'stripe', 'dot', 'check', 'geometric', 'animal']
@@ -301,7 +307,7 @@ export default function Events() {
                         onClick={() => toggleTone(tone, '1st')}
                         className={`option-button ${themePrefs.tones1stChoice.includes(tone) ? 'selected' : ''}`}
                       >
-                        {tone}
+                        {TONE_LABELS[tone]}
                       </button>
                     ))}
                   </div>
@@ -317,7 +323,7 @@ export default function Events() {
                         onClick={() => toggleTone(tone, '2nd')}
                         className={`option-button ${themePrefs.tones2ndChoice.includes(tone) ? 'selected' : ''}`}
                       >
-                        {tone}
+                        {TONE_LABELS[tone]}
                       </button>
                     ))}
                   </div>
@@ -333,7 +339,7 @@ export default function Events() {
                         onClick={() => toggleTone(tone, '3rd')}
                         className={`option-button ${themePrefs.tones3rdChoice.includes(tone) ? 'selected' : ''}`}
                       >
-                        {tone}
+                        {TONE_LABELS[tone]}
                       </button>
                     ))}
                   </div>
