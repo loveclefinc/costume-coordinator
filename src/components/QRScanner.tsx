@@ -5,13 +5,17 @@ import '../styles/QRScanner.css'
 
 interface QRScannerProps {
   onClose?: () => void
+  onParticipantAdded?: (eventId: string, participantName: string) => void
 }
 
-export default function QRScanner({ onClose }: QRScannerProps) {
+export default function QRScanner({ onClose, onParticipantAdded }: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [scanning, setScanning] = useState(true)
   const [error, setError] = useState<string>('')
+  const [participantName, setParticipantName] = useState<string>('')
+  const [showNameInput, setShowNameInput] = useState(false)
+  const [scannedEventId, setScannedEventId] = useState<string>('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -88,7 +92,8 @@ export default function QRScanner({ onClose }: QRScannerProps) {
       // QR code contains JSON with eventId
       const data = JSON.parse(decodeURIComponent(code))
       if (data.eventId) {
-        navigate(`/events/${data.eventId}`)
+        setScannedEventId(data.eventId)
+        setShowNameInput(true)
       } else {
         setError('有効なイベントQRコードではありません')
       }
@@ -96,11 +101,94 @@ export default function QRScanner({ onClose }: QRScannerProps) {
       // Try direct URL parsing
       const eventIdMatch = code.match(/\/events\/([a-zA-Z0-9-]+)/)
       if (eventIdMatch) {
-        navigate(`/events/${eventIdMatch[1]}`)
+        setScannedEventId(eventIdMatch[1])
+        setShowNameInput(true)
       } else {
         setError('QRコードの読み込みに失敗しました')
       }
     }
+  }
+
+  const handleAddParticipant = () => {
+    if (!participantName.trim()) {
+      setError('参加者名を入力してください')
+      return
+    }
+
+    if (onParticipantAdded) {
+      onParticipantAdded(scannedEventId, participantName)
+    } else {
+      // Fallback: navigate to event page
+      navigate(`/events/${scannedEventId}`)
+    }
+
+    setParticipantName('')
+    setShowNameInput(false)
+    setScannedEventId('')
+    onClose?.()
+  }
+
+  if (showNameInput) {
+    return (
+      <div className="qr-scanner-overlay">
+        <div className="qr-scanner-container">
+          <div className="qr-scanner-header">
+            <h2>参加者名を入力</h2>
+            <button
+              onClick={() => {
+                setShowNameInput(false)
+                setScannedEventId('')
+                setParticipantName('')
+                setScanning(true)
+                onClose?.()
+              }}
+              className="close-button"
+            >
+              ✕
+            </button>
+          </div>
+
+          {error && <div className="qr-scanner-error">{error}</div>}
+
+          <div className="name-input-section">
+            <p>QRコードが読み込まれました。参加者名を入力してください。</p>
+            <input
+              type="text"
+              value={participantName}
+              onChange={(e) => setParticipantName(e.target.value)}
+              placeholder="参加者名を入力"
+              className="participant-name-input"
+              autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddParticipant()
+                }
+              }}
+            />
+          </div>
+
+          <div className="button-group">
+            <button
+              onClick={handleAddParticipant}
+              className="qr-scanner-confirm-button"
+            >
+              参加者として追加
+            </button>
+            <button
+              onClick={() => {
+                setShowNameInput(false)
+                setScannedEventId('')
+                setParticipantName('')
+                setScanning(true)
+              }}
+              className="qr-scanner-cancel-button"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -133,3 +133,78 @@
     height: 200px;
   }
 }
+
+/* Name Input Section */
+.name-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.name-input-section p {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.participant-name-input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.participant-name-input:focus {
+  outline: none;
+  border-color: #007AFF;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qr-scanner-confirm-button {
+  flex: 1;
+  min-width: 120px;
+  background: #007AFF;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-scanner-confirm-button:hover {
+  background: #0056b3;
+}
+
+.qr-scanner-confirm-button:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 480px) {
+  .name-input-section {
+    padding: 16px;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .qr-scanner-confirm-button,
+  .qr-scanner-cancel-button {
+    width: 100%;
+  }
+}
