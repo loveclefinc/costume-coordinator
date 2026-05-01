@@ -47,6 +47,14 @@ export default function Navigation() {
             </Link>
           </li>
           <li>
+            <Link 
+              to="/settings" 
+              className={`nav-link ${isActive('/settings') ? 'active' : ''}`}
+            >
+              設定
+            </Link>
+          </li>
+          <li>
             <div className="nav-user-menu">
               <span className="nav-user-email">{user?.email}</span>
               <button onClick={handleLogout} className="nav-logout-button">

@@ -8,6 +8,7 @@ import Costumes from './pages/Costumes'
 import AddCostume from './pages/AddCostume'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
+import Settings from './pages/Settings'
 import './App.css'
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
               <Route path="/costumes/add" element={<AddCostume />} />
               <Route path="/events" element={<Events />} />
               <Route path="/events/:id" element={<EventDetail />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
