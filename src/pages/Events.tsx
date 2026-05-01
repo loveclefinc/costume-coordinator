@@ -289,7 +289,7 @@ export default function Events() {
 
               {/* Tone Preferences */}
               <div className="theme-subsection">
-                <h4>トーンの好み</h4>
+                <h4>トーンの選択</h4>
                 
                 <div className="preference-group">
                   <label>第1希望</label>
@@ -342,7 +342,7 @@ export default function Events() {
 
               {/* Pattern Preferences */}
               <div className="theme-subsection">
-                <h4>柄の好み</h4>
+                <h4>柄の選択</h4>
                 
                 <div className="preference-group">
                   <label>第1希望</label>

@@ -353,7 +353,7 @@ export default function EventDetail() {
               )}
               {event.themePreferences.tones1stChoice.length > 0 && (
                 <div className="preference-display">
-                  <h4>トーンの好み</h4>
+                  <h4>トーンの選択</h4>
                   <div className="preference-items">
                     {event.themePreferences.tones1stChoice.length > 0 && (
                       <div className="preference-item">
@@ -378,7 +378,7 @@ export default function EventDetail() {
               )}
               {event.themePreferences.patterns1stChoice.length > 0 && (
                 <div className="preference-display">
-                  <h4>柄の好み</h4>
+                  <h4>柄の選択</h4>
                   <div className="preference-items">
                     {event.themePreferences.patterns1stChoice.length > 0 && (
                       <div className="preference-item">

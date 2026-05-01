@@ -20,19 +20,19 @@ export default function Home() {
           <p>色味を統一するか、パステル系で揃えるかなど、イベントのテーマに合わせた衣装を自動提案</p>
         </div>
 
-        <div className="feature-card">
+        <div className="feature-card no-hover">
           <div className="feature-icon">👗</div>
           <h3>手持ち衣装から最適な組み合わせ</h3>
           <p>参加者の手持ち衣装の中から、イベントテーマに最も合った組み合わせを提案</p>
         </div>
 
-        <div className="feature-card">
+        <div className="feature-card no-hover">
           <div className="feature-icon">📅</div>
           <h3>使用履歴管理</h3>
           <p>直近の使用履歴を記録し、同じ衣装の重複使用を回避</p>
         </div>
 
-        <div className="feature-card">
+        <div className="feature-card no-hover">
           <div className="feature-icon">👥</div>
           <h3>イベント管理</h3>
           <p>複数のイベントを管理し、参加者と衣装情報を共有</p>
