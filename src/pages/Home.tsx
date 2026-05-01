@@ -14,7 +14,7 @@ export default function Home() {
       </div>
 
       <div className="features">
-        <div className="feature-card">
+        <div className="feature-card no-hover">
           <div className="feature-icon">🎨</div>
           <h3>イベントテーマに合わせた提案</h3>
           <p>色味を統一するか、パステル系で揃えるかなど、イベントのテーマに合わせた衣装を自動提案</p>
@@ -53,6 +53,15 @@ export default function Home() {
         >
           🔲 QRコードをスキャン
         </button>
+        <a
+          href="https://concert-jp.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cta-button concert-button"
+          title="コンサート情報を確認"
+        >
+          🎤 コンサート告知
+        </a>
       </div>
 
       {showQRScanner && (

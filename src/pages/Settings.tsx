@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { backupService, BackupProvider, BackupConfig } from '../services/backupService'
 import './Settings.css'
 
 export default function Settings() {
+  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [backupConfig, setBackupConfig] = useState<BackupConfig | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<BackupProvider | null>(null)
@@ -131,17 +133,26 @@ export default function Settings() {
 
         {/* About Section */}
         <section className="settings-section">
-          <h2>について</h2>
+          <h2>このアプリについて</h2>
+          <button
+            onClick={() => navigate('/about')}
+            className="settings-button secondary"
+            style={{ width: '100%', marginBottom: '12px' }}
+          >
+            このアプリについて
+          </button>
           <div className="settings-item">
             <label>バージョン</label>
             <p className="settings-value">1.0.0</p>
           </div>
           <div className="settings-item">
             <label>プライバシーポリシー</label>
-            <p className="settings-description">
-              このアプリはあなたのデータを安全に保護します。
-              詳細は<a href="#" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>をご覧ください。
-            </p>
+            <button
+              onClick={() => navigate('/privacy-policy')}
+              className="settings-link-button"
+            >
+              プライバシーポリシーを表示
+            </button>
           </div>
         </section>
       </div>

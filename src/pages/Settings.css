@@ -139,6 +139,21 @@
   cursor: not-allowed;
 }
 
+.settings-link-button {
+  background: none;
+  border: none;
+  color: #007AFF;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 0;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.settings-link-button:hover {
+  opacity: 0.7;
+}
+
 .backup-connected {
   background-color: #f0f8ff;
   border: 1px solid var(--primary);
