@@ -239,9 +239,9 @@ export default function AddCostume() {
               disabled={loading}
             >
               <option value="pastel">パステル</option>
-              <option value="vivid">ビビッド</option>
-              <option value="dark">ダーク</option>
-              <option value="neutral">ニュートラル</option>
+              <option value="vivid">鮮やか</option>
+              <option value="dark">濃い</option>
+              <option value="neutral">落ち着いた</option>
             </select>
           </div>
         </div>
