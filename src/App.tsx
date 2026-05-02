@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from './contexts/AuthContext'
 import Navigation from './components/Navigation'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Costumes from './pages/Costumes'
@@ -38,6 +39,7 @@ function App() {
 
   return (
     <div className={isDark ? 'dark' : 'light'}>
+      <PWAInstallPrompt />
       {user ? (
         <>
           <Navigation />

@@ -1,0 +1,196 @@
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.pwa-install-content {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pwa-install-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.pwa-install-prompt h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #11181C;
+}
+
+.pwa-install-prompt p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.pwa-install-steps {
+  margin-top: 12px;
+}
+
+.pwa-install-steps ol {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #666;
+}
+
+.pwa-install-steps li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.pwa-install-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pwa-install-button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.pwa-install-button.primary {
+  background-color: #007AFF;
+  color: white;
+}
+
+.pwa-install-button.primary:hover {
+  background-color: #0056b3;
+}
+
+.pwa-install-button.primary:active {
+  transform: scale(0.98);
+}
+
+.pwa-install-button.secondary {
+  background-color: #f0f0f0;
+  color: #11181C;
+  border: 1px solid #ddd;
+}
+
+.pwa-install-button.secondary:hover {
+  background-color: #e8e8e8;
+}
+
+.pwa-install-button.secondary:active {
+  transform: scale(0.98);
+}
+
+/* iOS specific styling */
+.ios-prompt .pwa-install-content {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ios-prompt .pwa-install-icon {
+  align-self: center;
+  width: 100%;
+  text-align: center;
+}
+
+/* Android specific styling */
+.android-prompt .pwa-install-content {
+  flex-direction: row;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .pwa-install-prompt {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .pwa-install-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+
+  .pwa-install-icon {
+    font-size: 40px;
+  }
+
+  .pwa-install-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .pwa-install-button {
+    width: 100%;
+  }
+
+  .pwa-install-steps {
+    width: 100%;
+  }
+
+  .pwa-install-steps ol {
+    text-align: left;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .pwa-install-prompt {
+    background: #1a1a1a;
+    border-top-color: #333;
+  }
+
+  .pwa-install-prompt h3 {
+    color: #fff;
+  }
+
+  .pwa-install-prompt p {
+    color: #aaa;
+  }
+
+  .pwa-install-steps ol {
+    color: #aaa;
+  }
+
+  .pwa-install-button.secondary {
+    background-color: #333;
+    color: #fff;
+    border-color: #555;
+  }
+
+  .pwa-install-button.secondary:hover {
+    background-color: #444;
+  }
+}
