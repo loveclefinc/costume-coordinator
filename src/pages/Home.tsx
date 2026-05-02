@@ -8,6 +8,8 @@ export default function Home() {
   const [showQRScanner, setShowQRScanner] = useState(false)
   const { getEvent, updateEvent } = useEvents()
   const [addingParticipant, setAddingParticipant] = useState(false)
+  // Check if user is authenticated by checking localStorage
+  const isAuthenticated = !!localStorage.getItem('user_id')
 
   const handleParticipantAdded = async (eventId: string, participantName: string) => {
     try {
@@ -114,7 +116,8 @@ export default function Home() {
         </ol>
       </div>
 
-      <div className="benefits-section">
+      {!isAuthenticated && (
+        <div className="benefits-section">
         <h2>✨ 主な機能</h2>
         <div className="benefits-grid">
           <div className="benefit-item">
@@ -142,7 +145,8 @@ export default function Home() {
             <p>Dropbox や Google Drive へのバックアップに対応。大切なデータを安全に保存できます。</p>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
