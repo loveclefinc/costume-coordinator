@@ -56,6 +56,7 @@ export default function PWAInstallPrompt() {
   if (isIOS) {
     return (
       <div className="pwa-install-prompt ios-prompt">
+        <button className="pwa-close-button" onClick={handleDismiss}>✕</button>
         <div className="pwa-install-content">
           <div className="pwa-install-icon">📱</div>
           <h3>ホーム画面に追加</h3>
@@ -78,6 +79,7 @@ export default function PWAInstallPrompt() {
   if (showPrompt && deferredPrompt) {
     return (
       <div className="pwa-install-prompt android-prompt">
+        <button className="pwa-close-button" onClick={handleDismiss}>✕</button>
         <div className="pwa-install-content">
           <div className="pwa-install-icon">📱</div>
           <h3>アプリをインストール</h3>
