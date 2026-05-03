@@ -118,8 +118,8 @@ export default function Home() {
 
       {!isAuthenticated && (
         <div className="benefits-section">
-        <h2>✨ 主な機能</h2>
-        <div className="benefits-grid">
+          <h2>✨ 主な機能</h2>
+          <div className="benefits-grid">
           <div className="benefit-item">
             <h3>🎨 テーマベースの提案</h3>
             <p>イベントのテーマ（色味、トーン、柄）に基づいて、最適な衣装の組み合わせを自動提案します。</p>
