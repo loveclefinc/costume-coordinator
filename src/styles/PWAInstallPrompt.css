@@ -10,6 +10,7 @@
   animation: slideUp 0.3s ease-out;
   max-height: 200px;
   overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @keyframes slideUp {
@@ -202,21 +203,23 @@
 /* Close button */
 .pwa-close-button {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   background: rgba(255, 255, 255, 0.3);
   border: none;
   color: white;
   font-size: 24px;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  z-index: 1000;
+  z-index: 1001;
+  padding: 0;
+  line-height: 1;
 }
 
 .pwa-close-button:hover {

@@ -5,6 +5,23 @@
   min-height: 100vh;
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   padding: 1rem;
+  flex-wrap: wrap;
+  content-visibility: auto;
+}
+
+@media (min-width: 1024px) {
+  .login-page {
+    flex-direction: row;
+    gap: 3rem;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .login-page {
+    gap: 4rem;
+  }
 }
 
 .login-container {
@@ -14,6 +31,14 @@
   max-width: 400px;
   width: 100%;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  .login-container {
+    max-width: 420px;
+    padding: 2.5rem;
+  }
 }
 
 .login-header {
@@ -171,6 +196,23 @@
   width: 100%;
   margin-top: 2rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  flex-basis: 100%;
+}
+
+@media (min-width: 1024px) {
+  .login-description {
+    max-width: 450px;
+    width: 100%;
+    margin-top: 0;
+    padding: 2rem;
+    flex-basis: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .login-description {
+    max-width: 500px;
+  }
 }
 
 .login-description h2 {
@@ -192,6 +234,13 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 .feature-card {
