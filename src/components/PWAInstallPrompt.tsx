@@ -52,48 +52,8 @@ export default function PWAInstallPrompt() {
     setShowPrompt(false)
   }
 
-  // Show iOS installation instructions
-  if (isIOS && !showPrompt) {
-    return (
-      <div className="pwa-install-prompt ios-prompt">
-        <div className="pwa-install-content">
-          <div className="pwa-install-icon">📱</div>
-          <h3>ホーム画面に追加</h3>
-          <p>
-            Safari の共有ボタンから「ホーム画面に追加」を選択して、アプリをホーム画面に追加できます。
-          </p>
-          <div className="pwa-install-steps">
-            <ol>
-              <li>Safari の共有ボタン（↑）をタップ</li>
-              <li>「ホーム画面に追加」を選択</li>
-              <li>「追加」をタップ</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Show Android/Desktop installation prompt
-  if (showPrompt && deferredPrompt) {
-    return (
-      <div className="pwa-install-prompt android-prompt">
-        <div className="pwa-install-content">
-          <div className="pwa-install-icon">📱</div>
-          <h3>アプリをインストール</h3>
-          <p>衣装コーディネーターをホーム画面に追加して、いつでもアクセスできます。</p>
-          <div className="pwa-install-buttons">
-            <button onClick={handleInstall} className="pwa-install-button primary">
-              インストール
-            </button>
-            <button onClick={handleDismiss} className="pwa-install-button secondary">
-              後で
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // PWA install prompt is disabled to avoid cluttering the UI
+  // Users can still add to home screen via browser menu or Safari share button
 
   return null
 }
