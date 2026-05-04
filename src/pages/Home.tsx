@@ -116,37 +116,7 @@ export default function Home() {
         </ol>
       </div>
 
-      {!isAuthenticated && (
-        <div className="benefits-section">
-          <h2>✨ 主な機能</h2>
-          <div className="benefits-grid">
-          <div className="benefit-item">
-            <h3>🎨 テーマベースの提案</h3>
-            <p>イベントのテーマ（色味、トーン、柄）に基づいて、最適な衣装の組み合わせを自動提案します。</p>
-          </div>
-          <div className="benefit-item">
-            <h3>👥 参加者管理</h3>
-            <p>QR コードスキャンで粗粘に参加者を追加。複数のイベント参加者を効率的に管理できます。</p>
-          </div>
-          <div className="benefit-item">
-            <h3>📸 画像認識</h3>
-            <p>衣装の写真から色・柄を自動認識。手動入力の手間を削減します。</p>
-          </div>
-          <div className="benefit-item">
-            <h3>📅 使用履歴管理</h3>
-            <p>衣装の使用履歴を記録し、同じ衣装の重複使用を自動で回避します。</p>
-          </div>
-          <div className="benefit-item">
-            <h3>☁️ クラウド同期</h3>
-            <p>複数デバイス間でデータを自動同期。どのデバイスからでもアクセスできます。</p>
-          </div>
-          <div className="benefit-item">
-            <h3>📄 バックアップ</h3>
-            <p>Dropbox や Google Drive へのバックアップに対応。大切なデータを安全に保存できます。</p>
-          </div>
-        </div>
-        </div>
-      )}
+
     </div>
   )
 }

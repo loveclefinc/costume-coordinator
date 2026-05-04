@@ -11,6 +11,7 @@ export interface Costume {
   tone: string // 'warm' | 'cool' | 'neutral'
   pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'
   season: string[] // ['spring', 'summer', 'autumn', 'winter']
+  type?: string // 'dress' | 'suit' | 'shirt' | 'necktie' | 'bowtie' | 'accessory' | 'other'
   createdAt: number
   updatedAt: number
 }

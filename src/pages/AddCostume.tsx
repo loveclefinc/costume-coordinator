@@ -15,6 +15,16 @@ const PATTERN_OPTIONS = [
   { value: 'other', label: 'その他' },
 ]
 
+const COSTUME_TYPE_OPTIONS = [
+  { value: 'dress', label: 'ドレス' },
+  { value: 'suit', label: 'スーツ' },
+  { value: 'shirt', label: 'ワイシャツ' },
+  { value: 'necktie', label: 'ネクタイ' },
+  { value: 'bowtie', label: '蝶ネクタイ' },
+  { value: 'accessory', label: '小物・アクセサリー' },
+  { value: 'other', label: 'その他' },
+]
+
 export default function AddCostume() {
   const navigate = useNavigate()
   const { addCostume } = useCostumes()
@@ -28,6 +38,7 @@ export default function AddCostume() {
   const [colorCategory, setColorCategory] = useState<'warm' | 'cool' | 'neutral'>('neutral')
   const [tone, setTone] = useState<'pastel' | 'vivid' | 'dark' | 'neutral'>('neutral')
   const [pattern, setPattern] = useState('solid')
+  const [costumeType, setCostumeType] = useState('dress')
   const [tags, setTags] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -111,6 +122,7 @@ export default function AddCostume() {
         colorCategory,
         tone,
         pattern,
+        type: costumeType,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       }
 
@@ -244,6 +256,25 @@ export default function AddCostume() {
               <option value="neutral">落ち着いた</option>
             </select>
           </div>
+        </div>
+      </section>
+
+      {/* Costume Type Section */}
+      <section className="section">
+        <h2>📑 衣装の種類</h2>
+        <div className="form-group">
+          <label>衣装の種類 *</label>
+          <select
+            value={costumeType}
+            onChange={(e) => setCostumeType(e.target.value)}
+            disabled={loading}
+          >
+            {COSTUME_TYPE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 

@@ -48,6 +48,15 @@
   border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
+  transition: none;
+}
+
+.feature-card:hover,
+.feature-card:active,
+.feature-card:focus {
+  transform: none;
+  box-shadow: none;
+  border-color: inherit;
 }
 
 .feature-card.no-hover {
