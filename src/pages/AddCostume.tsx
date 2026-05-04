@@ -161,6 +161,11 @@ export default function AddCostume() {
             {imageUri ? '画像を変更' : '画像をアップロード'}
           </label>
         </div>
+        <div className="cloud-import-section">
+          <button className="cloud-import-button" disabled={loading}>
+            ☁️ クラウドからインポート
+          </button>
+        </div>
 
         {imageUri && (
           <div className="image-preview">

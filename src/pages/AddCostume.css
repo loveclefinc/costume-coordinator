@@ -357,3 +357,39 @@
     width: 100%;
   }
 }
+
+
+/* Cloud Import Section */
+.cloud-import-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.cloud-import-button {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #34c759;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.cloud-import-button:hover:not(:disabled) {
+  background-color: #30b050;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+}
+
+.cloud-import-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cloud-import-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
