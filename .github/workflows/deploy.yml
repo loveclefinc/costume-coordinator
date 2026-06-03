@@ -36,6 +36,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify OAuth client IDs for build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID || secrets.VITE_DROPBOX_CLIENT_ID }}
+        run: |
+          if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
+            echo "::error::VITE_GOOGLE_CLIENT_ID is not set. Add it under Settings → Secrets and variables → Actions (Repository Variables or Secrets)."
+            exit 1
+          fi
+          if [ -z "$VITE_DROPBOX_CLIENT_ID" ]; then
+            echo "::error::VITE_DROPBOX_CLIENT_ID is not set. Add it under Settings → Secrets and variables → Actions (Repository Variables or Secrets)."
+            exit 1
+          fi
+          echo "OAuth client IDs are present (values not logged)."
+
       - name: Build
         env:
           # Repository Variables または Secrets（名前は完全一致）
