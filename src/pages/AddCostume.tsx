@@ -1,6 +1,7 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
+import { useCloudSync } from '../hooks/useCloudSync'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import './AddCostume.css'
 
@@ -28,6 +29,8 @@ const COSTUME_TYPE_OPTIONS = [
 export default function AddCostume() {
   const navigate = useNavigate()
   const { addCostume } = useCostumes()
+  const { status: cloudStatus } = useCloudSync()
+  const cloudConnected = cloudStatus.connected
 
   const [name, setName] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
@@ -155,9 +158,26 @@ export default function AddCostume() {
           </label>
         </div>
         <div className="cloud-import-section">
-          <button className="cloud-import-button" disabled={loading}>
+          <button
+            type="button"
+            className={`cloud-import-button${cloudConnected ? '' : ' cloud-import-button--off'}`}
+            disabled={loading || !cloudConnected}
+            aria-disabled={loading || !cloudConnected}
+            title={
+              cloudConnected
+                ? 'クラウド上の画像から衣装写真を選ぶ'
+                : 'クラウド同期未接続のため利用できません'
+            }
+          >
             ☁️ クラウドからインポート
           </button>
+          {!cloudConnected && (
+            <p className="cloud-import-hint">
+              クラウド同期に未接続のため利用できません。
+              <Link to="/settings">設定</Link>
+              から Google Drive または Dropbox を接続してください。
+            </p>
+          )}
         </div>
 
         {imageUri && (
@@ -198,7 +218,7 @@ export default function AddCostume() {
       <section className="section">
         <h2>🎨 色</h2>
         <div className="color-grid">
-          <div className="color-item">
+          <div className="color-item color-item--swatch">
             <label>主色</label>
             <div className="color-input-group">
               <input
@@ -215,7 +235,7 @@ export default function AddCostume() {
             </div>
           </div>
 
-          <div className="color-item">
+          <div className="color-item color-item--swatch">
             <label>副色</label>
             <div className="color-input-group">
               <input
@@ -228,7 +248,7 @@ export default function AddCostume() {
             </div>
           </div>
 
-          <div className="color-item">
+          <div className="color-item color-item--select">
             <label>色カテゴリ</label>
             <select
               value={colorCategory}
@@ -241,7 +261,7 @@ export default function AddCostume() {
             </select>
           </div>
 
-          <div className="color-item">
+          <div className="color-item color-item--select">
             <label>トーン</label>
             <select
               value={tone}

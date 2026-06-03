@@ -121,27 +121,56 @@
   cursor: not-allowed;
 }
 
-/* Color Grid */
+/* Color Grid — 上段: 主色・副色 / 下段: 色カテゴリ・トーン */
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .color-item {
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
   min-width: 0;
 }
 
 .color-item label {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0;
   font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.color-item--select label {
+  white-space: normal;
+}
+
+.color-item select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  padding-right: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1.25;
+  background-color: var(--background);
+  color: var(--text);
+  appearance: auto;
+}
+
+.color-item select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.color-item select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .color-input-group {
@@ -172,13 +201,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-  .color-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
+@media (max-width: 360px) {
   .color-grid {
     grid-template-columns: 1fr;
   }
@@ -340,10 +363,6 @@
     padding: 1rem;
   }
 
-  .color-grid {
-    grid-template-columns: 1fr;
-  }
-
   .photos-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
@@ -389,7 +408,31 @@
   transform: translateY(0);
 }
 
-.cloud-import-button:disabled {
-  opacity: 0.6;
+.cloud-import-button:disabled,
+.cloud-import-button--off {
+  background-color: var(--text-secondary);
+  color: var(--background);
+  opacity: 1;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cloud-import-button--off:hover:not(:disabled),
+.cloud-import-button:disabled:hover {
+  background-color: var(--text-secondary);
+  transform: none;
+  box-shadow: none;
+}
+
+.cloud-import-hint {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.cloud-import-hint a {
+  color: var(--primary);
+  text-decoration: underline;
 }

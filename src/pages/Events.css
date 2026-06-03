@@ -325,6 +325,123 @@
   color: var(--text);
 }
 
+/* 希望順ウィザード（第1→第2→第3） */
+.preference-wizard-lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.preference-wizard-steps {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.preference-wizard-step {
+  flex: 1;
+  min-width: 5.5rem;
+  text-align: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  border: 2px solid var(--border);
+}
+
+.preference-wizard-step.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: rgba(0, 122, 255, 0.08);
+}
+
+.preference-wizard-step.done {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.preference-wizard-heading {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.preference-wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.preference-wizard-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid transparent;
+  font-size: 0.95rem;
+}
+
+.preference-wizard-btn.primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.preference-wizard-btn.primary:hover {
+  opacity: 0.9;
+}
+
+.preference-wizard-btn.secondary {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.preference-wizard-btn.secondary:hover {
+  border-color: var(--primary);
+}
+
+.preference-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.preference-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.preference-summary-row strong {
+  color: var(--text);
+}
+
+.preference-summary-row span {
+  color: var(--text-secondary);
+}
+
+.preference-wizard-edit {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .color-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));

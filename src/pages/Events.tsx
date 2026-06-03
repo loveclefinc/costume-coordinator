@@ -22,6 +22,36 @@ const TONE_LABELS: Record<string, string> = {
 
 // Pattern options
 const PATTERN_OPTIONS = ['plain', 'floral', 'stripe', 'dot', 'check', 'geometric', 'animal']
+const PATTERN_LABELS: Record<string, string> = {
+  plain: '無地',
+  floral: '花柄',
+  stripe: 'ストライプ',
+  dot: 'ドット',
+  check: 'チェック',
+  geometric: '幾何学',
+  animal: 'アニマル',
+}
+
+type PreferencePriority = '1st' | '2nd' | '3rd'
+
+function priorityFromStep(step: 1 | 2 | 3): PreferencePriority {
+  return step === 1 ? '1st' : step === 2 ? '2nd' : '3rd'
+}
+
+const EMPTY_THEME_PREFS: EventThemePreferences = {
+  colorUnification: 'unified',
+  colors1stChoice: [],
+  colors2ndChoice: [],
+  colors3rdChoice: [],
+  tones1stChoice: [],
+  tones2ndChoice: [],
+  tones3rdChoice: [],
+  patterns1stChoice: [],
+  patterns2ndChoice: [],
+  patterns3rdChoice: [],
+  avoidSimilarColors: false,
+  recentUsageExcludeDays: 30,
+}
 
 export default function Events() {
   const { events, loading, error, addEvent, deleteEvent } = useEvents()
@@ -33,22 +63,44 @@ export default function Events() {
   })
 
   // Theme preferences state
-  const [themePrefs, setThemePrefs] = useState<EventThemePreferences>({
-    colorUnification: 'unified',
-    colors1stChoice: [],
-    colors2ndChoice: [],
-    colors3rdChoice: [],
-    tones1stChoice: [],
-    tones2ndChoice: [],
-    tones3rdChoice: [],
-    patterns1stChoice: [],
-    patterns2ndChoice: [],
-    patterns3rdChoice: [],
-    avoidSimilarColors: false,
-    recentUsageExcludeDays: 30,
-  })
+  const [themePrefs, setThemePrefs] = useState<EventThemePreferences>({ ...EMPTY_THEME_PREFS })
 
   const [showThemeSettings, setShowThemeSettings] = useState(false)
+  /** 1→2→3 の順で希望を決める（色・トーン・柄を交互に出さない） */
+  const [preferenceRankStep, setPreferenceRankStep] = useState<1 | 2 | 3>(1)
+  const [preferenceWizardDone, setPreferenceWizardDone] = useState(false)
+
+  const clearPreferenceRank = (priority: PreferencePriority) => {
+    setThemePrefs(prev => {
+      if (priority === '1st') {
+        return {
+          ...prev,
+          colors1stChoice: [],
+          tones1stChoice: [],
+          patterns1stChoice: [],
+        }
+      }
+      if (priority === '2nd') {
+        return {
+          ...prev,
+          colors2ndChoice: [],
+          tones2ndChoice: [],
+          patterns2ndChoice: [],
+        }
+      }
+      return {
+        ...prev,
+        colors3rdChoice: [],
+        tones3rdChoice: [],
+        patterns3rdChoice: [],
+      }
+    })
+  }
+
+  const resetPreferenceWizard = () => {
+    setPreferenceRankStep(1)
+    setPreferenceWizardDone(false)
+  }
 
   // Toggle color selection
   const toggleColor = (color: string, priority: '1st' | '2nd' | '3rd') => {
@@ -103,19 +155,8 @@ export default function Events() {
         themePreferences: themePrefs,
       })
       setFormData({ name: '', date: '', description: '' })
-      setThemePrefs({
-        colors1stChoice: [],
-        colors2ndChoice: [],
-        colors3rdChoice: [],
-        tones1stChoice: [],
-        tones2ndChoice: [],
-        tones3rdChoice: [],
-        patterns1stChoice: [],
-        patterns2ndChoice: [],
-        patterns3rdChoice: [],
-        avoidSimilarColors: false,
-        recentUsageExcludeDays: 30,
-      })
+      setThemePrefs({ ...EMPTY_THEME_PREFS })
+      resetPreferenceWizard()
       setShowForm(false)
       setShowThemeSettings(false)
     } catch (err) {
@@ -142,6 +183,128 @@ export default function Events() {
   }
 
   const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const currentPriority = priorityFromStep(preferenceRankStep)
+
+  const getRankChoices = (priority: PreferencePriority) => {
+    switch (priority) {
+      case '1st':
+        return {
+          colors: themePrefs.colors1stChoice,
+          tones: themePrefs.tones1stChoice,
+          patterns: themePrefs.patterns1stChoice,
+        }
+      case '2nd':
+        return {
+          colors: themePrefs.colors2ndChoice,
+          tones: themePrefs.tones2ndChoice,
+          patterns: themePrefs.patterns2ndChoice,
+        }
+      case '3rd':
+        return {
+          colors: themePrefs.colors3rdChoice,
+          tones: themePrefs.tones3rdChoice,
+          patterns: themePrefs.patterns3rdChoice,
+        }
+    }
+  }
+
+  const renderRankPreferencePickers = (priority: PreferencePriority, rankLabel: string) => {
+    const { colors, tones, patterns } = getRankChoices(priority)
+
+    return (
+      <>
+        <p className="preference-wizard-lead">
+          {rankLabel}として、色・トーン・柄をまとめて選びます（第1希望 → 第2希望 → 第3希望の順です）。
+        </p>
+
+        <div className="preference-group">
+          <label>色</label>
+          <div className="color-grid">
+            {COLOR_OPTIONS.map(color => (
+              <button
+                key={`color-${priority}-${color}`}
+                type="button"
+                onClick={() => toggleColor(color, priority)}
+                className={`color-button ${colors.includes(color) ? 'selected' : ''}`}
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="preference-group">
+          <label>トーン</label>
+          <div className="option-grid">
+            {TONE_OPTIONS.map(tone => (
+              <button
+                key={`tone-${priority}-${tone}`}
+                type="button"
+                onClick={() => toggleTone(tone, priority)}
+                className={`option-button ${tones.includes(tone) ? 'selected' : ''}`}
+              >
+                {TONE_LABELS[tone]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="preference-group">
+          <label>柄</label>
+          <div className="option-grid">
+            {PATTERN_OPTIONS.map(pattern => (
+              <button
+                key={`pattern-${priority}-${pattern}`}
+                type="button"
+                onClick={() => togglePattern(pattern, priority)}
+                className={`option-button ${patterns.includes(pattern) ? 'selected' : ''}`}
+              >
+                {PATTERN_LABELS[pattern] ?? pattern}
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  const renderPreferenceSummary = () => {
+    const ranks: { label: string; priority: PreferencePriority }[] = [
+      { label: '第1希望', priority: '1st' },
+      { label: '第2希望', priority: '2nd' },
+      { label: '第3希望', priority: '3rd' },
+    ]
+
+    return (
+      <div className="preference-summary">
+        {ranks.map(({ label, priority }) => {
+          const { colors, tones, patterns } = getRankChoices(priority)
+          if (colors.length === 0 && tones.length === 0 && patterns.length === 0) return null
+          return (
+            <div key={priority} className="preference-summary-row">
+              <strong>{label}</strong>
+              <span>
+                {colors.length > 0 && `色: ${colors.join(', ')}`}
+                {tones.length > 0 && `${colors.length > 0 ? ' / ' : ''}トーン: ${tones.map(t => TONE_LABELS[t] ?? t).join(', ')}`}
+                {patterns.length > 0 && `${colors.length > 0 || tones.length > 0 ? ' / ' : ''}柄: ${patterns.map(p => PATTERN_LABELS[p] ?? p).join(', ')}`}
+              </span>
+            </div>
+          )
+        })}
+        <button
+          type="button"
+          className="preference-wizard-edit"
+          onClick={() => {
+            setPreferenceWizardDone(false)
+            setPreferenceRankStep(1)
+          }}
+        >
+          希望の設定をやり直す
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="events-page">
@@ -201,7 +364,11 @@ export default function Events() {
           <div className="form-group">
             <button
               type="button"
-              onClick={() => setShowThemeSettings(!showThemeSettings)}
+              onClick={() => {
+                const next = !showThemeSettings
+                setShowThemeSettings(next)
+                if (next) resetPreferenceWizard()
+              }}
               className="theme-settings-toggle"
             >
               {showThemeSettings ? '▼ テーマ設定を非表示' : '▶ テーマ設定を表示'}
@@ -240,163 +407,113 @@ export default function Events() {
                 </div>
               </div>
 
-              {/* Color Preferences */}
-              <div className="theme-subsection">
-                <h4>色の好み</h4>
-                
-                <div className="preference-group">
-                  <label>第1希望</label>
-                  <div className="color-grid">
-                    {COLOR_OPTIONS.map(color => (
-                      <button
-                        key={`color-1st-${color}`}
-                        type="button"
-                        onClick={() => toggleColor(color, '1st')}
-                        className={`color-button ${themePrefs.colors1stChoice.includes(color) ? 'selected' : ''}`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
+              {/* 希望順ウィザード: 第1希望（色・トーン・柄）→ 第2希望 → 第3希望 */}
+              <div className="theme-subsection preference-wizard">
+                <h4>テーマの希望順</h4>
+
+                <div className="preference-wizard-steps" aria-label="設定の進捗">
+                  {([1, 2, 3] as const).map(step => (
+                    <span
+                      key={step}
+                      className={[
+                        'preference-wizard-step',
+                        preferenceWizardDone || preferenceRankStep > step ? 'done' : '',
+                        !preferenceWizardDone && preferenceRankStep === step ? 'active' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      第{step}希望
+                    </span>
+                  ))}
                 </div>
 
-                <div className="preference-group">
-                  <label>第2希望</label>
-                  <div className="color-grid">
-                    {COLOR_OPTIONS.map(color => (
-                      <button
-                        key={`color-2nd-${color}`}
-                        type="button"
-                        onClick={() => toggleColor(color, '2nd')}
-                        className={`color-button ${themePrefs.colors2ndChoice.includes(color) ? 'selected' : ''}`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </div>
+                {preferenceWizardDone ? (
+                  renderPreferenceSummary()
+                ) : (
+                  <>
+                    <h4 className="preference-wizard-heading">
+                      {preferenceRankStep === 1 && '第1希望を設定'}
+                      {preferenceRankStep === 2 && '第2希望を設定（任意）'}
+                      {preferenceRankStep === 3 && '第3希望を設定（任意）'}
+                    </h4>
 
-                <div className="preference-group">
-                  <label>第3希望</label>
-                  <div className="color-grid">
-                    {COLOR_OPTIONS.map(color => (
-                      <button
-                        key={`color-3rd-${color}`}
-                        type="button"
-                        onClick={() => toggleColor(color, '3rd')}
-                        className={`color-button ${themePrefs.colors3rdChoice.includes(color) ? 'selected' : ''}`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
+                    {renderRankPreferencePickers(
+                      currentPriority,
+                      preferenceRankStep === 1
+                        ? '第1希望'
+                        : preferenceRankStep === 2
+                          ? '第2希望'
+                          : '第3希望',
+                    )}
 
-              {/* Tone Preferences */}
-              <div className="theme-subsection">
-                <h4>トーンの選択</h4>
-                
-                <div className="preference-group">
-                  <label>第1希望</label>
-                  <div className="option-grid">
-                    {TONE_OPTIONS.map(tone => (
-                      <button
-                        key={`tone-1st-${tone}`}
-                        type="button"
-                        onClick={() => toggleTone(tone, '1st')}
-                        className={`option-button ${themePrefs.tones1stChoice.includes(tone) ? 'selected' : ''}`}
-                      >
-                        {TONE_LABELS[tone]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    <div className="preference-wizard-actions">
+                      {preferenceRankStep > 1 && (
+                        <button
+                          type="button"
+                          className="preference-wizard-btn secondary"
+                          onClick={() => setPreferenceRankStep((preferenceRankStep - 1) as 1 | 2 | 3)}
+                        >
+                          戻る
+                        </button>
+                      )}
 
-                <div className="preference-group">
-                  <label>第2希望</label>
-                  <div className="option-grid">
-                    {TONE_OPTIONS.map(tone => (
-                      <button
-                        key={`tone-2nd-${tone}`}
-                        type="button"
-                        onClick={() => toggleTone(tone, '2nd')}
-                        className={`option-button ${themePrefs.tones2ndChoice.includes(tone) ? 'selected' : ''}`}
-                      >
-                        {TONE_LABELS[tone]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                      {preferenceRankStep === 1 && (
+                        <button
+                          type="button"
+                          className="preference-wizard-btn primary"
+                          onClick={() => setPreferenceRankStep(2)}
+                        >
+                          第1希望の選択を完了
+                        </button>
+                      )}
 
-                <div className="preference-group">
-                  <label>第3希望</label>
-                  <div className="option-grid">
-                    {TONE_OPTIONS.map(tone => (
-                      <button
-                        key={`tone-3rd-${tone}`}
-                        type="button"
-                        onClick={() => toggleTone(tone, '3rd')}
-                        className={`option-button ${themePrefs.tones3rdChoice.includes(tone) ? 'selected' : ''}`}
-                      >
-                        {TONE_LABELS[tone]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                      {preferenceRankStep === 2 && (
+                        <>
+                          <button
+                            type="button"
+                            className="preference-wizard-btn primary"
+                            onClick={() => setPreferenceRankStep(3)}
+                          >
+                            第2希望の選択を完了
+                          </button>
+                          <button
+                            type="button"
+                            className="preference-wizard-btn secondary"
+                            onClick={() => {
+                              clearPreferenceRank('2nd')
+                              setPreferenceRankStep(3)
+                            }}
+                          >
+                            第2希望は設定しない
+                          </button>
+                        </>
+                      )}
 
-              {/* Pattern Preferences */}
-              <div className="theme-subsection">
-                <h4>柄の選択</h4>
-                
-                <div className="preference-group">
-                  <label>第1希望</label>
-                  <div className="option-grid">
-                    {PATTERN_OPTIONS.map(pattern => (
-                      <button
-                        key={`pattern-1st-${pattern}`}
-                        type="button"
-                        onClick={() => togglePattern(pattern, '1st')}
-                        className={`option-button ${themePrefs.patterns1stChoice.includes(pattern) ? 'selected' : ''}`}
-                      >
-                        {pattern}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="preference-group">
-                  <label>第2希望</label>
-                  <div className="option-grid">
-                    {PATTERN_OPTIONS.map(pattern => (
-                      <button
-                        key={`pattern-2nd-${pattern}`}
-                        type="button"
-                        onClick={() => togglePattern(pattern, '2nd')}
-                        className={`option-button ${themePrefs.patterns2ndChoice.includes(pattern) ? 'selected' : ''}`}
-                      >
-                        {pattern}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="preference-group">
-                  <label>第3希望</label>
-                  <div className="option-grid">
-                    {PATTERN_OPTIONS.map(pattern => (
-                      <button
-                        key={`pattern-3rd-${pattern}`}
-                        type="button"
-                        onClick={() => togglePattern(pattern, '3rd')}
-                        className={`option-button ${themePrefs.patterns3rdChoice.includes(pattern) ? 'selected' : ''}`}
-                      >
-                        {pattern}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                      {preferenceRankStep === 3 && (
+                        <>
+                          <button
+                            type="button"
+                            className="preference-wizard-btn primary"
+                            onClick={() => setPreferenceWizardDone(true)}
+                          >
+                            第3希望の選択を完了
+                          </button>
+                          <button
+                            type="button"
+                            className="preference-wizard-btn secondary"
+                            onClick={() => {
+                              clearPreferenceRank('3rd')
+                              setPreferenceWizardDone(true)
+                            }}
+                          >
+                            第3希望は設定しない
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Additional Settings */}
