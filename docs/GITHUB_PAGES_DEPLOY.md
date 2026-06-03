@@ -7,14 +7,19 @@
 
 ## 1. OAuth 用 Client ID の設定（ビルド時）
 
-GitHub リポジトリ → **Settings** → **Secrets and variables** → **Actions** → **Variables**:
+GitHub リポジトリ → **Settings** → **Secrets and variables** → **Actions**
+
+**Variables** または **Secrets** のどちらでも可（名前は下表と**完全一致**）。
 
 | Name | 例 |
 |------|-----|
-| `VITE_GOOGLE_CLIENT_ID` | Google Cloud の Client ID |
-| `VITE_DROPBOX_CLIENT_ID` | Dropbox App key |
+| `VITE_GOOGLE_CLIENT_ID` | `123456789-xxxx.apps.googleusercontent.com` |
+| `VITE_DROPBOX_CLIENT_ID` | Dropbox App Console の App key |
 
-※ Secret ではなく Variable で可（公開 Client ID のため）。漏洩リスクを下げるなら Secret でも可。
+よくある誤り:
+
+- `GOOGLE_CLIENT_ID` など `VITE_` 抜けの名前 → ビルドに渡らない
+- **Environment** 用の Variables にだけ登録 → **Repository** レベルで登録すること
 
 **Variable を追加・変更したあと**は、必ず「Deploy to GitHub Pages」workflow を再実行してください（`workflow_dispatch` または main へ push）。Client ID はビルド時に JS へ埋め込まれるため、再デプロイしないと反映されません。
 

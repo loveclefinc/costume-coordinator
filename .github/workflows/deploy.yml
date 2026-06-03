@@ -38,8 +38,9 @@ jobs:
 
       - name: Build
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID }}
+          # Repository Variables または Secrets（名前は完全一致）
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID || secrets.VITE_DROPBOX_CLIENT_ID }}
         run: pnpm build
 
       - name: Setup Pages
