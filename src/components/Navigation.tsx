@@ -1,17 +1,8 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { Link, useLocation } from 'react-router-dom'
 import './Navigation.css'
 
 export default function Navigation() {
   const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
-
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
-
   const isActive = (path: string) => location.pathname === path
 
   return (
@@ -20,47 +11,36 @@ export default function Navigation() {
         <Link to="/" className="nav-logo">
           👗 Costume Coordinator
         </Link>
-        
+
         <ul className="nav-menu">
           <li>
-            <Link 
-              to="/" 
-              className={`nav-link ${isActive('/') ? 'active' : ''}`}
-            >
+            <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
               ホーム
             </Link>
           </li>
           <li>
-            <Link 
-              to="/costumes" 
+            <Link
+              to="/costumes"
               className={`nav-link ${isActive('/costumes') ? 'active' : ''}`}
             >
               衣装
             </Link>
           </li>
           <li>
-            <Link 
-              to="/events" 
+            <Link
+              to="/events"
               className={`nav-link ${isActive('/events') ? 'active' : ''}`}
             >
               イベント
             </Link>
           </li>
           <li>
-            <Link 
-              to="/settings" 
+            <Link
+              to="/settings"
               className={`nav-link ${isActive('/settings') ? 'active' : ''}`}
             >
               設定
             </Link>
-          </li>
-          <li>
-            <div className="nav-user-menu">
-              <span className="nav-user-email">{user?.email}</span>
-              <button onClick={handleLogout} className="nav-logout-button">
-                ログアウト
-              </button>
-            </div>
           </li>
         </ul>
       </div>

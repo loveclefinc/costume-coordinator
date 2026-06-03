@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+package-lock.json
 
 # Expo
 .expo/
@@ -32,8 +33,20 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Environment variables (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Cloud credentials & keys
+credentials.json
+*-credentials.json
+**/service-account*.json
+**/firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+.aws/
+.supabase/
 
 # typescript
 *.tsbuildinfo

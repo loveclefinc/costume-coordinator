@@ -1,7 +1,7 @@
 // IndexedDB storage utility for PWA local persistence
 
 const DB_NAME = 'CostumeCoordinator'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export interface Costume {
   id: string
@@ -60,6 +60,15 @@ export interface UsageHistory {
   usedAt: number
 }
 
+export interface SyncMetaRecord {
+  id: 'default'
+  provider: 'google-drive' | 'dropbox'
+  accountLabel: string
+  lastSyncAt: string | null
+  lastSyncError: string | null
+  pendingConflicts: number
+}
+
 class CostumeStorage {
   private db: IDBDatabase | null = null
 
@@ -96,6 +105,11 @@ class CostumeStorage {
           historyStore.createIndex('costumeId', 'costumeId', { unique: false })
           historyStore.createIndex('eventId', 'eventId', { unique: false })
           historyStore.createIndex('usedAt', 'usedAt', { unique: false })
+        }
+
+        // Cloud sync metadata (no secrets)
+        if (!db.objectStoreNames.contains('syncMeta')) {
+          db.createObjectStore('syncMeta', { keyPath: 'id' })
         }
       }
     })
@@ -261,6 +275,19 @@ class CostumeStorage {
     })
   }
 
+  async getAllUsageHistory(): Promise<UsageHistory[]> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['usageHistory'], 'readonly')
+      const store = transaction.objectStore('usageHistory')
+      const request = store.getAll()
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
   async getRecentUsageHistory(days: number = 30): Promise<UsageHistory[]> {
     if (!this.db) throw new Error('Database not initialized')
 
@@ -275,6 +302,32 @@ class CostumeStorage {
 
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  async getSyncMeta(): Promise<SyncMetaRecord | null> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['syncMeta'], 'readonly')
+      const store = transaction.objectStore('syncMeta')
+      const request = store.get('default')
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result ?? null)
+    })
+  }
+
+  async setSyncMeta(meta: Omit<SyncMetaRecord, 'id'>): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['syncMeta'], 'readwrite')
+      const store = transaction.objectStore('syncMeta')
+      const request = store.put({ id: 'default' as const, ...meta })
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
     })
   }
 

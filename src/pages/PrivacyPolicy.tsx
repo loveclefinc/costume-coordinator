@@ -52,8 +52,8 @@ export default function PrivacyPolicy() {
             本アプリは、ユーザーの情報を保護するため、以下の対策を実施しています：
           </p>
           <ul>
-            <li>Firebase Authentication による安全な認証</li>
-            <li>Firebase Realtime Database による暗号化されたデータ保存</li>
+            <li>OAuth 2.0 PKCE によるクラウド接続（Client Secret 不使用）</li>
+            <li>IndexedDB へのローカル保存と、接続時のみ Google Drive / Dropbox への同期</li>
             <li>HTTPS通信による暗号化</li>
             <li>定期的なセキュリティ監査</li>
           </ul>

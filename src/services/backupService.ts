@@ -1,3 +1,6 @@
+/**
+ * @deprecated Use src/cloud/sync/sync-service.ts (PKCE, IndexedDB tokens) instead.
+ */
 import { Event, Costume } from '../utils/storage'
 
 export type BackupProvider = 'dropbox' | 'google-drive'
