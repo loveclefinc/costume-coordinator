@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { storage, Costume } from '../utils/storage'
+import { normalizeCostume, normalizeCostumeList } from '../utils/costume-normalize'
 
 export function useCostumes() {
   const [costumes, setCostumes] = useState<Costume[]>([])
@@ -12,7 +13,7 @@ export function useCostumes() {
       try {
         await storage.init()
         const allCostumes = await storage.getAllCostumes()
-        setCostumes(allCostumes)
+        setCostumes(normalizeCostumeList(allCostumes))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load costumes')
       } finally {
@@ -25,12 +26,12 @@ export function useCostumes() {
 
   const addCostume = useCallback(async (costume: Omit<Costume, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const newCostume: Costume = {
+      const newCostume: Costume = normalizeCostume({
         ...costume,
         id: `costume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      }
+      })
       await storage.addCostume(newCostume)
       setCostumes(prev => [...prev, newCostume])
       return newCostume
@@ -46,13 +47,13 @@ export function useCostumes() {
       const existing = await storage.getCostume(id)
       if (!existing) throw new Error('Costume not found')
 
-      const updated: Costume = {
+      const updated: Costume = normalizeCostume({
         ...existing,
         ...updates,
         id,
         createdAt: existing.createdAt,
         updatedAt: Date.now(),
-      }
+      })
       await storage.updateCostume(updated)
       setCostumes(prev => prev.map(c => c.id === id ? updated : c))
       return updated

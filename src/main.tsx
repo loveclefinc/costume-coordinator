@@ -5,11 +5,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
 
+// 旧ビルドがルート /sw.js を登録している場合は解除（vite-plugin-pwa が正しいパスで登録）
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((err) => {
-      console.log('ServiceWorker registration failed: ', err)
-    })
+  void navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      const scriptUrl =
+        registration.active?.scriptURL ??
+        registration.installing?.scriptURL ??
+        registration.waiting?.scriptURL ??
+        ''
+      if (scriptUrl.includes('/sw.js') && !scriptUrl.includes('/costume-coordinator/')) {
+        void registration.unregister()
+      }
+    }
   })
 }
 

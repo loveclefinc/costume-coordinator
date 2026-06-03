@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCostumes } from '../hooks/useCostumes'
+import { normalizeCostumeColors } from '../utils/costume-normalize'
 import './Costumes.css'
 
 export default function Costumes() {
@@ -78,7 +79,7 @@ export default function Costumes() {
                   <div className="detail-item">
                     <span className="label">色:</span>
                     <div className="colors">
-                      {costume.colors.map((color) => (
+                      {normalizeCostumeColors(costume.colors).map((color) => (
                         <span
                           key={color}
                           className="color-tag"
@@ -99,7 +100,7 @@ export default function Costumes() {
                   <div className="detail-item">
                     <span className="label">季節:</span>
                     <div className="seasons">
-                      {costume.season.map((s) => (
+                      {(Array.isArray(costume.season) ? costume.season : []).map((s) => (
                         <span key={s} className="season-tag">{s}</span>
                       ))}
                     </div>

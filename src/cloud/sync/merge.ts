@@ -1,4 +1,5 @@
 import type { Costume, Event, UsageHistory } from '../../utils/storage'
+import { normalizeCostume } from '../../utils/costume-normalize'
 import type {
   CloudSyncDocument,
   MergeResult,
@@ -18,7 +19,13 @@ export function localDataToRecords(
     records.push({ id: e.id, type: 'event', updatedAt: e.updatedAt, data: e })
   }
   for (const c of costumes) {
-    records.push({ id: c.id, type: 'costume', updatedAt: c.updatedAt, data: c })
+    const normalized = normalizeCostume(c)
+    records.push({
+      id: normalized.id,
+      type: 'costume',
+      updatedAt: normalized.updatedAt,
+      data: normalized,
+    })
   }
   for (const h of usageHistory) {
     records.push({ id: h.id, type: 'usageHistory', updatedAt: h.usedAt, data: h })
@@ -37,7 +44,7 @@ export function recordsToLocalData(records: SyncRecord[]): {
 
   for (const r of records) {
     if (r.type === 'event') events.push(r.data as Event)
-    else if (r.type === 'costume') costumes.push(r.data as Costume)
+    else if (r.type === 'costume') costumes.push(normalizeCostume(r.data as Costume))
     else if (r.type === 'usageHistory') usageHistory.push(r.data as UsageHistory)
   }
 

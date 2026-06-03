@@ -110,23 +110,16 @@ export default function AddCostume() {
       setLoading(true)
       setError('')
 
-      const costume = {
-        name,
-        imageUri,
-        thumbnailUri: thumbnailUri || imageUri,
-        wearingPhotos,
-        colors: {
-          primary: primaryColor,
-          secondary: secondaryColor || undefined,
-        },
-        colorCategory,
+      const colors = [primaryColor, secondaryColor].filter(Boolean)
+      await addCostume({
+        name: name.trim(),
+        image: imageUri,
+        colors,
         tone,
         pattern,
+        season: [],
         type: costumeType,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-      }
-
-      await addCostume(costume)
+      })
       navigate('/costumes')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save costume')

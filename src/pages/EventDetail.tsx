@@ -5,6 +5,7 @@ import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/optimizer'
 import { recordCostumeUsage } from '../utils/usage-tracker'
+import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
 import './EventDetail.css'
 
@@ -571,7 +572,7 @@ export default function EventDetail() {
                         <div className="costume-details">
                           <h5>{result.costume.name}</h5>
                           <div className="colors">
-                            {result.costume.colors.map((color) => (
+                            {normalizeCostumeColors(result.costume.colors).map((color) => (
                               <span
                                 key={color}
                                 className="color-dot"

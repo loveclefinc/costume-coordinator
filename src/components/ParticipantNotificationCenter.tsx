@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getParticipantNotifications, markNotificationAsAcknowledged } from '../utils/notification-service'
 import { ParticipantNotification } from '../utils/notification-service'
+import { normalizeCostumeColors } from '../utils/costume-normalize'
 import '../styles/ParticipantNotificationCenter.css'
 
 interface ParticipantNotificationCenterProps {
@@ -196,7 +197,7 @@ function NotificationCard({
                 <span className="meta-item">{notification.costume.pattern}</span>
               </div>
               <div className="costume-colors">
-                {notification.costume.colors.map((color, idx) => (
+                {normalizeCostumeColors(notification.costume.colors).map((color, idx) => (
                   <div
                     key={idx}
                     className="color-swatch"
