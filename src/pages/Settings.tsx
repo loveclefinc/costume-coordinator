@@ -27,8 +27,9 @@ export default function Settings() {
     connectGoogle,
     connectDropbox,
     syncNow,
-    disconnect,
+    logout,
   } = useCloudSync()
+  const disconnect = logout
 
   const formatDate = (iso: string | null) => {
     if (!iso) return '未同期'
@@ -132,7 +133,7 @@ export default function Settings() {
                 今すぐ同期
               </button>
               <button onClick={() => void disconnect()} className="settings-button secondary">
-                接続解除
+                ログアウト（接続解除）
               </button>
             </div>
           ) : (
@@ -166,6 +167,28 @@ export default function Settings() {
             </div>
           )}
         </section>
+
+        {status.connected && (
+          <section className="settings-section">
+            <h2>アカウント</h2>
+            <div className="settings-item">
+              <label>クラウドアカウント</label>
+              <p className="settings-value">
+                {status.provider === 'dropbox' ? 'Dropbox' : 'Google Drive'}
+                {status.accountLabel ? ` — ${status.accountLabel}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => void logout()}
+              className="settings-button danger"
+            >
+              ログアウト
+            </button>
+            <p className="settings-description">
+              ログアウトするとクラウド連携と保存済みトークンが解除されます。端末内のデータは削除されません。
+            </p>
+          </section>
+        )}
 
         <section className="settings-section">
           <h2>データ</h2>

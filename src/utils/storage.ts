@@ -331,6 +331,17 @@ class CostumeStorage {
     })
   }
 
+  async clearSyncMeta(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized')
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['syncMeta'], 'readwrite')
+      const request = transaction.objectStore('syncMeta').delete('default')
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve()
+    })
+  }
+
   async clearAllData(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 

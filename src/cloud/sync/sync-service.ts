@@ -159,6 +159,8 @@ export class CloudSyncService {
       await tokenManager.disconnect(provider)
     }
     accessTokenCache.clear()
+    const { localDataStore } = await import('./local-data-store')
+    await localDataStore.clearSyncMeta()
   }
 }
 

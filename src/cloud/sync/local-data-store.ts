@@ -75,6 +75,11 @@ export class LocalDataStore {
       pendingConflicts: meta.pendingConflicts ?? 0,
     })
   }
+
+  async clearSyncMeta(): Promise<void> {
+    await storage.init()
+    await storage.clearSyncMeta()
+  }
 }
 
 export const localDataStore = new LocalDataStore()
