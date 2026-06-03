@@ -6,13 +6,26 @@ import {
   storePkceSession,
 } from './pkce'
 
-function getRedirectUri(provider: CloudProvider): string {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+export function getRedirectUri(provider: CloudProvider): string {
+  const base = (import.meta.env.BASE_URL || '/costume-coordinator/').replace(/\/$/, '')
   const path =
     provider === 'google-drive'
       ? '/oauth/google/callback'
       : '/oauth/dropbox/callback'
   return `${window.location.origin}${base}${path}`
+}
+
+/** OAuth コンソールに登録する値（設定画面表示用） */
+export function getOAuthSetupInfo() {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://loveclefinc.github.io'
+  const base = (import.meta.env.BASE_URL || '/costume-coordinator/').replace(/\/$/, '')
+  return {
+    javascriptOrigin: origin,
+    googleRedirectUri: `${origin}${base}/oauth/google/callback`,
+    dropboxRedirectUri: `${origin}${base}/oauth/dropbox/callback`,
+    googleClientConfigured: Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID),
+    dropboxClientConfigured: Boolean(import.meta.env.VITE_DROPBOX_CLIENT_ID),
+  }
 }
 
 function getGoogleClientId(): string {
@@ -36,8 +49,8 @@ export async function startGoogleOAuth(): Promise<void> {
     client_id: getGoogleClientId(),
     redirect_uri: getRedirectUri('google-drive'),
     response_type: 'code',
-    scope:
-      'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
+    // drive.file のみ（同意画面に未追加のスコープがあると invalid になる）
+    scope: 'https://www.googleapis.com/auth/drive.file',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

@@ -1,9 +1,26 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
+import { getOAuthSetupInfo } from '../cloud/oauth/oauth-client'
 import './Settings.css'
+
+const oauthSetup = getOAuthSetupInfo()
+
+async function copyText(text: string, setLabel: (s: string) => void) {
+  try {
+    await navigator.clipboard.writeText(text)
+    setLabel('コピーしました')
+    setTimeout(() => setLabel('コピー'), 2000)
+  } catch {
+    setLabel('コピー失敗')
+  }
+}
 
 export default function Settings() {
   const navigate = useNavigate()
+  const [copyGoogle, setCopyGoogle] = useState('コピー')
+  const [copyDropbox, setCopyDropbox] = useState('コピー')
+  const [copyOrigin, setCopyOrigin] = useState('コピー')
   const {
     status,
     message,
@@ -37,6 +54,52 @@ export default function Settings() {
             Google Drive または Dropbox と同期します。OAuth 2.0 PKCE を使用し、Client
             Secret は不要です。データは <code>CostumeCoordinator/data.json</code> に保存されます。
           </p>
+
+          <div className="oauth-setup-box">
+            <h3>開発者コンソールに登録する URI（完全一致）</h3>
+            <p className="settings-description">
+              接続エラーが出る場合は、下の文字列を<strong>そのまま</strong>コピーして各コンソールに追加してください。
+            </p>
+            <div className="settings-item">
+              <label>Google — 承認済みの JavaScript 生成元</label>
+              <code className="oauth-uri">{oauthSetup.javascriptOrigin}</code>
+              <button
+                type="button"
+                className="settings-button secondary oauth-copy-btn"
+                onClick={() => void copyText(oauthSetup.javascriptOrigin, setCopyOrigin)}
+              >
+                {copyOrigin}
+              </button>
+            </div>
+            <div className="settings-item">
+              <label>Google — 承認済みのリダイレクト URI</label>
+              <code className="oauth-uri">{oauthSetup.googleRedirectUri}</code>
+              <button
+                type="button"
+                className="settings-button secondary oauth-copy-btn"
+                onClick={() => void copyText(oauthSetup.googleRedirectUri, setCopyGoogle)}
+              >
+                {copyGoogle}
+              </button>
+            </div>
+            <div className="settings-item">
+              <label>Dropbox — Redirect URIs</label>
+              <code className="oauth-uri">{oauthSetup.dropboxRedirectUri}</code>
+              <button
+                type="button"
+                className="settings-button secondary oauth-copy-btn"
+                onClick={() => void copyText(oauthSetup.dropboxRedirectUri, setCopyDropbox)}
+              >
+                {copyDropbox}
+              </button>
+            </div>
+            {!oauthSetup.googleClientConfigured && (
+              <p className="settings-message error">VITE_GOOGLE_CLIENT_ID がビルドに含まれていません。</p>
+            )}
+            {!oauthSetup.dropboxClientConfigured && (
+              <p className="settings-message error">VITE_DROPBOX_CLIENT_ID がビルドに含まれていません。</p>
+            )}
+          </div>
 
           {status.connected ? (
             <div className="backup-connected">

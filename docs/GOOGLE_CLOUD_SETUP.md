@@ -14,14 +14,25 @@
 ## 3. OAuth クライアント ID
 
 1. **認証情報** → **認証情報を作成** → **OAuth クライアント ID**
-2. 種類: **ウェブアプリケーション**
-3. **承認済みの JavaScript 生成元**（任意）:
+2. 種類: **ウェブアプリケーション**（デスクトップアプリではない）
+3. **承認済みの JavaScript 生成元**（必須・パスなし）:
    - `https://loveclefinc.github.io`
-   - `http://localhost:3000`
-4. **承認済みのリダイレクト URI**:
+   - `http://localhost:3000`（ローカル開発時）
+4. **承認済みのリダイレクト URI**（アプリ設定画面の「コピー」と**完全一致**）:
    - `https://loveclefinc.github.io/costume-coordinator/oauth/google/callback`
    - `http://localhost:3000/costume-coordinator/oauth/google/callback`
-5. Client ID をコピー → `VITE_GOOGLE_CLIENT_ID` に設定
+5. Client ID をコピー → `loveclefinc/costume-coordinator` の `VITE_GOOGLE_CLIENT_ID`
+
+### 「Access blocked: This app's request is invalid」のとき
+
+| 確認項目 | 内容 |
+|----------|------|
+| リダイレクト URI | 上記 URL を**1文字も変えず**追加（末尾スラッシュなし） |
+| JavaScript 生成元 | `https://loveclefinc.github.io` を追加 |
+| クライアント種別 | **ウェブアプリケーション** |
+| 同意画面のスコープ | `https://www.googleapis.com/auth/drive.file` を追加 |
+| テストユーザー | 同意画面が「テスト」なら自分の Gmail をテストユーザーに追加 |
+| Client ID | GitHub Variables の ID と、コンソールの OAuth クライアントが**同一** |
 
 ## 4. 重要
 
