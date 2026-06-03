@@ -8,8 +8,6 @@ export default function Home() {
   const [showQRScanner, setShowQRScanner] = useState(false)
   const { getEvent, updateEvent } = useEvents()
   const [addingParticipant, setAddingParticipant] = useState(false)
-  // Check if user is authenticated by checking localStorage
-  const isAuthenticated = !!localStorage.getItem('user_id')
 
   const handleParticipantAdded = async (eventId: string, participantName: string) => {
     try {

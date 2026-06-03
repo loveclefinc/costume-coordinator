@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
 import { getOAuthSetupInfo } from '../cloud/oauth/oauth-client'
+import { resetOnboarding } from '../utils/onboarding'
 import './Settings.css'
 
 const oauthSetup = getOAuthSetupInfo()
@@ -199,6 +200,21 @@ export default function Settings() {
               5 分ごとに自動同期し、オフライン時はローカルで編集を続けられます。
             </p>
           </div>
+        </section>
+
+        <section className="settings-section">
+          <h2>ガイド</h2>
+          <button
+            type="button"
+            className="settings-button secondary"
+            style={{ width: '100%' }}
+            onClick={() => {
+              resetOnboarding()
+              navigate('/welcome')
+            }}
+          >
+            はじめてのガイドを再度表示
+          </button>
         </section>
 
         <section className="settings-section">

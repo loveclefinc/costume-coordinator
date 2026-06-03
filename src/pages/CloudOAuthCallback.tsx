@@ -3,6 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { consumePkceSession } from '../cloud/oauth/pkce'
 import type { CloudProvider } from '../cloud/types'
 import { completeOAuthCallback } from '../hooks/useCloudSync'
+import {
+  completeOnboarding,
+  isOnboardingOAuthPending,
+} from '../utils/onboarding'
 import './OAuthCallback.css'
 
 interface Props {
@@ -39,16 +43,22 @@ export default function CloudOAuthCallback({ provider }: Props) {
 
       await completeOAuthCallback(provider, code, session.codeVerifier)
 
+      const fromOnboarding = isOnboardingOAuthPending()
+      if (fromOnboarding) {
+        completeOnboarding()
+      }
+
       setStatus('success')
       setMessage(
         `${provider === 'dropbox' ? 'Dropbox' : 'Google Drive'} に接続し、初回同期を完了しました。`,
       )
-      setTimeout(() => navigate('/settings'), 2000)
+      setTimeout(() => navigate(fromOnboarding ? '/' : '/settings'), 2000)
     } catch (err) {
       console.error('OAuth callback error:', err)
       setStatus('error')
       setMessage(err instanceof Error ? err.message : 'OAuth 処理に失敗しました')
-      setTimeout(() => navigate('/settings'), 3000)
+      const fromOnboarding = isOnboardingOAuthPending()
+      setTimeout(() => navigate(fromOnboarding ? '/welcome' : '/settings'), 3000)
     }
   }
 

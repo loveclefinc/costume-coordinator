@@ -1,0 +1,131 @@
+.onboarding-page {
+  flex-direction: column;
+  padding: 1.5rem 1rem 2rem;
+}
+
+.onboarding-walkthrough {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.onboarding-progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.onboarding-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.onboarding-dot.active {
+  background: white;
+  transform: scale(1.2);
+}
+
+.onboarding-dot.done {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.onboarding-card {
+  max-width: 100%;
+}
+
+.onboarding-step-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.onboarding-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.onboarding-feature-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  font-size: 0.9rem;
+}
+
+.onboarding-feature-item span:first-child {
+  font-size: 1.25rem;
+}
+
+.onboarding-feature-item p {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.onboarding-highlight {
+  background: #e8f4fd;
+  border-left: 4px solid var(--primary);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.onboarding-nav {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.onboarding-back {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.onboarding-next {
+  flex: 2;
+}
+
+.onboarding-cloud-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.onboarding-btn-dropbox {
+  background: #0061ff;
+}
+
+.onboarding-btn-dropbox:hover:not(:disabled) {
+  background: #004ecc;
+}
+
+.onboarding-skip {
+  margin-top: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.5rem;
+}
+
+.onboarding-skip-note {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Navigation from './components/Navigation'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
@@ -11,23 +11,29 @@ import Settings from './pages/Settings'
 import About from './pages/About'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import CloudOAuthCallback from './pages/CloudOAuthCallback'
+import Onboarding from './pages/Onboarding'
+import { isOnboardingComplete } from './utils/onboarding'
 import './App.css'
 
-function App() {
-  const [isDark, setIsDark] = useState(false)
+function AppShell() {
+  const location = useLocation()
+  const onboardingDone = isOnboardingComplete()
+  const isOAuthCallback = location.pathname.includes('/oauth/')
+  const isWelcome = location.pathname === '/welcome'
 
-  useEffect(() => {
-    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-      setIsDark(true)
-    }
-  }, [])
+  const showMainNav = onboardingDone && !isOAuthCallback && !isWelcome
+
+  if (!onboardingDone && !isOAuthCallback && !isWelcome) {
+    return <Navigate to="/welcome" replace />
+  }
 
   return (
-    <div className={isDark ? 'dark' : 'light'}>
+    <>
+      {showMainNav && <Navigation />}
       <PWAInstallPrompt />
-      <Navigation />
-      <main className="main-content">
+      <main className={showMainNav ? 'main-content' : 'main-content main-content-full'}>
         <Routes>
+          <Route path="/welcome" element={<Onboarding />} />
           <Route path="/" element={<Home />} />
           <Route path="/costumes" element={<Costumes />} />
           <Route path="/costumes/add" element={<AddCostume />} />
@@ -44,11 +50,27 @@ function App() {
             path="/oauth/dropbox/callback"
             element={<CloudOAuthCallback provider="dropbox" />}
           />
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Navigate to="/welcome" replace />} />
           <Route path="/auth/*" element={<Navigate to="/settings" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+    </>
+  )
+}
+
+function App() {
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      setIsDark(true)
+    }
+  }, [])
+
+  return (
+    <div className={isDark ? 'dark' : 'light'}>
+      <AppShell />
     </div>
   )
 }
