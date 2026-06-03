@@ -16,6 +16,8 @@ GitHub リポジトリ → **Settings** → **Secrets and variables** → **Acti
 
 ※ Secret ではなく Variable で可（公開 Client ID のため）。漏洩リスクを下げるなら Secret でも可。
 
+**Variable を追加・変更したあと**は、必ず「Deploy to GitHub Pages」workflow を再実行してください（`workflow_dispatch` または main へ push）。Client ID はビルド時に JS へ埋め込まれるため、再デプロイしないと反映されません。
+
 ## 2. workflow の環境変数
 
 `.github/workflows/deploy.yml` の Build ステップに以下を追加:
