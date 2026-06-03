@@ -7,41 +7,55 @@
 
 ## 1. OAuth 用 Client ID の設定（ビルド時）
 
-GitHub リポジトリ → **Settings** → **Secrets and variables** → **Actions**
+次の **2 つ**を、名前**完全一致**で登録します。
 
-**Variables** または **Secrets** のどちらでも可（名前は下表と**完全一致**）。
-
-| Name | 例 |
-|------|-----|
+| Name | 値の例 |
+|------|--------|
 | `VITE_GOOGLE_CLIENT_ID` | `123456789-xxxx.apps.googleusercontent.com` |
 | `VITE_DROPBOX_CLIENT_ID` | Dropbox App Console の App key |
 
-よくある誤り:
+### 登録場所（どちらか一方で可）
 
-- `GOOGLE_CLIENT_ID` など `VITE_` 抜けの名前 → ビルドに渡らない
-- **Environment** 用の Variables にだけ登録 → **Repository** レベルで登録すること
+#### A. Repository（推奨・わかりやすい）
 
-**Variable を追加・変更したあと**は、必ず「Deploy to GitHub Pages」workflow を再実行してください（`workflow_dispatch` または main へ push）。Client ID はビルド時に JS へ埋め込まれるため、再デプロイしないと反映されません。
+`Settings` → `Secrets and variables` → `Actions` → **Repository variables** または **Repository secrets**
 
-## 2. workflow の環境変数
+#### B. Environment `github-pages`
 
-`.github/workflows/deploy.yml` の Build ステップに以下を追加:
+`Settings` → `Environments` → `github-pages` → **Environment variables** または **Environment secrets**
 
-```yaml
-- name: Build
-  env:
-    VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-    VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID }}
-  run: pnpm build
+Pages 設定画面から追加した場合はこちらに入っていることが多いです。workflow は **build ジョブでも `environment: github-pages` を指定**しているため、どちらの場所でも読み取れます。
+
+### よくある誤り
+
+| 誤り | 結果 |
+|------|------|
+| 名前が `GOOGLE_CLIENT_ID`（`VITE_` なし） | ビルドに渡らない |
+| **Dependabot** / **Codespaces** タブにだけ登録 | Actions から見えない |
+| 値の前後に余分なスペースや改行 | 認証エラー |
+| Variable を追加したが **再デプロイしていない** | 古い JS のまま |
+
+**Variable を変更したら**、Actions の「Deploy to GitHub Pages」を再実行（または main へ push）。
+
+### ビルドログでの確認
+
+成功時、Verify ステップに次のような行が出ます（値は出ません）:
+
+```
+VITE_GOOGLE_CLIENT_ID ← Repository/Environment Variables
+VITE_DROPBOX_CLIENT_ID ← Repository/Environment Variables
+OAuth client IDs are present.
 ```
 
-## 3. Pages 有効化
+`NOT FOUND` の場合は名前・登録場所を見直してください。
+
+## 2. Pages 有効化
 
 1. **Settings** → **Pages**
 2. Source: **GitHub Actions**
 3. `deploy.yml` が main へ push で自動デプロイ
 
-## 4. ローカルプレビュー
+## 3. ローカルプレビュー
 
 ```bash
 cp .env.example .env
@@ -50,13 +64,11 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm build && pnpm preview` で本番同等パスを確認。
-
-## 5. OAuth リダイレクト URI（登録必須）
+## 4. OAuth リダイレクト URI（登録必須）
 
 | プロバイダ | URI |
 |------------|-----|
 | Google | `https://loveclefinc.github.io/costume-coordinator/oauth/google/callback` |
 | Dropbox | `https://loveclefinc.github.io/costume-coordinator/oauth/dropbox/callback` |
 
-ローカル開発時は `http://localhost:3000/costume-coordinator/oauth/...` も追加。
+ローカル: `http://localhost:3000/costume-coordinator/oauth/...` も追加。

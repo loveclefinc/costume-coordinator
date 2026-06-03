@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Environment「github-pages」に登録した Variables / Secrets も build で使えるようにする
+    environment: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,25 +40,57 @@ jobs:
 
       - name: Verify OAuth client IDs for build
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
-          VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID || secrets.VITE_DROPBOX_CLIENT_ID }}
+          GOOGLE_FROM_VARS: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          GOOGLE_FROM_SECRETS: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          DROPBOX_FROM_VARS: ${{ vars.VITE_DROPBOX_CLIENT_ID }}
+          DROPBOX_FROM_SECRETS: ${{ secrets.VITE_DROPBOX_CLIENT_ID }}
         run: |
-          if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
-            echo "::error::VITE_GOOGLE_CLIENT_ID is not set. Add it under Settings → Secrets and variables → Actions (Repository Variables or Secrets)."
+          set -euo pipefail
+          if [ -n "${GOOGLE_FROM_VARS}" ]; then
+            export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_VARS}"
+          elif [ -n "${GOOGLE_FROM_SECRETS}" ]; then
+            export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_SECRETS}"
+          fi
+          if [ -n "${DROPBOX_FROM_VARS}" ]; then
+            export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_VARS}"
+          elif [ -n "${DROPBOX_FROM_SECRETS}" ]; then
+            export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_SECRETS}"
+          fi
+
+          echo "Config source (values not logged):"
+          if [ -n "${GOOGLE_FROM_VARS}" ]; then echo "  VITE_GOOGLE_CLIENT_ID ← Repository/Environment Variables"
+          elif [ -n "${GOOGLE_FROM_SECRETS}" ]; then echo "  VITE_GOOGLE_CLIENT_ID ← Secrets"
+          else echo "  VITE_GOOGLE_CLIENT_ID ← NOT FOUND"; fi
+          if [ -n "${DROPBOX_FROM_VARS}" ]; then echo "  VITE_DROPBOX_CLIENT_ID ← Repository/Environment Variables"
+          elif [ -n "${DROPBOX_FROM_SECRETS}" ]; then echo "  VITE_DROPBOX_CLIENT_ID ← Secrets"
+          else echo "  VITE_DROPBOX_CLIENT_ID ← NOT FOUND"; fi
+
+          if [ -z "${VITE_GOOGLE_CLIENT_ID:-}" ]; then
+            echo "::error::VITE_GOOGLE_CLIENT_ID is not set."
+            echo "::error::Register under Settings → Secrets and variables → Actions → Repository variables (or Secrets)."
+            echo "::error::OR Environments → github-pages → Environment variables (or Secrets). Name must be exact: VITE_GOOGLE_CLIENT_ID"
             exit 1
           fi
-          if [ -z "$VITE_DROPBOX_CLIENT_ID" ]; then
-            echo "::error::VITE_DROPBOX_CLIENT_ID is not set. Add it under Settings → Secrets and variables → Actions (Repository Variables or Secrets)."
+          if [ -z "${VITE_DROPBOX_CLIENT_ID:-}" ]; then
+            echo "::error::VITE_DROPBOX_CLIENT_ID is not set."
+            echo "::error::Same locations as above. Name must be exact: VITE_DROPBOX_CLIENT_ID"
             exit 1
           fi
-          echo "OAuth client IDs are present (values not logged)."
+          echo "OAuth client IDs are present."
 
       - name: Build
         env:
-          # Repository Variables または Secrets（名前は完全一致）
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
-          VITE_DROPBOX_CLIENT_ID: ${{ vars.VITE_DROPBOX_CLIENT_ID || secrets.VITE_DROPBOX_CLIENT_ID }}
-        run: pnpm build
+          GOOGLE_FROM_VARS: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          GOOGLE_FROM_SECRETS: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          DROPBOX_FROM_VARS: ${{ vars.VITE_DROPBOX_CLIENT_ID }}
+          DROPBOX_FROM_SECRETS: ${{ secrets.VITE_DROPBOX_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "${GOOGLE_FROM_VARS}" ]; then export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_VARS}"
+          else export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_SECRETS}"; fi
+          if [ -n "${DROPBOX_FROM_VARS}" ]; then export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_VARS}"
+          else export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_SECRETS}"; fi
+          pnpm build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
