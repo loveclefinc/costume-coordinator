@@ -193,10 +193,10 @@ class CostumeStorage {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['events'], 'readwrite')
       const store = transaction.objectStore('events')
-      const request = store.add(event)
+      const request = store.put(event)
 
       request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result as string)
+      request.onsuccess = () => resolve(event.id)
     })
   }
 

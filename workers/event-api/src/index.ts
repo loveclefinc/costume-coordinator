@@ -137,45 +137,50 @@ export default {
 }
 
 async function handleCreateEvent(request: Request, env: Env): Promise<Response> {
-  const body = (await request.json()) as CreateEventRequest
-  if (!body.name?.trim() || !body.date?.trim()) {
-    return json({ error: 'name と date は必須です' }, 400)
-  }
-  const retentionDays = body.retentionDays === 7 ? 7 : 14
-  const createdAt = Date.now()
-  const eventId = `evt_${createdAt}_${randomId()}`
-  const adminToken = randomToken()
-  const inviteToken = randomToken()
-  const expiresAt = computeExpiresAt(createdAt, body.date, retentionDays)
-  const themeJson = body.themePreferences ? JSON.stringify(body.themePreferences) : null
+  try {
+    const body = (await request.json()) as CreateEventRequest
+    if (!body.name?.trim() || !body.date?.trim()) {
+      return json({ error: 'name と date は必須です' }, 400)
+    }
+    const retentionDays = body.retentionDays === 7 ? 7 : 14
+    const createdAt = Date.now()
+    const eventId = `evt_${createdAt}_${randomId()}`
+    const adminToken = randomToken()
+    const inviteToken = randomToken()
+    const expiresAt = computeExpiresAt(createdAt, body.date, retentionDays)
+    const themeJson = body.themePreferences ? JSON.stringify(body.themePreferences) : null
 
-  await env.DB.prepare(
-    `INSERT INTO events (id, name, event_date, description, theme_json, expires_at, admin_token, invite_token, retention_days, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      eventId,
-      body.name.trim(),
-      body.date.trim(),
-      (body.description ?? '').trim(),
-      themeJson,
-      expiresAt,
-      await hashToken(adminToken),
-      await hashToken(inviteToken),
-      retentionDays,
-      createdAt,
+    await env.DB.prepare(
+      `INSERT INTO events (id, name, event_date, description, theme_json, expires_at, admin_token, invite_token, retention_days, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run()
+      .bind(
+        eventId,
+        body.name.trim(),
+        body.date.trim(),
+        (body.description ?? '').trim(),
+        themeJson,
+        expiresAt,
+        await hashToken(adminToken),
+        await hashToken(inviteToken),
+        retentionDays,
+        createdAt,
+      )
+      .run()
 
-  const res: CreateEventResponse = {
-    eventId,
-    adminToken,
-    inviteToken,
-    expiresAt,
-    invitePath: `/join?e=${encodeURIComponent(eventId)}&t=${encodeURIComponent(inviteToken)}`,
-    participatePath: `/events/${encodeURIComponent(eventId)}/participate`,
+    const res: CreateEventResponse = {
+      eventId,
+      adminToken,
+      inviteToken,
+      expiresAt,
+      invitePath: `/join?e=${encodeURIComponent(eventId)}&t=${encodeURIComponent(inviteToken)}`,
+      participatePath: `/events/${encodeURIComponent(eventId)}/participate`,
+    }
+    return json(res, 201)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'イベントの作成に失敗しました'
+    return json({ error: message }, 500)
   }
-  return json(res, 201)
 }
 
 async function handleGetEventPublic(eventId: string, url: URL, env: Env): Promise<Response> {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
-import { EventThemePreferences } from '../utils/storage'
+import { EventThemePreferences, storage } from '../utils/storage'
 import { createServerEvent, EventApiError } from '../event-server/client'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import { setEventSession } from '../event-server/session'
@@ -167,13 +167,24 @@ export default function Events() {
       }
 
       if (serverEnabled && useOnlineSubmit) {
-        const server = await createServerEvent({
-          name: formData.name,
-          date: formData.date,
-          description: formData.description,
-          retentionDays,
-          themePreferences: themePrefs,
-        })
+        let server
+        try {
+          server = await createServerEvent({
+            name: formData.name,
+            date: formData.date,
+            description: formData.description,
+            retentionDays,
+            themePreferences: themePrefs,
+          })
+        } catch (e) {
+          const msg =
+            e instanceof EventApiError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : 'サーバーへのイベント作成に失敗しました'
+          throw new Error(msg)
+        }
 
         setEventSession(server.eventId, {
           adminToken: server.adminToken,
@@ -181,14 +192,26 @@ export default function Events() {
           expiresAt: server.expiresAt,
         })
 
-        await addEvent(
-          {
-            ...eventPayload,
-            hostedOnServer: true,
-            serverExpiresAt: server.expiresAt,
-          },
-          { id: server.eventId },
-        )
+        await storage.init()
+        try {
+          await addEvent(
+            {
+              ...eventPayload,
+              hostedOnServer: true,
+              serverExpiresAt: server.expiresAt,
+            },
+            { id: server.eventId },
+          )
+        } catch (localErr) {
+          const inviteUrl = absoluteAppUrl(
+            `/join?e=${encodeURIComponent(server.eventId)}&t=${encodeURIComponent(server.inviteToken)}`,
+          )
+          const localMsg =
+            localErr instanceof Error ? localErr.message : 'ローカル保存エラー'
+          throw new Error(
+            `サーバーには作成済みですが、この端末への保存に失敗しました（${localMsg}）。\nイベントID: ${server.eventId}\n招待URL: ${inviteUrl}`,
+          )
+        }
 
         const inviteUrl = absoluteAppUrl(
           `/join?e=${encodeURIComponent(server.eventId)}&t=${encodeURIComponent(server.inviteToken)}`,
@@ -204,6 +227,7 @@ export default function Events() {
 
         navigate(`/events/${server.eventId}`)
       } else {
+        await storage.init()
         await addEvent(eventPayload)
       }
 
@@ -214,9 +238,11 @@ export default function Events() {
       setShowThemeSettings(false)
     } catch (err) {
       const msg =
-        err instanceof EventApiError ? err.message : 'イベントの作成に失敗しました'
+        err instanceof Error && err.message
+          ? err.message
+          : 'イベントの作成に失敗しました'
       alert(msg)
-      console.error(err)
+      console.error('create event failed:', err)
     } finally {
       setCreating(false)
     }

@@ -2,7 +2,10 @@
 export function getEventApiBaseUrl(): string | null {
   const url = import.meta.env.VITE_EVENT_API_URL as string | undefined
   if (!url || typeof url !== 'string' || !url.trim()) return null
-  return url.trim().replace(/\/$/, '')
+  return url
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\/$/, '')
 }
 
 export function isEventServerEnabled(): boolean {

@@ -35,10 +35,20 @@ async function apiFetch<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...init,
+      headers,
+      mode: 'cors',
+    })
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e)
+    throw new EventApiError(
+      `API に接続できません（${detail}）。URL: ${base}`,
+      0,
+    )
+  }
 
   if (!res.ok) {
     let msg = res.statusText
