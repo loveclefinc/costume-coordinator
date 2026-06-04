@@ -18,10 +18,10 @@ web-build/
 expo-env.d.ts
 app/
 assets/
-components/
-constants/
-hooks/
-lib/
+/components/
+/constants/
+/hooks/
+/lib/
 metro.config.cjs
 app.config.ts
 eas.json

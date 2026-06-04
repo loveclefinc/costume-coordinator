@@ -35,8 +35,8 @@ export default function OnlineUsageGuide() {
       <section>
         <h2>参加者</h2>
         <ol>
-          <li>代表者から受け取った<strong>招待 URL</strong>をスマホで開く</li>
-          <li>表示名を入力して参加登録</li>
+          <li>代表者から受け取った<strong>招待 URL をそのまま</strong>スマホで開く（リンク全体が必要です）</li>
+          <li>表示名を入力して参加登録（代表者は作成時に自動登録済みのため不要）</li>
           <li>衣装名・色などを入力し、写真をアップロード（枚数・容量制限あり）</li>
         </ol>
       </section>

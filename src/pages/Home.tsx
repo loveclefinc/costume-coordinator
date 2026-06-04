@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import QRScanner from '../components/QRScanner'
 import { useEvents } from '../hooks/useEvents'
+import { isEventServerEnabled } from '../event-server/config'
 import './Home.css'
 
 export default function Home() {
   const [showQRScanner, setShowQRScanner] = useState(false)
   const { getEvent, updateEvent } = useEvents()
   const [addingParticipant, setAddingParticipant] = useState(false)
+  const onlineEnabled = isEventServerEnabled()
 
   const handleParticipantAdded = async (eventId: string, participantName: string) => {
     try {
@@ -24,7 +26,9 @@ export default function Home() {
         }
       } else {
         alert(
-          'この端末にイベントがありません。代表者から送られた「参加用ファイル」を「イベントに参加」から読み込んでください。',
+          onlineEnabled
+            ? 'この端末にイベントがありません。代表者から送られた招待 URL を開いてください。'
+            : 'この端末にイベントがありません。代表者から送られた参加用ファイルを読み込んでください。',
         )
       }
       setShowQRScanner(false)
@@ -79,9 +83,15 @@ export default function Home() {
         <Link to="/events" className="cta-button secondary">
           イベントを作成する
         </Link>
-        <Link to="/join" className="cta-button qr-button">
-          📥 イベントに参加（ファイル）
-        </Link>
+        {onlineEnabled ? (
+          <Link to="/guide" className="cta-button qr-button">
+            📖 オンライン提出の使い方
+          </Link>
+        ) : (
+          <Link to="/join" className="cta-button qr-button">
+            📥 イベントに参加（オフライン）
+          </Link>
+        )}
         <a
           href="https://concert-jp.com"
           target="_blank"
@@ -108,9 +118,13 @@ export default function Home() {
           <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
         </ol>
         <p className="collab-alt">
-          <Link to="/guide">オンライン提出の使い方ガイド（全文）</Link>
-          {' · '}
-          API 未設定時は <Link to="/join">JSON ファイル</Link> でのやり取り（オフライン）になります。
+          <Link to="/guide">使い方ガイド（全文）</Link>
+          {!onlineEnabled && (
+            <>
+              {' · '}
+              API 未設定時は <Link to="/join">オフライン JSON</Link> でのやり取りになります。
+            </>
+          )}
         </p>
       </section>
 

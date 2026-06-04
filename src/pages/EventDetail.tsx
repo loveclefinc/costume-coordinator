@@ -572,7 +572,9 @@ export default function EventDetail() {
       )}
 
       <details className="event-advanced-panel">
-        <summary>その他のツール（書き出し・QR・オフライン）</summary>
+        <summary>
+          {serverApiEnabled ? 'その他のツール（共有・QR・書き出し）' : 'その他のツール（共有・QR・オフライン JSON）'}
+        </summary>
         <div className="event-advanced-body">
           <div className="event-toolbar">
             <button type="button" onClick={handleShareEvent} className="action-button share-button">
@@ -598,21 +600,25 @@ export default function EventDetail() {
             </div>
           )}
 
-          <section className="collaboration-section offline-tools">
-            <h3>オフライン用 JSON（予備）</h3>
-            <p className="collab-note">サーバーが使えない場合のみ。写真込みは容量が大きくなります。</p>
-            <button type="button" className="action-button" onClick={handleExportEventInvite}>
-              参加用ファイルを書き出す
-            </button>
-            <CollaborationFileImport
-              acceptLabel="提出ファイルを取り込む"
-              hint="participant-submission の JSON"
-              onBundleLoaded={handleImportParticipantBundle}
-            />
-            <button type="button" className="action-button" onClick={handleExportParticipantSubmission}>
-              提出用ファイルを書き出す
-            </button>
-          </section>
+          {!serverApiEnabled && (
+            <section className="collaboration-section offline-tools">
+              <h3>オフライン用 JSON</h3>
+              <p className="collab-note">
+                API 未設定時のみ。本番ではオンライン提出を利用してください。
+              </p>
+              <button type="button" className="action-button" onClick={handleExportEventInvite}>
+                参加用ファイルを書き出す
+              </button>
+              <CollaborationFileImport
+                acceptLabel="提出ファイルを取り込む"
+                hint="participant-submission の JSON"
+                onBundleLoaded={handleImportParticipantBundle}
+              />
+              <button type="button" className="action-button" onClick={handleExportParticipantSubmission}>
+                提出用ファイルを書り出す
+              </button>
+            </section>
+          )}
         </div>
       </details>
 

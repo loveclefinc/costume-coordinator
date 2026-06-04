@@ -12,15 +12,16 @@ export default function JoinEvent() {
   const [searchParams] = useSearchParams()
   const eventId = searchParams.get('e')
   const inviteToken = searchParams.get('t')
+  const onlineEnabled = isEventServerEnabled()
 
   useEffect(() => {
-    if (eventId && inviteToken && isEventServerEnabled()) {
+    if (eventId && inviteToken && onlineEnabled) {
       setEventSession(eventId, { inviteToken })
       navigate(`/events/${eventId}/participate?t=${encodeURIComponent(inviteToken)}`, {
         replace: true,
       })
     }
-  }, [eventId, inviteToken, navigate])
+  }, [eventId, inviteToken, navigate, onlineEnabled])
 
   const handleBundle = async (bundle: CollaborationBundle) => {
     await storage.init()
@@ -36,13 +37,13 @@ export default function JoinEvent() {
     })
 
     const msg = result.created
-      ? 'イベントを取り込みました（オフライン用）。オンライン提出の招待URLがある場合はそちらを開いてください。'
+      ? 'イベントを取り込みました。'
       : 'イベント情報を更新しました。'
     alert(msg)
     navigate(`/events/${result.eventId}`)
   }
 
-  if (eventId && inviteToken && isEventServerEnabled()) {
+  if (eventId && inviteToken && onlineEnabled) {
     return (
       <div className="join-event-page">
         <p>オンライン提出ページへ移動しています…</p>
@@ -50,17 +51,33 @@ export default function JoinEvent() {
     )
   }
 
+  if (onlineEnabled) {
+    return (
+      <div className="join-event-page">
+        <h1>イベントに参加</h1>
+        <p className="join-event-lead">
+          代表者から送られた<strong>招待 URL</strong>をブラウザで開いてください。URL から名前登録と写真提出ができます。
+        </p>
+        <p className="join-event-lead">
+          このページ単体では参加できません。リンク全体（<code>?e=</code> と <code>?t=</code> 付き）が必要です。
+        </p>
+        <p className="join-event-alt">
+          <Link to="/guide">使い方ガイド</Link>
+          {' · '}
+          <Link to="/">ホーム</Link>
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="join-event-page">
-      <h1>イベントに参加</h1>
+      <h1>イベントに参加（オフライン）</h1>
       <p className="join-event-lead">
-        <strong>オンライン提出:</strong> 代表者から送られた<strong>招待 URL</strong>を開くと、写真をサーバーに提出できます。
-      </p>
-      <p className="join-event-lead">
-        <strong>オフライン（JSON）:</strong> 参加用 JSON を読み込むと、この端末にイベントがコピーされます（写真は手動登録）。
+        オンライン提出 API が未設定のため、参加用 JSON ファイルでイベントをこの端末に取り込みます。
       </p>
       <CollaborationFileImport
-        acceptLabel="参加用ファイルを読み込む（オフライン）"
+        acceptLabel="参加用ファイルを読み込む"
         hint="ファイル名の例: event-invite-○○.json"
         onBundleLoaded={handleBundle}
       />
