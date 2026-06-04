@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
 import { EventThemePreferences, storage } from '../utils/storage'
-import { createServerEvent, EventApiError } from '../event-server/client'
-import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
+import { checkEventApiHealth, createServerEvent, EventApiError } from '../event-server/client'
+import {
+  getEventApiBaseUrl,
+  isEventServerEnabled,
+  isMisconfiguredEventApiUrl,
+  absoluteAppUrl,
+} from '../event-server/config'
 import { setEventSession } from '../event-server/session'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
@@ -66,6 +71,7 @@ export default function Events() {
   const [useOnlineSubmit, setUseOnlineSubmit] = useState(serverEnabled)
   const [retentionDays, setRetentionDays] = useState<RetentionDays>(14)
   const [creating, setCreating] = useState(false)
+  const [apiReachable, setApiReachable] = useState<boolean | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -79,6 +85,14 @@ export default function Events() {
   /** 1→2→3 の順で希望を決める（色・トーン・柄を交互に出さない） */
   const [preferenceRankStep, setPreferenceRankStep] = useState<1 | 2 | 3>(1)
   const [preferenceWizardDone, setPreferenceWizardDone] = useState(false)
+
+  useEffect(() => {
+    if (!serverEnabled) {
+      setApiReachable(null)
+      return
+    }
+    void checkEventApiHealth().then(setApiReachable)
+  }, [serverEnabled])
 
   const clearPreferenceRank = (priority: PreferencePriority) => {
     setThemePrefs(prev => {
@@ -405,6 +419,22 @@ export default function Events() {
       {error && (
         <div className="error-message">
           エラー: {error}
+        </div>
+      )}
+
+      {serverEnabled && apiReachable === false && (
+        <div className="error-message api-config-warning">
+          オンライン提出 API に接続できません。
+          {isMisconfiguredEventApiUrl() ? (
+            <>
+              {' '}
+              GitHub の <code>VITE_EVENT_API_URL</code> が
+              <code>https://○○.workers.dev</code> だけになっている可能性があります。
+              正しくは <code>{getEventApiBaseUrl()}/api/health</code> が開ける URL（Worker 名付き）です。
+            </>
+          ) : (
+            <> 使用中の API: <code>{getEventApiBaseUrl()}</code></>
+          )}
         </div>
       )}
 
