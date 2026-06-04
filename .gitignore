@@ -3,45 +3,70 @@
 # dependencies
 node_modules/
 package-lock.json
+workers/event-api/node_modules/
 
-# Expo
-.expo/
-# dist/ is ignored except for 404.html which is needed for GitHub Pages SPA routing
+# Build
 dist/
 !dist/404.html
+.cache/
+.wrangler/
+*.tsbuildinfo
+
+# Expo / legacy mobile (非公開・ローカルのみ)
+.expo/
 web-build/
 expo-env.d.ts
+app/
+assets/
+components/
+constants/
+hooks/
+lib/
+metro.config.cjs
+app.config.ts
+eas.json
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Manus 共有型（PWA 未使用）
+shared/types.ts
+shared/const.ts
+shared/_core/
 
-# Metro
-.metro-health-check*
+# Manus / MySQL バックエンド（非公開）
+server/
+drizzle/
+drizzle.config.ts
+scripts/
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# 運用・セットアップ手順（Public リポジトリに公開しない）
+# 運用・設計・内部メモ（非公開）
 docs/
-
-# Environment variables (never commit secrets)
 .env
 .env.*
-!.env.example
+.env.example
+DESIGN_DOCUMENT.md
+architecture.md
+design.md
+README_RELEASE.md
+DEPLOYMENT_MARKER.txt
+todo.md
 
-# Cloud credentials & keys
+# 内部向け CI（Pages デプロイのみ公開）
+.github/workflows/build-apk.yml
+.github/workflows/deploy-event-api.yml
+
+# レガシー・壊れたテスト（非公開）
+tests/auth.logout.test.ts
+tests/supabase-credentials.test.ts
+tests/firebase-sync.test.ts
+tests/participant-sync.test.ts
+tests/data-migration.test.ts
+tests/costume-statistics.test.ts
+tests/image-recognition.test.ts
+tests/event-history.test.ts
+tests/i18n.test.ts
+tests/offline-sync.test.ts
+tests/advanced-recommendation.test.ts
+
+# 秘密情報
 credentials.json
 *-credentials.json
 **/service-account*.json
@@ -51,32 +76,33 @@ GoogleService-Info.plist
 .aws/
 .supabase/
 
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
-/ios
-/android
-
-# IDE
+# Native / IDE / OS
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# Logs
 logs
 *.log
-
-# OS
 Thumbs.db
-
-# Build files
 *.tgz
 *.tar.gz
-.cache/
-.wrangler/
-workers/event-api/node_modules/
+app-example
+/ios
+/android
+
+# バックアップ
+*.bak

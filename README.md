@@ -1,40 +1,37 @@
 # Costume Coordinator PWA
 
-Progressive Web App for costume coordination and event management.
+グループイベント向けの衣装コーディネート PWA です。
 
-## Features
-- Costume management with color and pattern classification
-- Event management with participant coordination
-- Intelligent costume assignment optimization
-- Usage history tracking
-- Offline support with Service Worker
-- iOS/Android home screen installation
+## デモ
 
-## Live Demo
 https://loveclefinc.github.io/costume-coordinator/
 
-## Installation
+## 機能
 
-### iOS (Safari)
-1. Open https://loveclefinc.github.io/costume-coordinator/ in Safari
-2. Tap Share → Add to Home Screen
+- 衣装の登録（色・トーン・柄・写真）
+- イベントとテーマ設定
+- 参加者ごとの希望を踏まえた衣装の最適化
+- オフライン対応（Service Worker）
+- ホーム画面への追加（iOS / Android）
 
-### Android (Chrome)
-1. Open https://loveclefinc.github.io/costume-coordinator/ in Chrome
-2. Tap Menu → Install App
+## 技術
 
-## Technology
-- React 19 + TypeScript
-- Vite
-- IndexedDB for local storage
-- Cloud sync: Google Drive & Dropbox (OAuth 2.0 PKCE, serverless)
-- Service Worker for offline support
-- GitHub Pages hosting
+- React 19 · TypeScript · Vite
+- データはブラウザ内 IndexedDB
+- 任意: Google Drive / Dropbox 同期（OAuth PKCE）
+- 任意: オンライン提出 API（Cloudflare Workers + R2）
 
-## Cloud sync setup
+## 開発
 
-1. Copy `.env.example` to `.env` and set public OAuth client IDs.
-2. Follow [docs/GOOGLE_CLOUD_SETUP.md](docs/GOOGLE_CLOUD_SETUP.md) and [docs/DROPBOX_APP_SETUP.md](docs/DROPBOX_APP_SETUP.md).
-3. Deploy with [docs/GITHUB_PAGES_DEPLOY.md](docs/GITHUB_PAGES_DEPLOY.md).
-4. Architecture: [docs/CLOUD_SYNC_ARCHITECTURE.md](docs/CLOUD_SYNC_ARCHITECTURE.md) · Security: [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
+```bash
+pnpm install
+pnpm dev
+pnpm build
+pnpm test
+```
 
+OAuth クライアント ID や API URL などの**セットアップ手順はこの公開リポジトリには含めていません**。運用ドキュメントはローカルで別管理してください。
+
+## ライセンス
+
+Private / All rights reserved（リポジトリ設定に従う）
