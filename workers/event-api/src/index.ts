@@ -175,6 +175,12 @@ async function handleCreateEvent(request: Request, env: Env): Promise<Response> 
       )
       .run()
 
+    let hostParticipant: JoinEventResponse | undefined
+    const hostName = body.hostDisplayName?.trim()
+    if (hostName) {
+      hostParticipant = await registerParticipant(env, eventId, hostName, createdAt)
+    }
+
     const res: CreateEventResponse = {
       eventId,
       adminToken,
@@ -182,6 +188,7 @@ async function handleCreateEvent(request: Request, env: Env): Promise<Response> 
       expiresAt,
       invitePath: `/join?e=${encodeURIComponent(eventId)}&t=${encodeURIComponent(inviteToken)}`,
       participatePath: `/events/${encodeURIComponent(eventId)}/participate`,
+      hostParticipant,
     }
     return json(res, 201)
   } catch (e) {
@@ -262,6 +269,22 @@ async function handleJoin(
   const displayName = body.displayName?.trim()
   if (!displayName) return json({ error: 'displayName は必須です' }, 400)
 
+  try {
+    const res = await registerParticipant(env, eventId, displayName, Date.now())
+    return json(res, 201)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '参加に失敗しました'
+    const status = message.includes('既に') ? 409 : 500
+    return json({ error: message }, status)
+  }
+}
+
+async function registerParticipant(
+  env: Env,
+  eventId: string,
+  displayName: string,
+  createdAt: number,
+): Promise<JoinEventResponse> {
   const existing = await env.DB.prepare(
     `SELECT id FROM participants WHERE event_id = ? AND display_name = ?`,
   )
@@ -269,13 +292,12 @@ async function handleJoin(
     .first<{ id: string }>()
 
   if (existing?.id) {
-    return json({ error: '同じ表示名の参加者が既にいます' }, 409)
+    throw new Error('同じ表示名の参加者が既にいます')
   }
 
-  const participantId = `par_${Date.now()}_${randomId()}`
+  const participantId = `par_${createdAt}_${randomId()}`
   const participantToken = randomToken()
   const tokenHash = await hashToken(participantToken)
-  const createdAt = Date.now()
 
   await env.DB.prepare(
     `INSERT INTO participants (id, event_id, display_name, token_hash, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -283,12 +305,11 @@ async function handleJoin(
     .bind(participantId, eventId, displayName, tokenHash, createdAt)
     .run()
 
-  const res: JoinEventResponse = {
+  return {
     participantId,
     participantToken,
     displayName,
   }
-  return json(res, 201)
 }
 
 async function handleCreateCostume(eventId: string, request: Request, env: Env): Promise<Response> {

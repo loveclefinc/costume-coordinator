@@ -25,6 +25,8 @@ export interface CreateEventRequest {
   description?: string
   retentionDays: RetentionDays
   themePreferences?: EventThemePreferencesPayload
+  /** 代表者名 — サーバー参加者として同時登録 */
+  hostDisplayName?: string
 }
 
 export interface CreateEventResponse {
@@ -34,6 +36,8 @@ export interface CreateEventResponse {
   expiresAt: number
   invitePath: string
   participatePath: string
+  /** 代表者をサーバー参加者として登録した場合 */
+  hostParticipant?: JoinEventResponse
 }
 
 export interface ServerPhoto {

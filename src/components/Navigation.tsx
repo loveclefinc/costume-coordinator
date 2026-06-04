@@ -49,6 +49,14 @@ export default function Navigation() {
           </li>
           <li>
             <Link
+              to="/guide"
+              className={`nav-link ${isActive('/guide') ? 'active' : ''}`}
+            >
+              使い方
+            </Link>
+          </li>
+          <li>
+            <Link
               to="/settings"
               className={`nav-link ${isActive('/settings') ? 'active' : ''}`}
             >

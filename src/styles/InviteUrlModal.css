@@ -90,6 +90,22 @@
   gap: 1rem;
 }
 
+.invite-url-success-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  background: rgba(13, 122, 74, 0.08);
+  border-left: 4px solid #0d7a4a;
+  border-radius: 8px;
+}
+
+.invite-url-admin-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 .invite-url-warning {
   margin: 0;
   padding: 0.75rem 1rem;
@@ -99,6 +115,36 @@
   background: #fff8e6;
   border-left: 4px solid #e6a800;
   border-radius: 8px;
+}
+
+.invite-url-admin-copy {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.65rem 1rem;
+  border: 2px solid #e6a800;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #fffdf5;
+  cursor: pointer;
+}
+
+.invite-url-admin-copy.success {
+  border-color: #0d7a4a;
+  background: rgba(13, 122, 74, 0.1);
+}
+
+.invite-url-host-submit-btn {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: #0d7a4a;
+  cursor: pointer;
 }
 
 .invite-url-label {

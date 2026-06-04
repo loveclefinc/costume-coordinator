@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import UsageGuideTip from '../components/UsageGuideTip'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
 import { EventThemePreferences, storage } from '../utils/storage'
@@ -195,6 +196,7 @@ export default function Events() {
             description: formData.description,
             retentionDays,
             themePreferences: themePrefs,
+            hostDisplayName: hostName,
           })
         } catch (e) {
           const msg =
@@ -210,6 +212,13 @@ export default function Events() {
           adminToken: server.adminToken,
           inviteToken: server.inviteToken,
           expiresAt: server.expiresAt,
+          ...(server.hostParticipant
+            ? {
+                participantToken: server.hostParticipant.participantToken,
+                participantId: server.hostParticipant.participantId,
+                displayName: server.hostParticipant.displayName,
+              }
+            : {}),
         })
 
         await storage.init()
@@ -236,9 +245,17 @@ export default function Events() {
         const inviteUrl = absoluteAppUrl(
           `/join?e=${encodeURIComponent(server.eventId)}&t=${encodeURIComponent(server.inviteToken)}`,
         )
+        const hostParticipateUrl = absoluteAppUrl(
+          `/events/${encodeURIComponent(server.eventId)}/participate?t=${encodeURIComponent(server.inviteToken)}`,
+        )
 
         navigate(`/events/${server.eventId}`, {
-          state: { showInviteModal: true, inviteUrl },
+          state: {
+            showInviteModal: true,
+            inviteUrl,
+            adminToken: server.adminToken,
+            hostParticipateUrl,
+          },
         })
       } else {
         await storage.init()
@@ -663,6 +680,19 @@ export default function Events() {
                 </div>
               </div>
           </div>
+
+          {serverEnabled && (
+            <UsageGuideTip title="ℹ️ オンライン提出の流れ（タップで開く）">
+              <ol>
+                <li>代表者名でサーバーに登録 → 作成後に写真提出</li>
+                <li>招待 URL を参加者へ送る</li>
+                <li>提出後、イベント詳細から取り込み・最適化</li>
+              </ol>
+              <p>
+                <Link to="/guide">使い方ガイド（全文）</Link>
+              </p>
+            </UsageGuideTip>
+          )}
 
           {serverEnabled && (
             <div className="form-group online-submit-options">

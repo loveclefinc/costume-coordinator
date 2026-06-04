@@ -108,8 +108,9 @@ export default function Home() {
           <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
         </ol>
         <p className="collab-alt">
+          <Link to="/guide">オンライン提出の使い方ガイド（全文）</Link>
+          {' · '}
           API 未設定時は <Link to="/join">JSON ファイル</Link> でのやり取り（オフライン）になります。
-          Google / Dropbox 同期は同一アカウントのバックアップ用です。
         </p>
       </section>
 

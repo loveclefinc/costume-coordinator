@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
@@ -28,6 +28,7 @@ import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
 import { getEventSession, setEventSession } from '../event-server/session'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
+import UsageGuideTip from '../components/UsageGuideTip'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -65,13 +66,20 @@ export default function EventDetail() {
   const [inviteModal, setInviteModal] = useState<{
     url: string
     variant: 'created' | 'share'
+    adminToken?: string
+    hostParticipateUrl?: string
   } | null>(null)
   const serverApiEnabled = isEventServerEnabled()
 
   useEffect(() => {
     const navState = location.state as InviteUrlModalLocationState | null
     if (navState?.showInviteModal && navState.inviteUrl) {
-      setInviteModal({ url: navState.inviteUrl, variant: 'created' })
+      setInviteModal({
+        url: navState.inviteUrl,
+        variant: 'created',
+        adminToken: navState.adminToken,
+        hostParticipateUrl: navState.hostParticipateUrl,
+      })
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.pathname, location.state, navigate])
@@ -363,7 +371,13 @@ export default function EventDetail() {
       )
       return
     }
-    setInviteModal({ url, variant: 'share' })
+    const token = getEventSession(event.id)?.inviteToken
+    const hostParticipateUrl = token
+      ? absoluteAppUrl(
+          `/events/${encodeURIComponent(event.id)}/participate?t=${encodeURIComponent(token)}`,
+        )
+      : undefined
+    setInviteModal({ url, variant: 'share', hostParticipateUrl })
   }
 
   const resolveAdminToken = (): string | null => {
@@ -486,6 +500,16 @@ export default function EventDetail() {
           <p className="server-primary-lead">
             参加者に招待 URL を送り、提出後にサーバーから取り込んで最適化します。
           </p>
+          <UsageGuideTip title="ℹ️ 代表者・参加者の手順">
+            <ol>
+              <li>招待 URL をコピーして参加者へ送付</li>
+              <li>代表者は「写真提出」または下のボタンから衣装写真をアップロード</li>
+              <li>全員提出後「サーバーから提出を取り込む」→ 最適化</li>
+            </ol>
+            <p>
+              <Link to="/guide">使い方ガイド（全文）</Link>
+            </p>
+          </UsageGuideTip>
 
           {event.serverExpiresAt && (
             <div className="server-expiry-row">
@@ -519,6 +543,15 @@ export default function EventDetail() {
               <span className="server-action-step">1</span>
               <span className="server-action-text">招待 URL をコピー</span>
             </button>
+            {getEventSession(event.id)?.participantToken && (
+              <Link
+                to={`/events/${event.id}/participate?t=${encodeURIComponent(getEventSession(event.id)!.inviteToken!)}`}
+                className="server-action-btn host-photo-link"
+              >
+                <span className="server-action-step">★</span>
+                <span className="server-action-text">代表者として写真を提出</span>
+              </Link>
+            )}
             <button
               type="button"
               className="server-action-btn primary"
@@ -872,6 +905,9 @@ export default function EventDetail() {
         <InviteUrlModal
           inviteUrl={inviteModal.url}
           eventName={event.name}
+          eventId={event.id}
+          adminToken={inviteModal.adminToken ?? getEventSession(event.id)?.adminToken}
+          hostParticipateUrl={inviteModal.hostParticipateUrl}
           variant={inviteModal.variant}
           onClose={() => setInviteModal(null)}
         />

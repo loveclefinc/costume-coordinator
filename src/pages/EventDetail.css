@@ -880,6 +880,13 @@
   color: #fff;
 }
 
+.server-action-btn.host-photo-link {
+  text-decoration: none;
+  color: inherit;
+  border-color: #0d7a4a;
+  background: rgba(13, 122, 74, 0.08);
+}
+
 .server-action-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

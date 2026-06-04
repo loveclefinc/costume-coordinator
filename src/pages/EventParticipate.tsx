@@ -212,7 +212,7 @@ export default function EventParticipate() {
       ) : (
         <section className="participate-section">
           <p className="participate-joined">
-            <strong>{session?.displayName ?? displayName}</strong> として参加中
+            <strong>{session?.displayName ?? displayName}</strong> として登録済みです。衣装と写真を登録してください。
           </p>
           <h3>
             2. 衣装を提出（写真必須・最大{limits.maxPhotosPerCostume}枚・各
