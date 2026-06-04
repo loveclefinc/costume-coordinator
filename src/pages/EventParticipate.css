@@ -21,6 +21,14 @@
   color: var(--text-muted, #666);
 }
 
+.participate-limits {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #555);
+  line-height: 1.5;
+}
+
 .participate-section {
   display: flex;
   flex-direction: column;

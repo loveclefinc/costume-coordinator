@@ -11,9 +11,31 @@ import {
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import { getEventSession, setEventSession } from '../event-server/session'
 import type { EventPublicInfo } from '../../shared/event-api-types'
+import {
+  DEFAULT_UPLOAD_LIMITS,
+  formatBytes,
+  type UploadLimits,
+} from '../../shared/upload-limits'
 import './EventParticipate.css'
 
-const MAX_PHOTOS = 3
+function validatePhotoFiles(files: File[], limits: UploadLimits): string | null {
+  if (files.length > limits.maxPhotosPerCostume) {
+    return `写真は最大 ${limits.maxPhotosPerCostume} 枚までです`
+  }
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) {
+      return '画像ファイルのみ選択できます'
+    }
+    if (f.size > limits.maxPhotoBytes) {
+      return `「${f.name}」は ${formatBytes(f.size)} です。1枚あたり ${formatBytes(limits.maxPhotoBytes)} まで`
+    }
+  }
+  const total = files.reduce((s, f) => s + f.size, 0)
+  if (total > limits.maxPhotoBytes * limits.maxPhotosPerCostume) {
+    return `選択した写真の合計が大きすぎます`
+  }
+  return null
+}
 
 export default function EventParticipate() {
   const { id: eventId } = useParams<{ id: string }>()
@@ -38,6 +60,7 @@ export default function EventParticipate() {
   const session = eventId ? getEventSession(eventId) : undefined
   const inviteToken = inviteFromUrl || session?.inviteToken || ''
   const participantToken = session?.participantToken
+  const limits = eventInfo?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS
 
   const loadPublic = useCallback(async () => {
     if (!eventId || !inviteToken) {
@@ -98,6 +121,11 @@ export default function EventParticipate() {
       setError('写真を1枚以上選んでください')
       return
     }
+    const fileErr = validatePhotoFiles(photoFiles, limits)
+    if (fileErr) {
+      setError(fileErr)
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -111,7 +139,7 @@ export default function EventParticipate() {
       })
 
       let uploaded = 0
-      for (const file of photoFiles.slice(0, MAX_PHOTOS)) {
+      for (const file of photoFiles.slice(0, limits.maxPhotosPerCostume)) {
         await uploadServerPhoto(
           eventId,
           costumeId,
@@ -151,6 +179,12 @@ export default function EventParticipate() {
           <p className="participate-expiry">
             データ保存期限: {new Date(eventInfo.expiresAt).toLocaleString('ja-JP')}
           </p>
+          <ul className="participate-limits">
+            <li>1枚あたり: 最大 {formatBytes(limits.maxPhotoBytes)}（JPEG/PNG 等）</li>
+            <li>1衣装あたり: 最大 {limits.maxPhotosPerCostume} 枚</li>
+            <li>お一人様: 衣装最大 {limits.maxCostumesPerParticipant} 件</li>
+            <li>イベント全体: 最大 {formatBytes(limits.maxEventStorageBytes)}</li>
+          </ul>
         </div>
       )}
 
@@ -180,7 +214,10 @@ export default function EventParticipate() {
           <p className="participate-joined">
             <strong>{session?.displayName ?? displayName}</strong> として参加中
           </p>
-          <h3>2. 衣装を提出（写真必須・最大{MAX_PHOTOS}枚）</h3>
+          <h3>
+            2. 衣装を提出（写真必須・最大{limits.maxPhotosPerCostume}枚・各
+            {formatBytes(limits.maxPhotoBytes)}まで）
+          </h3>
           <label className="participate-label">
             衣装名
             <input
@@ -216,14 +253,16 @@ export default function EventParticipate() {
             </select>
           </label>
           <label className="participate-label">
-            写真（{photoFiles.length}/{MAX_PHOTOS}）
+            写真（{photoFiles.length}/{limits.maxPhotosPerCostume}）
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/*"
               multiple
               onChange={(e) => {
-                const files = [...(e.target.files ?? [])].slice(0, MAX_PHOTOS)
-                setPhotoFiles(files)
+                const files = [...(e.target.files ?? [])].slice(0, limits.maxPhotosPerCostume)
+                const err = validatePhotoFiles(files, limits)
+                setError(err ?? '')
+                setPhotoFiles(err ? [] : files)
               }}
             />
           </label>

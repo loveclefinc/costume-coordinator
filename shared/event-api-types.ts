@@ -1,5 +1,7 @@
 /** Cloudflare Event API — shared types (Worker + PWA) */
 
+import type { UploadLimits } from './upload-limits'
+
 export type RetentionDays = 7 | 14
 
 export interface EventThemePreferencesPayload {
@@ -72,6 +74,7 @@ export interface EventPublicInfo {
   description: string
   expiresAt: number
   themePreferences?: EventThemePreferencesPayload
+  uploadLimits: UploadLimits
 }
 
 export interface EventAdminSnapshot {

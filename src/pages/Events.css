@@ -604,6 +604,13 @@
   color: var(--text-secondary);
 }
 
+.online-upload-limits {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 .event-hosted-badge {
   color: var(--primary, #6366f1);
   font-weight: 600;

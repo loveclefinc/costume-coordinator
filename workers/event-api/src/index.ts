@@ -13,6 +13,11 @@ import type {
   UploadPhotoResponse,
 } from '../../../shared/event-api-types'
 import { computeExpiresAt, isExpired } from '../../../shared/event-expiry'
+import {
+  DEFAULT_UPLOAD_LIMITS,
+  formatBytes,
+  type UploadLimits,
+} from '../../../shared/upload-limits'
 
 export interface Env {
   DB: D1Database
@@ -20,6 +25,49 @@ export interface Env {
   ALLOWED_ORIGINS: string
   MAX_PHOTOS_PER_COSTUME: string
   MAX_PHOTO_BYTES: string
+  MAX_COSTUMES_PER_PARTICIPANT: string
+  MAX_EVENT_STORAGE_BYTES: string
+}
+
+function parseUploadLimits(env: Env): UploadLimits {
+  const int = (v: string | undefined, fallback: number) => {
+    const n = parseInt(v ?? '', 10)
+    return Number.isFinite(n) && n > 0 ? n : fallback
+  }
+  return {
+    maxPhotoBytes: int(env.MAX_PHOTO_BYTES, DEFAULT_UPLOAD_LIMITS.maxPhotoBytes),
+    maxPhotosPerCostume: int(
+      env.MAX_PHOTOS_PER_COSTUME,
+      DEFAULT_UPLOAD_LIMITS.maxPhotosPerCostume,
+    ),
+    maxCostumesPerParticipant: int(
+      env.MAX_COSTUMES_PER_PARTICIPANT,
+      DEFAULT_UPLOAD_LIMITS.maxCostumesPerParticipant,
+    ),
+    maxEventStorageBytes: int(
+      env.MAX_EVENT_STORAGE_BYTES,
+      DEFAULT_UPLOAD_LIMITS.maxEventStorageBytes,
+    ),
+  }
+}
+
+async function getEventStorageBytes(env: Env, eventId: string): Promise<number> {
+  try {
+    const row = await env.DB.prepare(
+      `SELECT COALESCE(SUM(size_bytes), 0) as total FROM photos WHERE event_id = ?`,
+    )
+      .bind(eventId)
+      .first<{ total: number }>()
+    return row?.total ?? 0
+  } catch {
+    const limits = parseUploadLimits(env)
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) as c FROM photos WHERE event_id = ?`,
+    )
+      .bind(eventId)
+      .first<{ c: number }>()
+    return (row?.c ?? 0) * limits.maxPhotoBytes
+  }
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
@@ -34,7 +82,7 @@ export default {
 
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return cors(json({ ok: true }), request, env)
+        return cors(json({ ok: true, uploadLimits: parseUploadLimits(env) }), request, env)
       }
 
       if (url.pathname === '/api/events' && request.method === 'POST') {
@@ -136,7 +184,7 @@ async function handleGetEventPublic(eventId: string, url: URL, env: Env): Promis
   assertNotExpired(row.expires_at)
   await assertInviteToken(env, eventId, invite, row.invite_token)
 
-  const info = rowToPublic(row)
+  const info = rowToPublic(row, env)
   return json(info)
 }
 
@@ -207,6 +255,21 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const body = (await request.json()) as CreateCostumeRequest
   if (!body.name?.trim()) return json({ error: 'name は必須です' }, 400)
 
+  const limits = parseUploadLimits(env)
+  const costumeCount = await env.DB.prepare(
+    `SELECT COUNT(*) as c FROM costumes WHERE event_id = ? AND participant_id = ?`,
+  )
+    .bind(eventId, participant.id)
+    .first<{ c: number }>()
+  if ((costumeCount?.c ?? 0) >= limits.maxCostumesPerParticipant) {
+    return json(
+      {
+        error: `衣装はお一人様最大 ${limits.maxCostumesPerParticipant} 件までです`,
+      },
+      400,
+    )
+  }
+
   const costumeId = `cos_${Date.now()}_${randomId()}`
   const now = Date.now()
   const colors = JSON.stringify(Array.isArray(body.colors) ? body.colors : [])
@@ -259,28 +322,45 @@ async function handleUploadPhoto(
     return json({ error: '他の参加者の衣装には写真を追加できません' }, 403)
   }
 
-  const maxPhotos = parseInt(env.MAX_PHOTOS_PER_COSTUME, 10) || 3
+  const limits = parseUploadLimits(env)
   const countRow = await env.DB.prepare(
     `SELECT COUNT(*) as c FROM photos WHERE costume_id = ?`,
   )
     .bind(costumeId)
     .first<{ c: number }>()
-  if ((countRow?.c ?? 0) >= maxPhotos) {
-    return json({ error: `写真は最大 ${maxPhotos} 枚までです` }, 400)
+  if ((countRow?.c ?? 0) >= limits.maxPhotosPerCostume) {
+    return json(
+      { error: `写真は1衣装あたり最大 ${limits.maxPhotosPerCostume} 枚までです` },
+      400,
+    )
   }
 
-  const maxBytes = parseInt(env.MAX_PHOTO_BYTES, 10) || 5_242_880
   const contentType = request.headers.get('Content-Type') ?? 'application/octet-stream'
   if (!contentType.startsWith('image/')) {
     return json({ error: '画像ファイルのみアップロードできます' }, 400)
   }
 
   const bytes = new Uint8Array(await request.arrayBuffer())
-  if (bytes.byteLength > maxBytes) {
-    return json({ error: 'ファイルサイズが大きすぎます' }, 413)
+  if (bytes.byteLength > limits.maxPhotoBytes) {
+    return json(
+      {
+        error: `1枚あたり最大 ${formatBytes(limits.maxPhotoBytes)} までです（現在 ${formatBytes(bytes.byteLength)}）`,
+      },
+      413,
+    )
   }
   if (bytes.byteLength === 0) {
     return json({ error: '空のファイルです' }, 400)
+  }
+
+  const used = await getEventStorageBytes(env, eventId)
+  if (used + bytes.byteLength > limits.maxEventStorageBytes) {
+    return json(
+      {
+        error: `このイベントの保存上限（${formatBytes(limits.maxEventStorageBytes)}）に達しています`,
+      },
+      413,
+    )
   }
 
   const photoId = `ph_${Date.now()}_${randomId()}`
@@ -291,10 +371,19 @@ async function handleUploadPhoto(
 
   const sortOrder = countRow?.c ?? 0
   await env.DB.prepare(
-    `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, size_bytes, sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(photoId, eventId, costumeId, r2Key, contentType, sortOrder, Date.now())
+    .bind(
+      photoId,
+      eventId,
+      costumeId,
+      r2Key,
+      contentType,
+      bytes.byteLength,
+      sortOrder,
+      Date.now(),
+    )
     .run()
 
   const viewUrl = mediaUrl(request.url, photoId, url.searchParams.get('invite') ?? undefined)
@@ -426,7 +515,7 @@ async function buildAdminSnapshot(
   }
 
   return {
-    event: rowToPublic(row),
+    event: rowToPublic(row, env),
     participants,
     costumes,
   }
@@ -496,7 +585,7 @@ async function getEventRow(env: Env, eventId: string): Promise<EventRow> {
   return row
 }
 
-function rowToPublic(row: EventRow): EventPublicInfo {
+function rowToPublic(row: EventRow, env: Env): EventPublicInfo {
   return {
     id: row.id,
     name: row.name,
@@ -506,6 +595,7 @@ function rowToPublic(row: EventRow): EventPublicInfo {
     themePreferences: row.theme_json
       ? (JSON.parse(row.theme_json) as EventPublicInfo['themePreferences'])
       : undefined,
+    uploadLimits: parseUploadLimits(env),
   }
 }
 

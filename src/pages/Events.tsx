@@ -7,6 +7,7 @@ import { createServerEvent, EventApiError } from '../event-server/client'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import { setEventSession } from '../event-server/session'
 import type { RetentionDays } from '../../shared/event-api-types'
+import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import './Events.css'
 
 // Color options for theme preferences
@@ -623,16 +624,25 @@ export default function Events() {
                 オンライン提出（写真をサーバーに保存・参加者は URL から提出）
               </label>
               {useOnlineSubmit && (
-                <label className="retention-label">
-                  データ保持:
-                  <select
-                    value={retentionDays}
-                    onChange={(e) => setRetentionDays(Number(e.target.value) as RetentionDays)}
-                  >
-                    <option value={7}>7日（または開催日まで）</option>
-                    <option value={14}>14日（または開催日まで）</option>
-                  </select>
-                </label>
+                <>
+                  <label className="retention-label">
+                    データ保持:
+                    <select
+                      value={retentionDays}
+                      onChange={(e) => setRetentionDays(Number(e.target.value) as RetentionDays)}
+                    >
+                      <option value={7}>7日（または開催日まで）</option>
+                      <option value={14}>14日（または開催日まで）</option>
+                    </select>
+                  </label>
+                  <p className="online-upload-limits">
+                    写真: 各{formatBytes(DEFAULT_UPLOAD_LIMITS.maxPhotoBytes)}まで・
+                    1衣装{DEFAULT_UPLOAD_LIMITS.maxPhotosPerCostume}枚・
+                    お一人{DEFAULT_UPLOAD_LIMITS.maxCostumesPerParticipant}衣装まで・
+                    イベント合計{formatBytes(DEFAULT_UPLOAD_LIMITS.maxEventStorageBytes)}まで
+                    （期限後にサーバーから自動削除）
+                  </p>
+                </>
               )}
             </div>
           )}
