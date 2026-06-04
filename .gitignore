@@ -75,3 +75,5 @@ Thumbs.db
 *.tgz
 *.tar.gz
 .cache/
+.wrangler/
+workers/event-api/node_modules/

@@ -1,0 +1,24 @@
+.join-event-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.join-event-page h1 {
+  margin-bottom: 1rem;
+}
+
+.join-event-lead {
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.join-event-back {
+  margin-top: 1.5rem;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}

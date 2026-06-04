@@ -1,4 +1,5 @@
 import type { Costume } from './storage'
+import { enrichCostumeColors, normalizePattern } from './theme-colors'
 
 /**
  * Legacy / sync data may store colors as { primary, secondary } instead of string[].
@@ -50,9 +51,9 @@ export function normalizeCostume(raw: Costume | Record<string, unknown>): Costum
     id: r.id,
     name: r.name ?? '',
     image,
-    colors: normalizeCostumeColors(r.colors),
+    colors: enrichCostumeColors(normalizeCostumeColors(r.colors)),
     tone: (tone as Costume['tone']) || 'neutral',
-    pattern: r.pattern || 'solid',
+    pattern: normalizePattern(r.pattern || 'solid'),
     season: normalizeSeason(r.season),
     type: r.type,
     createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),

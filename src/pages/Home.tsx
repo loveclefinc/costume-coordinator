@@ -14,17 +14,18 @@ export default function Home() {
       setAddingParticipant(true)
       const event = await getEvent(eventId)
       if (event) {
-        // Check if participant already exists
         if (!event.participants.includes(participantName)) {
-          const updatedEvent = {
-            ...event,
+          await updateEvent(eventId, {
             participants: [...event.participants, participantName],
-          }
-          await updateEvent(eventId, updatedEvent)
-          alert(`${participantName}さんがイベントに参加しました！`)
+          })
+          alert(`${participantName}さんを参加者に追加しました（この端末のみ）。`)
         } else {
           alert(`${participantName}さんはすでに参加しています。`)
         }
+      } else {
+        alert(
+          'この端末にイベントがありません。代表者から送られた「参加用ファイル」を「イベントに参加」から読み込んでください。',
+        )
       }
       setShowQRScanner(false)
     } catch (err) {
@@ -78,13 +79,9 @@ export default function Home() {
         <Link to="/events" className="cta-button secondary">
           イベントを作成する
         </Link>
-        <button
-          onClick={() => setShowQRScanner(true)}
-          className="cta-button qr-button"
-          title="イベント参加用QRコードをスキャン"
-        >
-          🔲 QRコードをスキャン
-        </button>
+        <Link to="/join" className="cta-button qr-button">
+          📥 イベントに参加（ファイル）
+        </Link>
         <a
           href="https://concert-jp.com"
           target="_blank"
@@ -103,14 +100,26 @@ export default function Home() {
         />
       )}
 
-      <div className="info-section">
-        <h2>📖 使い方</h2>
+      <section className="info-section collaboration-home">
+        <h2>👥 複数人で使うとき（推奨: オンライン提出）</h2>
         <ol>
-          <li><strong>衣装を登録</strong> - 手持ち衣装の写真と色・柄情報を登録します</li>
-          <li><strong>イベントを作成</strong> - イベント名、日付、テーマ（色味の統一方針、トーン、柄）を設定します</li>
-          <li><strong>参加者を招待</strong> - QR コードをスキャンするか、参加者名を直接追加します</li>
-          <li><strong>最適な組み合わせを生成</strong> - イベントテーマに合わせた衣装の組み合わせが自動生成されます</li>
-          <li><strong>提案を共有</strong> - 参加者に衣装提案を共有して、イベントを成功させます</li>
+          <li>代表者: イベント作成で<strong>「オンライン提出」</strong>をオン → 招待 URL を参加者へ送る</li>
+          <li>参加者: URL を開く → 名前登録 → <strong>衣装写真をサーバーにアップロード</strong>（イベント日まで / 最大14日保持）</li>
+          <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
+        </ol>
+        <p className="collab-alt">
+          API 未設定時は <Link to="/join">JSON ファイル</Link> でのやり取り（オフライン）になります。
+          Google / Dropbox 同期は同一アカウントのバックアップ用です。
+        </p>
+      </section>
+
+      <div className="info-section">
+        <h2>📖 使い方（代表者・1台で完結する場合）</h2>
+        <ol>
+          <li><strong>衣装を登録</strong> - 写真と色・柄を登録（全員分を代行可）</li>
+          <li><strong>イベントを作成</strong> - テーマを設定</li>
+          <li><strong>参加者名を追加</strong> - 手入力で登録</li>
+          <li><strong>最適化</strong> - テーマに合わせた組み合わせを生成</li>
         </ol>
       </div>
 

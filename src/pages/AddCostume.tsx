@@ -3,6 +3,20 @@ import { useState } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
 import { useCloudSync } from '../hooks/useCloudSync'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
+import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
+
+const COLOR_CATEGORY_LABELS: Record<string, string> = {
+  warm: '暖色',
+  cool: '寒色',
+  neutral: 'ニュートラル',
+}
+
+const TONE_LABELS: Record<string, string> = {
+  pastel: 'パステル',
+  vivid: '鮮やか',
+  dark: '濃い',
+  neutral: '落ち着いた',
+}
 import './AddCostume.css'
 
 const PATTERN_OPTIONS = [
@@ -113,13 +127,13 @@ export default function AddCostume() {
       setLoading(true)
       setError('')
 
-      const colors = [primaryColor, secondaryColor].filter(Boolean)
+      const colors = enrichCostumeColors([primaryColor, secondaryColor].filter(Boolean))
       await addCostume({
         name: name.trim(),
         image: imageUri,
         colors,
         tone,
-        pattern,
+        pattern: normalizePattern(pattern),
         season: [],
         type: costumeType,
       })
@@ -215,13 +229,14 @@ export default function AddCostume() {
       </section>
 
       {/* Color Section */}
-      <section className="section">
+      <section className="section add-costume-color-section">
         <h2>🎨 色</h2>
-        <div className="color-grid">
-          <div className="color-item color-item--swatch">
-            <label>主色</label>
-            <div className="color-input-group">
+        <div className="add-costume-swatch-row">
+          <div className="form-group add-costume-swatch-field">
+            <label htmlFor="primary-color-input">主色</label>
+            <div className="add-costume-swatch-control">
               <input
+                id="primary-color-input"
                 type="color"
                 value={primaryColor}
                 onChange={(e) => {
@@ -231,49 +246,72 @@ export default function AddCostume() {
                 }}
                 disabled={loading}
               />
-              <span className="color-value">{primaryColor}</span>
+              <span className="add-costume-color-value">
+                {primaryColor}
+                {hexToThemeColorName(primaryColor) && (
+                  <span className="add-costume-theme-name">
+                    {' '}
+                    → {hexToThemeColorName(primaryColor)}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
 
-          <div className="color-item color-item--swatch">
-            <label>副色</label>
-            <div className="color-input-group">
+          <div className="form-group add-costume-swatch-field">
+            <label htmlFor="secondary-color-input">副色</label>
+            <div className="add-costume-swatch-control">
               <input
+                id="secondary-color-input"
                 type="color"
-                value={secondaryColor}
+                value={secondaryColor || '#ffffff'}
                 onChange={(e) => setSecondaryColor(e.target.value)}
                 disabled={loading}
               />
-              <span className="color-value">{secondaryColor || 'なし'}</span>
+              <span className="add-costume-color-value">
+                {secondaryColor || 'なし'}
+                {secondaryColor && hexToThemeColorName(secondaryColor) && (
+                  <span className="add-costume-theme-name">
+                    {' '}
+                    → {hexToThemeColorName(secondaryColor)}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
+        </div>
 
-          <div className="color-item color-item--select">
-            <label>色カテゴリ</label>
-            <select
-              value={colorCategory}
-              onChange={(e) => setColorCategory(e.target.value as any)}
-              disabled={loading}
-            >
-              <option value="warm">暖色</option>
-              <option value="cool">寒色</option>
-              <option value="neutral">ニュートラル</option>
-            </select>
-          </div>
+        <div className="form-group">
+          <label htmlFor="color-category-select">色カテゴリ</label>
+          <select
+            id="color-category-select"
+            value={colorCategory}
+            onChange={(e) => setColorCategory(e.target.value as 'warm' | 'cool' | 'neutral')}
+            disabled={loading}
+          >
+            <option value="warm">暖色</option>
+            <option value="cool">寒色</option>
+            <option value="neutral">ニュートラル</option>
+          </select>
+          <p className="add-costume-field-hint">
+            現在: {COLOR_CATEGORY_LABELS[colorCategory] ?? colorCategory}
+          </p>
+        </div>
 
-          <div className="color-item color-item--select">
-            <label>トーン</label>
-            <select
-              value={tone}
-              onChange={(e) => setTone(e.target.value as any)}
-              disabled={loading}
-            >
-              <option value="pastel">パステル</option>
-              <option value="vivid">鮮やか</option>
-              <option value="dark">濃い</option>
-              <option value="neutral">落ち着いた</option>
-            </select>
-          </div>
+        <div className="form-group">
+          <label htmlFor="tone-select">トーン</label>
+          <select
+            id="tone-select"
+            value={tone}
+            onChange={(e) => setTone(e.target.value as 'pastel' | 'vivid' | 'dark' | 'neutral')}
+            disabled={loading}
+          >
+            <option value="pastel">パステル</option>
+            <option value="vivid">鮮やか</option>
+            <option value="dark">濃い</option>
+            <option value="neutral">落ち着いた</option>
+          </select>
+          <p className="add-costume-field-hint">現在: {TONE_LABELS[tone] ?? tone}</p>
         </div>
       </section>
 

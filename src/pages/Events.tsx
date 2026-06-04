@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
 import { EventThemePreferences } from '../utils/storage'
+import { createServerEvent, EventApiError } from '../event-server/client'
+import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
+import { setEventSession } from '../event-server/session'
+import type { RetentionDays } from '../../shared/event-api-types'
 import './Events.css'
 
 // Color options for theme preferences
@@ -54,8 +58,13 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
 }
 
 export default function Events() {
+  const navigate = useNavigate()
   const { events, loading, error, addEvent, deleteEvent } = useEvents()
   const [showForm, setShowForm] = useState(false)
+  const serverEnabled = isEventServerEnabled()
+  const [useOnlineSubmit, setUseOnlineSubmit] = useState(serverEnabled)
+  const [retentionDays, setRetentionDays] = useState<RetentionDays>(14)
+  const [creating, setCreating] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -145,22 +154,70 @@ export default function Events() {
     e.preventDefault()
     if (!formData.name.trim() || !formData.date) return
 
+    setCreating(true)
     try {
-      await addEvent({
+      const eventPayload = {
         name: formData.name,
         date: formData.date,
         description: formData.description,
-        participants: [],
-        costumes: {},
+        participants: [] as string[],
+        costumes: {} as Record<string, string>,
         themePreferences: themePrefs,
-      })
+      }
+
+      if (serverEnabled && useOnlineSubmit) {
+        const server = await createServerEvent({
+          name: formData.name,
+          date: formData.date,
+          description: formData.description,
+          retentionDays,
+          themePreferences: themePrefs,
+        })
+
+        setEventSession(server.eventId, {
+          adminToken: server.adminToken,
+          inviteToken: server.inviteToken,
+          expiresAt: server.expiresAt,
+        })
+
+        await addEvent(
+          {
+            ...eventPayload,
+            hostedOnServer: true,
+            serverExpiresAt: server.expiresAt,
+          },
+          { id: server.eventId },
+        )
+
+        const inviteUrl = absoluteAppUrl(
+          `/join?e=${encodeURIComponent(server.eventId)}&t=${encodeURIComponent(server.inviteToken)}`,
+        )
+        const adminNote = `管理者トークンはこの端末にのみ保存されます。紛失すると再発行できません。\n\n招待URL:\n${inviteUrl}`
+
+        try {
+          await navigator.clipboard.writeText(inviteUrl)
+          alert(`オンラインイベントを作成しました。\n招待URLをコピーしました。\n\n${adminNote}`)
+        } catch {
+          alert(`オンラインイベントを作成しました。\n\n${adminNote}`)
+        }
+
+        navigate(`/events/${server.eventId}`)
+      } else {
+        await addEvent(eventPayload)
+      }
+
       setFormData({ name: '', date: '', description: '' })
       setThemePrefs({ ...EMPTY_THEME_PREFS })
       resetPreferenceWizard()
       setShowForm(false)
       setShowThemeSettings(false)
     } catch (err) {
-      console.error('Failed to add event:', err)
+      const msg =
+        err instanceof EventApiError ? err.message : 'イベントの作成に失敗しました'
+      alert(msg)
+      console.error(err)
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -220,7 +277,7 @@ export default function Events() {
 
         <div className="preference-group">
           <label>色</label>
-          <div className="color-grid">
+          <div className="theme-color-picker-grid">
             {COLOR_OPTIONS.map(color => (
               <button
                 key={`color-${priority}-${color}`}
@@ -555,8 +612,39 @@ export default function Events() {
             </div>
           )}
 
-          <button type="submit" className="submit-button">
-            イベントを作成
+          {serverEnabled && (
+            <div className="form-group online-submit-options">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={useOnlineSubmit}
+                  onChange={(e) => setUseOnlineSubmit(e.target.checked)}
+                />
+                オンライン提出（写真をサーバーに保存・参加者は URL から提出）
+              </label>
+              {useOnlineSubmit && (
+                <label className="retention-label">
+                  データ保持:
+                  <select
+                    value={retentionDays}
+                    onChange={(e) => setRetentionDays(Number(e.target.value) as RetentionDays)}
+                  >
+                    <option value={7}>7日（または開催日まで）</option>
+                    <option value={14}>14日（または開催日まで）</option>
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+
+          {!serverEnabled && (
+            <p className="online-submit-hint">
+              オンライン提出 API 未設定時は端末内のみ保存されます（VITE_EVENT_API_URL）。
+            </p>
+          )}
+
+          <button type="submit" className="submit-button" disabled={creating}>
+            {creating ? '作成中…' : 'イベントを作成'}
           </button>
         </form>
       )}
@@ -610,6 +698,7 @@ export default function Events() {
               )}
 
               <div className="event-stats">
+                {event.hostedOnServer && <span className="event-hosted-badge">☁️ オンライン</span>}
                 <span>参加者: {event.participants.length}</span>
                 <span>衣装割当: {Object.keys(event.costumes).length}</span>
               </div>

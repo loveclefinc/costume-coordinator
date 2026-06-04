@@ -20,7 +20,8 @@ describe('costume-normalize', () => {
       updatedAt: 2,
     })
     expect(c.image).toBe('data:image/png;base64,x')
-    expect(c.colors).toEqual(['#abc'])
+    expect(c.colors[0]).toBe('#ABC')
+    expect(c.pattern).toBe('plain')
     expect(c.season).toEqual([])
   })
 })

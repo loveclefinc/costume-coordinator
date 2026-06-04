@@ -1,4 +1,10 @@
 import { Costume, UsageHistory, EventThemePreferences } from './storage'
+import {
+  enrichCostumeColors,
+  normalizePattern,
+  colorNamesAreSimilar,
+  themeColorNamesFrom,
+} from './theme-colors'
 
 export interface OptimizationResult {
   participantId: string
@@ -23,22 +29,21 @@ export interface OptimizationInput {
 function calculateColorThemeScore(costumeColors: string[], themePrefs?: EventThemePreferences): number {
   if (!themePrefs) return 0.5 // Neutral if no theme preferences
 
-  // Check 1st choice colors
-  for (const color of costumeColors) {
+  const colors = enrichCostumeColors(costumeColors)
+
+  for (const color of colors) {
     if (themePrefs.colors1stChoice.includes(color)) return 1.0
   }
 
-  // Check 2nd choice colors
-  for (const color of costumeColors) {
+  for (const color of colors) {
     if (themePrefs.colors2ndChoice.includes(color)) return 0.8
   }
 
-  // Check 3rd choice colors
-  for (const color of costumeColors) {
+  for (const color of colors) {
     if (themePrefs.colors3rdChoice.includes(color)) return 0.6
   }
 
-  return 0.3 // Low score if no match
+  return 0.3
 }
 
 /**
@@ -65,14 +70,11 @@ function calculateToneThemeScore(costumeTone: string, themePrefs?: EventThemePre
 function calculatePatternThemeScore(costumePattern: string, themePrefs?: EventThemePreferences): number {
   if (!themePrefs) return 0.5
 
-  // Check 1st choice patterns
-  if (themePrefs.patterns1stChoice.includes(costumePattern)) return 1.0
+  const pattern = normalizePattern(costumePattern)
 
-  // Check 2nd choice patterns
-  if (themePrefs.patterns2ndChoice.includes(costumePattern)) return 0.8
-
-  // Check 3rd choice patterns
-  if (themePrefs.patterns3rdChoice.includes(costumePattern)) return 0.6
+  if (themePrefs.patterns1stChoice.map(normalizePattern).includes(pattern)) return 1.0
+  if (themePrefs.patterns2ndChoice.map(normalizePattern).includes(pattern)) return 0.8
+  if (themePrefs.patterns3rdChoice.map(normalizePattern).includes(pattern)) return 0.6
 
   return 0.3
 }
@@ -104,8 +106,32 @@ function calculateToneCompatibility(tone1: string, tone2: string): number {
  * Calculate pattern compatibility score
  */
 function calculatePatternCompatibility(pattern1: string, pattern2: string): number {
-  if (pattern1 === pattern2 && pattern1 !== 'plain') return 0.5 // Same pattern is less ideal
+  const p1 = normalizePattern(pattern1)
+  const p2 = normalizePattern(pattern2)
+  if (p1 === p2 && p1 !== 'plain') return 0.5
   return 1
+}
+
+/**
+ * 色味の統一方針: unified は同系色を、varied は異なる色を優先
+ */
+function calculateColorUnificationScore(
+  costume: Costume,
+  assigned: Costume[],
+  themePrefs?: EventThemePreferences,
+): number {
+  if (!themePrefs || assigned.length === 0) return 1
+
+  const names = themeColorNamesFrom(costume.colors)
+  if (names.length === 0) return 1
+
+  const similarToAny = assigned.some((c) => colorNamesAreSimilar(costume.colors, c.colors))
+
+  if (themePrefs.colorUnification === 'unified') {
+    return similarToAny ? 1.2 : 0.75
+  }
+
+  return similarToAny ? 0.7 : 1.15
 }
 
 /**
@@ -177,15 +203,25 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
       const usagePenalty = calculateUsagePenalty(costume.id, usageHistory, excludeDays)
       score += usagePenalty * 0.15
 
-      // PRIORITY 4: Compatibility with already assigned costumes (10%)
+      // PRIORITY 4: Compatibility + 色味統一方針 (10%)
       let compatibilityScore = 1
       for (const result of results) {
         const avoidSimilar = themePreferences?.avoidSimilarColors || false
-        const colorCompat = calculateColorCompatibility(costume.colors, result.costume.colors, avoidSimilar)
+        const colorCompat = calculateColorCompatibility(
+          enrichCostumeColors(costume.colors),
+          enrichCostumeColors(result.costume.colors),
+          avoidSimilar,
+        )
         const toneCompat = calculateToneCompatibility(costume.tone, result.costume.tone)
         const patternCompat = calculatePatternCompatibility(costume.pattern, result.costume.pattern)
         compatibilityScore *= (colorCompat + toneCompat + patternCompat) / 3
       }
+      const unificationScore = calculateColorUnificationScore(
+        costume,
+        results.map((r) => r.costume),
+        themePreferences,
+      )
+      compatibilityScore *= unificationScore
       score += compatibilityScore * 0.1
 
       if (score > bestScore) {
@@ -198,6 +234,12 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
       assignedCostumes.add(bestCostume.id)
 
       // Build reason explanation
+      if (themePreferences?.colorUnification === 'unified') {
+        reasons.push('色味統一（同系色）')
+      } else if (themePreferences?.colorUnification === 'varied') {
+        reasons.push('色味バラけ')
+      }
+
       if (themePreferences) {
         const colorMatch = calculateColorThemeScore(bestCostume.colors, themePreferences)
         if (colorMatch >= 0.9) reasons.push('テーマ色第1希望')

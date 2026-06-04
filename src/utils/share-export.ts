@@ -119,19 +119,20 @@ function downloadFile(content: string, filename: string, mimeType: string): void
  * Generate QR code data URL for event participation
  * Returns a data URL that can be used with an img tag
  */
-export async function generateEventQRCode(eventId: string, eventName: string): Promise<string> {
-  // Using QR code API service
-  const encodedData = encodeURIComponent(
+export async function generateEventQRCode(
+  eventId: string,
+  eventName: string,
+  shareUrl?: string,
+): Promise<string> {
+  const payload =
+    shareUrl ??
     JSON.stringify({
       eventId,
       eventName,
       timestamp: Date.now(),
     })
-  );
-
-  // Using QR Server API (free, no authentication required)
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedData}`;
-  return qrCodeUrl;
+  const encodedData = encodeURIComponent(payload)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedData}`
 }
 
 /**

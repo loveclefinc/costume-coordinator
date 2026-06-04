@@ -7,6 +7,18 @@ import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/opti
 import { recordCostumeUsage } from '../utils/usage-tracker'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
+import CollaborationFileImport from '../components/CollaborationFileImport'
+import {
+  createEventInviteBundle,
+  createParticipantSubmissionBundle,
+  downloadCollaborationBundle,
+  importParticipantSubmission,
+  type CollaborationBundle,
+} from '../utils/collaboration-bundle'
+import { fetchAdminSnapshot, EventApiError } from '../event-server/client'
+import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
+import { getEventSession, setEventSession } from '../event-server/session'
+import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -25,7 +37,7 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getEvent, updateEvent } = useEvents()
-  const { costumes } = useCostumes()
+  const { costumes, reloadCostumes } = useCostumes()
 
   const [event, setEvent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -37,6 +49,8 @@ export default function EventDetail() {
   const [isSaving, setIsSaving] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
+  const [serverPulling, setServerPulling] = useState(false)
+  const serverApiEnabled = isEventServerEnabled()
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -45,6 +59,7 @@ export default function EventDetail() {
         const eventData = await getEvent(id)
         if (!eventData) throw new Error('Event not found')
         setEvent(eventData)
+        setParticipantPreferences(eventData.participantPreferences ?? {})
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load event')
       } finally {
@@ -86,7 +101,8 @@ export default function EventDetail() {
     }
   }
 
-  const handleSetPreference = (participant: string, costumeId: string, rank: number) => {
+  const handleSetPreference = async (participant: string, costumeId: string, rank: number) => {
+    if (!event) return
     const prefs = participantPreferences[participant] || []
     const newPrefs = [...prefs]
     if (newPrefs[rank] === costumeId) {
@@ -94,10 +110,73 @@ export default function EventDetail() {
     } else {
       newPrefs[rank] = costumeId
     }
-    setParticipantPreferences(prev => ({
-      ...prev,
-      [participant]: newPrefs.filter(Boolean),
-    }))
+    const filtered = newPrefs.filter(Boolean)
+    const nextPrefs = { ...participantPreferences, [participant]: filtered }
+    setParticipantPreferences(nextPrefs)
+    try {
+      const updated = await updateEvent(event.id, { participantPreferences: nextPrefs })
+      setEvent(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '希望の保存に失敗しました')
+    }
+  }
+
+  const reloadEventAndCostumes = async () => {
+    if (!id) return
+    const eventData = await getEvent(id)
+    if (eventData) {
+      setEvent(eventData)
+      setParticipantPreferences(eventData.participantPreferences ?? {})
+    }
+    setOptimizationResults([])
+    setHarmonyScore(0)
+  }
+
+  const handleExportEventInvite = () => {
+    if (!event) return
+    downloadCollaborationBundle(
+      createEventInviteBundle(
+        event,
+        '参加者へ送付してください。取り込み後に衣装登録→提出用ファイルを返送します。',
+      ),
+      `event-invite-${event.id}.json`,
+    )
+  }
+
+  const handleImportParticipantBundle = async (bundle: CollaborationBundle) => {
+    if (bundle.type !== 'participant-submission') {
+      throw new Error('提出用ファイル（participant-submission）を選んでください')
+    }
+    await storage.init()
+    const result = await importParticipantSubmission(bundle, {
+      getEvent: (eid) => storage.getEvent(eid),
+      updateEvent: (ev) => storage.updateEvent(ev),
+      getCostume: (cid) => storage.getCostume(cid),
+      addCostume: (c) => storage.addCostume(c),
+      updateCostume: (c) => storage.updateCostume(c),
+    })
+    alert(
+      `${result.participantName} さんのデータを取り込みました（衣装 新規${result.costumesAdded} / 更新${result.costumesUpdated}）`,
+    )
+    await reloadCostumes()
+    await reloadEventAndCostumes()
+  }
+
+  const handleExportParticipantSubmission = () => {
+    if (!event) return
+    const name =
+      newParticipant.trim() ||
+      window.prompt('提出する参加者名を入力してください', event.participants[0] ?? '')?.trim()
+    if (!name) return
+    downloadCollaborationBundle(
+      createParticipantSubmissionBundle({
+        event,
+        participantName: name,
+        costumes,
+        preferences: participantPreferences[name] ?? [],
+      }),
+      `submission-${name}-${event.id}.json`,
+    )
   }
 
   const handleOptimize = async () => {
@@ -231,10 +310,60 @@ export default function EventDetail() {
   const handleGenerateQR = async () => {
     if (!event) return
     try {
-      const url = await generateEventQRCode(event.id, event.name)
+      const sess = getEventSession(event.id)
+      const shareUrl = sess?.inviteToken
+        ? absoluteAppUrl(`/join?e=${encodeURIComponent(event.id)}&t=${encodeURIComponent(sess.inviteToken)}`)
+        : undefined
+      const url = await generateEventQRCode(event.id, event.name, shareUrl)
       setQrCodeUrl(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate QR code')
+    }
+  }
+
+  const handleCopyInviteLink = async () => {
+    if (!event) return
+    const sess = getEventSession(event.id)
+    const invite = sess?.inviteToken
+    if (!invite) {
+      alert(
+        '招待トークンがこの端末にありません。イベント作成時に表示された URL を再利用するか、新しいオンラインイベントを作成してください。',
+      )
+      return
+    }
+    const url = absoluteAppUrl(`/join?e=${encodeURIComponent(event.id)}&t=${encodeURIComponent(invite)}`)
+    try {
+      await navigator.clipboard.writeText(url)
+      alert(`招待 URL をコピーしました:\n${url}`)
+    } catch {
+      alert(url)
+    }
+  }
+
+  const handlePullFromServer = async () => {
+    if (!event) return
+    let adminToken = getEventSession(event.id)?.adminToken
+    if (!adminToken) {
+      const entered = window.prompt('管理者トークンを貼り付けてください（作成時に保存されていない場合）')
+      if (!entered?.trim()) return
+      adminToken = entered.trim()
+      setEventSession(event.id, { adminToken })
+    }
+
+    setServerPulling(true)
+    setError('')
+    try {
+      const snapshot = await fetchAdminSnapshot(event.id, adminToken)
+      const result = await importAdminSnapshotToLocal(snapshot, event.id)
+      await reloadCostumes()
+      await reloadEventAndCostumes()
+      alert(
+        `サーバーから取り込みました。\n参加者 +${result.participantsAdded}\n衣装 新規 ${result.costumesAdded} / 更新 ${result.costumesUpdated}\n提出 ${snapshot.participants.filter((p) => p.costumeCount > 0).length}/${snapshot.participants.length} 名`,
+      )
+    } catch (e) {
+      setError(e instanceof EventApiError ? e.message : 'サーバーからの取り込みに失敗しました')
+    } finally {
+      setServerPulling(false)
     }
   }
 
@@ -306,6 +435,9 @@ export default function EventDetail() {
         {qrCodeUrl && (
           <div className="qr-code-section">
             <h3>イベント参加用QRコード</h3>
+            <p className="collab-note">
+              オンラインイベントでは<strong>招待 URL</strong>を送ってください。QR はその URL 用です。
+            </p>
             <img src={qrCodeUrl} alt="Event QR Code" className="qr-code-image" />
             <button onClick={handleShareWithQR} className="action-button share-button">
               🔲📤 QRコードを共有
@@ -313,6 +445,67 @@ export default function EventDetail() {
           </div>
         )}
       </div>
+
+        {(event.hostedOnServer || serverApiEnabled) && (
+          <section className="section collaboration-section server-hub">
+            <h2>☁️ オンライン提出（写真サーバー）</h2>
+            {event.serverExpiresAt && (
+              <p className="collab-note">
+                サーバー保存期限: {new Date(event.serverExpiresAt).toLocaleString('ja-JP')}
+              </p>
+            )}
+            <div className="collab-block">
+              <h3>代表者</h3>
+              <button type="button" className="action-button" onClick={() => void handleCopyInviteLink()}>
+                ① 招待 URL をコピー（参加者に LINE 等で送る）
+              </button>
+              <button
+                type="button"
+                className="action-button primary"
+                disabled={serverPulling || !serverApiEnabled}
+                onClick={() => void handlePullFromServer()}
+              >
+                {serverPulling ? '取り込み中…' : '② サーバーから全員の提出を取り込む'}
+              </button>
+              {!serverApiEnabled && (
+                <p className="collab-note">API 未設定（VITE_EVENT_API_URL）のため取り込みできません。</p>
+              )}
+            </div>
+            <div className="collab-block">
+              <h3>参加者</h3>
+              <p className="collab-note">
+                代表者から受け取った<strong>招待 URL</strong>を開き、名前登録 → 衣装写真をアップロードしてください。
+              </p>
+            </div>
+          </section>
+        )}
+
+        <section className="section collaboration-section">
+          <h2>📦 オフライン用（JSON・予備）</h2>
+          <p className="collab-note">
+            サーバーが使えない場合のみ。写真込み JSON は容量が大きくなります。
+          </p>
+          <div className="collab-block">
+            <h3>代表者</h3>
+            <button type="button" className="action-button" onClick={handleExportEventInvite}>
+              参加用ファイルを書き出す
+            </button>
+            <CollaborationFileImport
+              acceptLabel="提出ファイルを取り込む"
+              hint="participant-submission の JSON"
+              onBundleLoaded={handleImportParticipantBundle}
+            />
+          </div>
+          <div className="collab-block">
+            <h3>参加者</h3>
+            <p className="collab-note">
+              <a href={`${import.meta.env.BASE_URL || '/costume-coordinator/'}join`}>JSON で参加</a>
+            </p>
+            <button type="button" className="action-button" onClick={handleExportParticipantSubmission}>
+              提出用ファイルを書き出す
+            </button>
+          </div>
+        </section>
 
       {error && (
         <div className="error-message">

@@ -56,6 +56,7 @@ describe('Event Theme Optimization', () => {
     ]
 
     mockThemePreferences = {
+      colorUnification: 'unified',
       colors1stChoice: ['red', 'blue'],
       colors2ndChoice: ['yellow'],
       colors3rdChoice: ['pink'],

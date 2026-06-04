@@ -700,3 +700,49 @@
     box-sizing: border-box;
   }
 }
+
+.collaboration-section {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 12px;
+  background: var(--surface-alt, rgba(0, 0, 0, 0.03));
+}
+
+.collaboration-section h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+.collab-note {
+  font-size: 0.9rem;
+  color: var(--text-muted, #666);
+  line-height: 1.5;
+  margin: 0.5rem 0 1rem;
+}
+
+.collab-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border, #ddd);
+}
+
+.collab-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.collab-block h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.server-hub .action-button.primary {
+  background: var(--primary, #6366f1);
+  color: #fff;
+  font-weight: 600;
+}

@@ -47,7 +47,12 @@ export interface Event {
   description: string
   participants: string[]
   costumes: { [participantId: string]: string } // participantId -> costumeId
+  /** 参加者名 → 希望衣装 ID の順位 */
+  participantPreferences?: Record<string, string[]>
   themePreferences?: EventThemePreferences // Optional for backward compatibility
+  /** Cloudflare イベント API でホストしている場合 */
+  hostedOnServer?: boolean
+  serverExpiresAt?: number
   createdAt: number
   updatedAt: number
 }

@@ -84,12 +84,16 @@ jobs:
           GOOGLE_FROM_SECRETS: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           DROPBOX_FROM_VARS: ${{ vars.VITE_DROPBOX_CLIENT_ID }}
           DROPBOX_FROM_SECRETS: ${{ secrets.VITE_DROPBOX_CLIENT_ID }}
+          EVENT_API_FROM_VARS: ${{ vars.VITE_EVENT_API_URL }}
+          EVENT_API_FROM_SECRETS: ${{ secrets.VITE_EVENT_API_URL }}
         run: |
           set -euo pipefail
           if [ -n "${GOOGLE_FROM_VARS}" ]; then export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_VARS}"
           else export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_SECRETS}"; fi
           if [ -n "${DROPBOX_FROM_VARS}" ]; then export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_VARS}"
           else export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_SECRETS}"; fi
+          if [ -n "${EVENT_API_FROM_VARS}" ]; then export VITE_EVENT_API_URL="${EVENT_API_FROM_VARS}"
+          elif [ -n "${EVENT_API_FROM_SECRETS}" ]; then export VITE_EVENT_API_URL="${EVENT_API_FROM_SECRETS}"; fi
           pnpm build
 
       - name: Setup Pages

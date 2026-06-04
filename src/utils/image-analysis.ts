@@ -10,52 +10,154 @@ export interface ColorAnalysisResult {
   dominantColors: string[]
 }
 
+export interface ExtractDominantColorsOptions {
+  /** 中心から見る領域の割合（幅・高さそれぞれ）。既定 0.5 = 中央50% */
+  centerFraction?: number
+  /** 中心に近いピクセルほど重みを大きくする */
+  radialWeighting?: boolean
+  /** 白っぽい背景（壁など）をカウントから除外 */
+  skipLikelyBackground?: boolean
+}
+
+const ANALYSIS_MAX_SIDE = 480
+const SAMPLE_STEP = 3
+
+/** 中央領域のサンプル範囲（ピクセル座標） */
+export function getCenterSampleBounds(
+  width: number,
+  height: number,
+  centerFraction: number,
+): { x0: number; y0: number; x1: number; y1: number } {
+  const f = Math.min(1, Math.max(0.2, centerFraction))
+  const marginX = (width * (1 - f)) / 2
+  const marginY = (height * (1 - f)) / 2
+  return {
+    x0: Math.floor(marginX),
+    y0: Math.floor(marginY),
+    x1: Math.ceil(width - marginX),
+    y1: Math.ceil(height - marginY),
+  }
+}
+
+/** 画像中心に近いほど 1.0、領域の端に近いほど小さく（衣装は中央に写る想定） */
+export function getCenterSampleWeight(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): number {
+  const dx = (x - width / 2) / (width / 2)
+  const dy = (y - height / 2) / (height / 2)
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist >= 1) return 0.15
+  return 1 - dist * 0.75
+}
+
+/** 白壁・黒背景などを弱く除外（真っ白い衣装は彩度で残す） */
+export function isLikelyBackgroundPixel(r: number, g: number, b: number): boolean {
+  const [, s, l] = rgbToHsl(r, g, b)
+  if (l > 92 && s < 15) return true
+  if (l < 10 && s < 20) return true
+  return false
+}
+
+function buildAnalysisCanvas(
+  img: HTMLImageElement,
+): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const scale = Math.min(1, ANALYSIS_MAX_SIDE / Math.max(img.width, img.height))
+  const width = Math.max(1, Math.round(img.width * scale))
+  const height = Math.max(1, Math.round(img.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not get canvas context')
+  ctx.drawImage(img, 0, 0, width, height)
+  return { canvas, ctx }
+}
+
+function accumulateColorsFromImageData(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options: Required<ExtractDominantColorsOptions>,
+): Record<string, number> {
+  const { x0, y0, x1, y1 } = getCenterSampleBounds(width, height, options.centerFraction)
+  const colorMap: Record<string, number> = {}
+
+  for (let y = y0; y < y1; y += SAMPLE_STEP) {
+    for (let x = x0; x < x1; x += SAMPLE_STEP) {
+      const i = (y * width + x) * 4
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const a = data[i + 3]
+      if (a < 128) continue
+      if (options.skipLikelyBackground && isLikelyBackgroundPixel(r, g, b)) continue
+
+      let weight = 1
+      if (options.radialWeighting) {
+        weight = getCenterSampleWeight(x, y, width, height)
+      }
+
+      const hex = rgbToHex(r, g, b)
+      colorMap[hex] = (colorMap[hex] || 0) + weight
+    }
+  }
+
+  return colorMap
+}
+
 /**
- * Extract dominant color from image using Canvas API
+ * Extract dominant colors — 中央領域を優先（背景色の影響を抑える）
  */
-export async function extractDominantColors(imageUrl: string): Promise<string[]> {
+export async function extractDominantColors(
+  imageUrl: string,
+  options: ExtractDominantColorsOptions = {},
+): Promise<string[]> {
+  const opts: Required<ExtractDominantColorsOptions> = {
+    centerFraction: options.centerFraction ?? 0.5,
+    radialWeighting: options.radialWeighting ?? true,
+    skipLikelyBackground: options.skipLikelyBackground ?? true,
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       try {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.width
-        canvas.height = img.height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          reject(new Error('Could not get canvas context'))
-          return
-        }
-
-        ctx.drawImage(img, 0, 0)
+        const { canvas, ctx } = buildAnalysisCanvas(img)
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const data = imageData.data
+        const colorMap = accumulateColorsFromImageData(
+          imageData.data,
+          canvas.width,
+          canvas.height,
+          opts,
+        )
 
-        // Sample pixels to find dominant colors
-        const colorMap: { [key: string]: number } = {}
-        const step = 4 // Sample every 4th pixel for performance
-        
-        for (let i = 0; i < data.length; i += step * 4) {
-          const r = data[i]
-          const g = data[i + 1]
-          const b = data[i + 2]
-          const a = data[i + 3]
-
-          // Skip transparent pixels
-          if (a < 128) continue
-
-          const hex = rgbToHex(r, g, b)
-          colorMap[hex] = (colorMap[hex] || 0) + 1
-        }
-
-        // Get top 5 colors
         const sortedColors = Object.entries(colorMap)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 5)
           .map(([color]) => color)
 
-        resolve(sortedColors)
+        if (sortedColors.length > 0) {
+          resolve(sortedColors)
+          return
+        }
+
+        // 中央だけだと背景除外で空になる場合は、中央50%・背景除外なしで再試行
+        const fallbackMap = accumulateColorsFromImageData(
+          imageData.data,
+          canvas.width,
+          canvas.height,
+          { ...opts, skipLikelyBackground: false },
+        )
+        const fallback = Object.entries(fallbackMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([color]) => color)
+
+        resolve(fallback.length > 0 ? fallback : ['#808080'])
       } catch (error) {
         reject(error)
       }

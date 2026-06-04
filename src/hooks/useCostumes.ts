@@ -85,6 +85,12 @@ export function useCostumes() {
     }
   }, [])
 
+  const reloadCostumes = useCallback(async () => {
+    await storage.init()
+    const allCostumes = await storage.getAllCostumes()
+    setCostumes(normalizeCostumeList(allCostumes))
+  }, [])
+
   return {
     costumes,
     loading,
@@ -93,5 +99,6 @@ export function useCostumes() {
     updateCostume,
     deleteCostume,
     getCostume,
+    reloadCostumes,
   }
 }

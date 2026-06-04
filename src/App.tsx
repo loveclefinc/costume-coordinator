@@ -12,6 +12,8 @@ import About from './pages/About'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import CloudOAuthCallback from './pages/CloudOAuthCallback'
 import Onboarding from './pages/Onboarding'
+import JoinEvent from './pages/JoinEvent'
+import EventParticipate from './pages/EventParticipate'
 import { isOnboardingComplete } from './utils/onboarding'
 import './App.css'
 
@@ -34,6 +36,8 @@ function AppShell() {
       <main className={showMainNav ? 'main-content' : 'main-content main-content-full'}>
         <Routes>
           <Route path="/welcome" element={<Onboarding />} />
+          <Route path="/join" element={<JoinEvent />} />
+          <Route path="/events/:id/participate" element={<EventParticipate />} />
           <Route path="/" element={<Home />} />
           <Route path="/costumes" element={<Costumes />} />
           <Route path="/costumes/add" element={<AddCostume />} />

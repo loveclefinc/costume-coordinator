@@ -22,11 +22,14 @@ export function useEvents() {
     initStorage()
   }, [])
 
-  const addEvent = useCallback(async (event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addEvent = useCallback(async (
+    event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>,
+    options?: { id?: string },
+  ) => {
     try {
       const newEvent: Event = {
         ...event,
-        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: options?.id ?? `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }

@@ -442,7 +442,7 @@
   text-decoration: underline;
 }
 
-.color-grid {
+.theme-color-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
   gap: 0.5rem;
@@ -544,7 +544,7 @@
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-  .color-grid {
+  .theme-color-picker-grid {
     grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
   }
 
@@ -573,4 +573,38 @@
   .preference-group {
     gap: 0.5rem;
   }
+}
+
+.online-submit-options {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--surface-alt, rgba(99, 102, 241, 0.06));
+  border: 1px solid var(--primary, #6366f1);
+}
+
+.online-submit-options .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.retention-label {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.retention-label select {
+  margin-left: 0.5rem;
+}
+
+.online-submit-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.event-hosted-badge {
+  color: var(--primary, #6366f1);
+  font-weight: 600;
 }

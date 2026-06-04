@@ -204,6 +204,24 @@
   line-height: 1.5;
 }
 
+.collaboration-home {
+  border: 2px solid var(--primary, #6366f1);
+  border-radius: 12px;
+  background: var(--surface-alt, rgba(99, 102, 241, 0.06));
+}
+
+.collaboration-home ol {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+
+.collab-alt {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.75rem;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .home-page {
