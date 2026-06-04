@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
@@ -15,10 +15,19 @@ import {
   importParticipantSubmission,
   type CollaborationBundle,
 } from '../utils/collaboration-bundle'
-import { fetchAdminSnapshot, EventApiError } from '../event-server/client'
+import {
+  extendServerEventRetention,
+  fetchAdminSnapshot,
+  EventApiError,
+} from '../event-server/client'
+import {
+  canExtendServerRetention,
+  formatServerExpiryLabel,
+} from '../utils/server-expiry-display'
 import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
 import { getEventSession, setEventSession } from '../event-server/session'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
+import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -36,6 +45,7 @@ const translateTones = (tones: string[]): string => {
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { getEvent, updateEvent } = useEvents()
   const { costumes, reloadCostumes } = useCostumes()
 
@@ -50,7 +60,21 @@ export default function EventDetail() {
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [serverPulling, setServerPulling] = useState(false)
+  const [extendingRetention, setExtendingRetention] = useState(false)
+  const [retentionMessage, setRetentionMessage] = useState('')
+  const [inviteModal, setInviteModal] = useState<{
+    url: string
+    variant: 'created' | 'share'
+  } | null>(null)
   const serverApiEnabled = isEventServerEnabled()
+
+  useEffect(() => {
+    const navState = location.state as InviteUrlModalLocationState | null
+    if (navState?.showInviteModal && navState.inviteUrl) {
+      setInviteModal({ url: navState.inviteUrl, variant: 'created' })
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate])
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -321,34 +345,61 @@ export default function EventDetail() {
     }
   }
 
-  const handleCopyInviteLink = async () => {
-    if (!event) return
-    const sess = getEventSession(event.id)
-    const invite = sess?.inviteToken
-    if (!invite) {
+  const buildInviteUrl = (): string | null => {
+    if (!event) return null
+    const invite = getEventSession(event.id)?.inviteToken
+    if (!invite) return null
+    return absoluteAppUrl(`/join?e=${encodeURIComponent(event.id)}&t=${encodeURIComponent(invite)}`)
+  }
+
+  const handleCopyInviteLink = () => {
+    const url = buildInviteUrl()
+    if (!url) {
       alert(
         '招待トークンがこの端末にありません。イベント作成時に表示された URL を再利用するか、新しいオンラインイベントを作成してください。',
       )
       return
     }
-    const url = absoluteAppUrl(`/join?e=${encodeURIComponent(event.id)}&t=${encodeURIComponent(invite)}`)
+    setInviteModal({ url, variant: 'share' })
+  }
+
+  const resolveAdminToken = (): string | null => {
+    if (!event) return null
+    let adminToken = getEventSession(event.id)?.adminToken
+    if (!adminToken) {
+      const entered = window.prompt('管理者トークンを貼り付けてください（作成時に保存されていない場合）')
+      if (!entered?.trim()) return null
+      adminToken = entered.trim()
+      setEventSession(event.id, { adminToken })
+    }
+    return adminToken
+  }
+
+  const handleExtendRetention = async () => {
+    if (!event?.serverExpiresAt || !serverApiEnabled) return
+    const adminToken = resolveAdminToken()
+    if (!adminToken) return
+
+    setExtendingRetention(true)
+    setRetentionMessage('')
+    setError('')
     try {
-      await navigator.clipboard.writeText(url)
-      alert(`招待 URL をコピーしました:\n${url}`)
-    } catch {
-      alert(url)
+      const res = await extendServerEventRetention(event.id, adminToken, 7)
+      const updated = await updateEvent(event.id, { serverExpiresAt: res.expiresAt })
+      setEvent(updated)
+      setEventSession(event.id, { expiresAt: res.expiresAt })
+      setRetentionMessage('保存期限を7日延長しました')
+    } catch (e) {
+      setError(e instanceof EventApiError ? e.message : '期限の延長に失敗しました')
+    } finally {
+      setExtendingRetention(false)
     }
   }
 
   const handlePullFromServer = async () => {
     if (!event) return
-    let adminToken = getEventSession(event.id)?.adminToken
-    if (!adminToken) {
-      const entered = window.prompt('管理者トークンを貼り付けてください（作成時に保存されていない場合）')
-      if (!entered?.trim()) return
-      adminToken = entered.trim()
-      setEventSession(event.id, { adminToken })
-    }
+    const adminToken = resolveAdminToken()
+    if (!adminToken) return
 
     setServerPulling(true)
     setError('')
@@ -406,87 +457,114 @@ export default function EventDetail() {
     )
   }
 
+  const showOnlineHub = Boolean(event.hostedOnServer || serverApiEnabled)
+  const canExtend = canExtendServerRetention(event.serverExpiresAt, event.createdAt)
+
   return (
     <div className="event-detail-page">
       <button onClick={() => navigate('/events')} className="back-button">
         ← 戻る
       </button>
 
-      <div className="event-detail-header">
-        <h1>{event.name}</h1>
-        <p className="event-date">📅 {new Date(event.date).toLocaleDateString('ja-JP')}</p>
-        {event.description && <p className="event-description">{event.description}</p>}
-        
-        <div className="event-actions">
-          <button onClick={handleShareEvent} className="action-button share-button" title="イベント情報を共有">
-            📤 共有
-          </button>
-          <button onClick={handleExportCSV} className="action-button export-button" title="CSV形式でエクスポート">
-            📊 CSV
-          </button>
-          <button onClick={handleExportJSON} className="action-button export-button" title="JSON形式でエクスポート">
-            📋 JSON
-          </button>
-          <button onClick={handleGenerateQR} className="action-button qr-button" title="QRコードを生成">
-            🔲 QR
-          </button>
+      <header className="event-detail-hero">
+        <div className="event-detail-hero-text">
+          <h1>{event.name}</h1>
+          <p className="event-date">📅 {new Date(event.date).toLocaleDateString('ja-JP')}</p>
+          {event.description && <p className="event-description">{event.description}</p>}
         </div>
-        
-        {qrCodeUrl && (
-          <div className="qr-code-section">
-            <h3>イベント参加用QRコード</h3>
-            <p className="collab-note">
-              オンラインイベントでは<strong>招待 URL</strong>を送ってください。QR はその URL 用です。
-            </p>
-            <img src={qrCodeUrl} alt="Event QR Code" className="qr-code-image" />
-            <button onClick={handleShareWithQR} className="action-button share-button">
-              🔲📤 QRコードを共有
-            </button>
-          </div>
+        {event.hostedOnServer && (
+          <span className="event-hosted-pill">☁️ オンライン提出</span>
         )}
-      </div>
+      </header>
 
-        {(event.hostedOnServer || serverApiEnabled) && (
-          <section className="section collaboration-section server-hub">
-            <h2>☁️ オンライン提出（写真サーバー）</h2>
-            {event.serverExpiresAt && (
-              <p className="collab-note">
-                サーバー保存期限: {new Date(event.serverExpiresAt).toLocaleString('ja-JP')}
-              </p>
-            )}
-            <div className="collab-block">
-              <h3>代表者</h3>
-              <button type="button" className="action-button" onClick={() => void handleCopyInviteLink()}>
-                ① 招待 URL をコピー（参加者に LINE 等で送る）
-              </button>
-              <button
-                type="button"
-                className="action-button primary"
-                disabled={serverPulling || !serverApiEnabled}
-                onClick={() => void handlePullFromServer()}
-              >
-                {serverPulling ? '取り込み中…' : '② サーバーから全員の提出を取り込む'}
-              </button>
-              {!serverApiEnabled && (
-                <p className="collab-note">API 未設定（VITE_EVENT_API_URL）のため取り込みできません。</p>
+      {showOnlineHub && (
+        <section className="section server-primary-card" aria-labelledby="server-primary-heading">
+          <h2 id="server-primary-heading">代表者の操作</h2>
+          <p className="server-primary-lead">
+            参加者に招待 URL を送り、提出後にサーバーから取り込んで最適化します。
+          </p>
+
+          {event.serverExpiresAt && (
+            <div className="server-expiry-row">
+              <div className="server-expiry-info">
+                <span className="server-expiry-label">サーバー保存期限</span>
+                <span className="server-expiry-value">
+                  {formatServerExpiryLabel(event.serverExpiresAt)}
+                </span>
+              </div>
+              {event.hostedOnServer && serverApiEnabled && (
+                <button
+                  type="button"
+                  className="server-extend-btn"
+                  disabled={extendingRetention || !canExtend}
+                  title={
+                    canExtend
+                      ? '保存期限を7日延長（作成から最大14日）'
+                      : '作成から最大14日のため、これ以上延長できません'
+                  }
+                  onClick={() => void handleExtendRetention()}
+                >
+                  {extendingRetention ? '延長中…' : '+7日延長'}
+                </button>
               )}
             </div>
-            <div className="collab-block">
-              <h3>参加者</h3>
-              <p className="collab-note">
-                代表者から受け取った<strong>招待 URL</strong>を開き、名前登録 → 衣装写真をアップロードしてください。
-              </p>
-            </div>
-          </section>
-        )}
+          )}
+          {retentionMessage && <p className="server-retention-ok">{retentionMessage}</p>}
 
-        <section className="section collaboration-section">
-          <h2>📦 オフライン用（JSON・予備）</h2>
-          <p className="collab-note">
-            サーバーが使えない場合のみ。写真込み JSON は容量が大きくなります。
-          </p>
-          <div className="collab-block">
-            <h3>代表者</h3>
+          <div className="server-action-stack">
+            <button type="button" className="server-action-btn" onClick={handleCopyInviteLink}>
+              <span className="server-action-step">1</span>
+              <span className="server-action-text">招待 URL をコピー</span>
+            </button>
+            <button
+              type="button"
+              className="server-action-btn primary"
+              disabled={serverPulling || !serverApiEnabled}
+              onClick={() => void handlePullFromServer()}
+            >
+              <span className="server-action-step">2</span>
+              <span className="server-action-text">
+                {serverPulling ? '取り込み中…' : 'サーバーから提出を取り込む'}
+              </span>
+            </button>
+          </div>
+
+          {!serverApiEnabled && (
+            <p className="collab-note">API 未設定のためオンライン機能は使えません。</p>
+          )}
+        </section>
+      )}
+
+      <details className="event-advanced-panel">
+        <summary>その他のツール（書き出し・QR・オフライン）</summary>
+        <div className="event-advanced-body">
+          <div className="event-toolbar">
+            <button type="button" onClick={handleShareEvent} className="action-button share-button">
+              📤 共有
+            </button>
+            <button type="button" onClick={handleExportCSV} className="action-button export-button">
+              📊 CSV
+            </button>
+            <button type="button" onClick={handleExportJSON} className="action-button export-button">
+              📋 JSON
+            </button>
+            <button type="button" onClick={handleGenerateQR} className="action-button qr-button">
+              🔲 QR
+            </button>
+          </div>
+
+          {qrCodeUrl && (
+            <div className="qr-code-section compact">
+              <img src={qrCodeUrl} alt="招待用 QR コード" className="qr-code-image" />
+              <button type="button" onClick={handleShareWithQR} className="action-button share-button">
+                QR を共有
+              </button>
+            </div>
+          )}
+
+          <section className="collaboration-section offline-tools">
+            <h3>オフライン用 JSON（予備）</h3>
+            <p className="collab-note">サーバーが使えない場合のみ。写真込みは容量が大きくなります。</p>
             <button type="button" className="action-button" onClick={handleExportEventInvite}>
               参加用ファイルを書き出す
             </button>
@@ -495,17 +573,12 @@ export default function EventDetail() {
               hint="participant-submission の JSON"
               onBundleLoaded={handleImportParticipantBundle}
             />
-          </div>
-          <div className="collab-block">
-            <h3>参加者</h3>
-            <p className="collab-note">
-              <a href={`${import.meta.env.BASE_URL || '/costume-coordinator/'}join`}>JSON で参加</a>
-            </p>
             <button type="button" className="action-button" onClick={handleExportParticipantSubmission}>
               提出用ファイルを書き出す
             </button>
-          </div>
-        </section>
+          </section>
+        </div>
+      </details>
 
       {error && (
         <div className="error-message">
@@ -515,10 +588,12 @@ export default function EventDetail() {
       )}
 
       <div className="event-detail-content">
-        {/* Theme Preferences Section */}
         {event.themePreferences && (
-          <section className="section theme-preferences-section">
-            <h2>🎨 イベントテーマ設定</h2>
+          <details
+            className={`section theme-preferences-section${event.hostedOnServer ? ' theme-collapsible' : ''}`}
+            open={!event.hostedOnServer}
+          >
+            <summary>🎨 イベントテーマ設定</summary>
             <div className="theme-preferences-display">
               {event.themePreferences.colors1stChoice.length > 0 && (
                 <div className="preference-display">
@@ -625,7 +700,7 @@ export default function EventDetail() {
                 </div>
               )}
             </div>
-          </section>
+          </details>
         )}
 
         {/* Participants Section */}
@@ -792,6 +867,15 @@ export default function EventDetail() {
           </section>
         )}
       </div>
+
+      {inviteModal && (
+        <InviteUrlModal
+          inviteUrl={inviteModal.url}
+          eventName={event.name}
+          variant={inviteModal.variant}
+          onClose={() => setInviteModal(null)}
+        />
+      )}
     </div>
   )
 }

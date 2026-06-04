@@ -5,6 +5,7 @@ import type {
   CreateCostumeResponse,
   EventAdminSnapshot,
   EventPublicInfo,
+  ExtendRetentionResponse,
   JoinEventRequest,
   JoinEventResponse,
   UploadPhotoResponse,
@@ -84,6 +85,21 @@ export async function fetchAdminSnapshot(
 ): Promise<EventAdminSnapshot> {
   return apiFetch<EventAdminSnapshot>(
     `/api/events/${encodeURIComponent(eventId)}/snapshot?admin=${encodeURIComponent(adminToken)}`,
+  )
+}
+
+export async function extendServerEventRetention(
+  eventId: string,
+  adminToken: string,
+  days = 7,
+): Promise<ExtendRetentionResponse> {
+  return apiFetch<ExtendRetentionResponse>(
+    `/api/events/${encodeURIComponent(eventId)}/extend-retention`,
+    {
+      method: 'POST',
+      adminToken,
+      body: JSON.stringify({ days }),
+    },
   )
 }
 

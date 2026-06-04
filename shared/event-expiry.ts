@@ -26,3 +26,28 @@ export function computeExpiresAt(
 export function isExpired(expiresAtMs: number, nowMs = Date.now()): boolean {
   return nowMs >= expiresAtMs
 }
+
+/** 作成日からのサーバー保存の絶対上限（日数） */
+export const MAX_STORAGE_DAYS_FROM_CREATION = 14
+
+const MAX_STORAGE_MS = MAX_STORAGE_DAYS_FROM_CREATION * 86400000
+
+/**
+ * 保存期限を extendDays 延長（既定 7 日）。作成から最大14日まで。
+ * これ以上延長できない場合は null。
+ */
+export function extendExpiresAt(
+  currentExpiresAtMs: number,
+  createdAtMs: number,
+  extendDays = 7,
+): number | null {
+  const capMs = createdAtMs + MAX_STORAGE_MS
+  if (currentExpiresAtMs >= capMs) return null
+  const next = Math.min(capMs, currentExpiresAtMs + extendDays * 86400000)
+  if (next <= currentExpiresAtMs) return null
+  return next
+}
+
+export function canExtendRetention(currentExpiresAtMs: number, createdAtMs: number): boolean {
+  return extendExpiresAt(currentExpiresAtMs, createdAtMs, 7) !== null
+}

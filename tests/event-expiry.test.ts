@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   computeExpiresAt,
   endOfEventDayMs,
+  extendExpiresAt,
+  canExtendRetention,
   isExpired,
 } from '../shared/event-expiry'
 
@@ -27,5 +29,19 @@ describe('event-expiry', () => {
   it('isExpired', () => {
     expect(isExpired(Date.now() - 1000)).toBe(true)
     expect(isExpired(Date.now() + 86400000)).toBe(false)
+  })
+
+  it('extendExpiresAt adds 7 days up to 14-day cap', () => {
+    const created = new Date('2026-06-01T00:00:00Z').getTime()
+    const current = created + 7 * 86400000
+    const next = extendExpiresAt(current, created, 7)
+    expect(next).toBe(created + 14 * 86400000)
+    expect(canExtendRetention(next!, created)).toBe(false)
+  })
+
+  it('extendExpiresAt returns null at cap', () => {
+    const created = new Date('2026-06-01T00:00:00Z').getTime()
+    const cap = created + 14 * 86400000
+    expect(extendExpiresAt(cap, created, 7)).toBeNull()
   })
 })

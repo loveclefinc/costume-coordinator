@@ -2,6 +2,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { VitePWA } from 'vite-plugin-pwa'
+import { normalizeEventApiBaseUrl } from './src/event-server/config'
+
+/** CI / .env の誤設定（`https://アカウント.workers.dev` のみ）をビルド前に補正 */
+function applyNormalizedEventApiUrl(): void {
+  const raw = process.env.VITE_EVENT_API_URL
+  if (!raw?.trim()) return
+  const normalized = normalizeEventApiBaseUrl(raw)
+  if (normalized && normalized !== raw.trim().replace(/^["']|["']$/g, '').replace(/\/$/, '')) {
+    process.env.VITE_EVENT_API_URL = normalized
+    console.log('[vite] VITE_EVENT_API_URL を Worker 名付き URL に補正しました')
+  }
+}
+
+applyNormalizedEventApiUrl()
 
 export default defineConfig({
   base: '/costume-coordinator/',

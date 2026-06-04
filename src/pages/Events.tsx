@@ -230,16 +230,10 @@ export default function Events() {
         const inviteUrl = absoluteAppUrl(
           `/join?e=${encodeURIComponent(server.eventId)}&t=${encodeURIComponent(server.inviteToken)}`,
         )
-        const adminNote = `管理者トークンはこの端末にのみ保存されます。紛失すると再発行できません。\n\n招待URL:\n${inviteUrl}`
 
-        try {
-          await navigator.clipboard.writeText(inviteUrl)
-          alert(`オンラインイベントを作成しました。\n招待URLをコピーしました。\n\n${adminNote}`)
-        } catch {
-          alert(`オンラインイベントを作成しました。\n\n${adminNote}`)
-        }
-
-        navigate(`/events/${server.eventId}`)
+        navigate(`/events/${server.eventId}`, {
+          state: { showInviteModal: true, inviteUrl },
+        })
       } else {
         await storage.init()
         await addEvent(eventPayload)

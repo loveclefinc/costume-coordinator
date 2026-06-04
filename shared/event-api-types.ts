@@ -83,6 +83,14 @@ export interface EventAdminSnapshot {
   costumes: ServerCostume[]
 }
 
+export interface ExtendRetentionRequest {
+  days?: 7
+}
+
+export interface ExtendRetentionResponse {
+  expiresAt: number
+}
+
 export interface JoinEventRequest {
   displayName: string
 }

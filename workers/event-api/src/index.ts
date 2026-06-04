@@ -5,6 +5,8 @@ import type {
   CreateCostumeResponse,
   EventAdminSnapshot,
   EventPublicInfo,
+  ExtendRetentionRequest,
+  ExtendRetentionResponse,
   JoinEventRequest,
   JoinEventResponse,
   ServerCostume,
@@ -12,7 +14,7 @@ import type {
   ServerPhoto,
   UploadPhotoResponse,
 } from '../../../shared/event-api-types'
-import { computeExpiresAt, isExpired } from '../../../shared/event-expiry'
+import { computeExpiresAt, extendExpiresAt, isExpired } from '../../../shared/event-expiry'
 import {
   DEFAULT_UPLOAD_LIMITS,
   formatBytes,
@@ -97,6 +99,11 @@ export default {
       const snapshotMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/snapshot$/)
       if (snapshotMatch && request.method === 'GET') {
         return cors(await handleAdminSnapshot(snapshotMatch[1], url, env, request), request, env)
+      }
+
+      const extendMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/extend-retention$/)
+      if (extendMatch && request.method === 'POST') {
+        return cors(await handleExtendRetention(extendMatch[1], request, env), request, env)
       }
 
       const joinMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/join$/)
@@ -206,6 +213,38 @@ async function handleAdminSnapshot(
 
   const snapshot = await buildAdminSnapshot(env, row, request.url, admin)
   return json(snapshot)
+}
+
+async function handleExtendRetention(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const admin = getAdminToken(new URL(request.url), request)
+  const row = await getEventRow(env, eventId)
+  await assertAdminToken(env, eventId, admin, row.admin_token)
+
+  let days = 7
+  try {
+    const body = (await request.json()) as ExtendRetentionRequest
+    if (body.days != null && body.days !== 7) {
+      return json({ error: '延長は7日のみ指定できます' }, 400)
+    }
+  } catch {
+    /* empty body OK */
+  }
+
+  const next = extendExpiresAt(row.expires_at, row.created_at, days)
+  if (next == null) {
+    return json({ error: 'これ以上延長できません（作成から最大14日まで）' }, 400)
+  }
+
+  await env.DB.prepare(`UPDATE events SET expires_at = ? WHERE id = ?`)
+    .bind(next, eventId)
+    .run()
+
+  const res: ExtendRetentionResponse = { expiresAt: next }
+  return json(res)
 }
 
 async function handleJoin(
