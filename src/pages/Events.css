@@ -66,6 +66,18 @@
   font-weight: 600;
 }
 
+.form-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.4;
+}
+
+.theme-settings-heading {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
 .form-group input,
 .form-group textarea {
   padding: 10px 12px;

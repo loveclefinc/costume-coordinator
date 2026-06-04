@@ -76,12 +76,13 @@ export default function Events() {
     name: '',
     date: '',
     description: '',
+    /** 主催者＝参加者の1人目 */
+    hostName: '',
   })
 
   // Theme preferences state
   const [themePrefs, setThemePrefs] = useState<EventThemePreferences>({ ...EMPTY_THEME_PREFS })
 
-  const [showThemeSettings, setShowThemeSettings] = useState(false)
   /** 1→2→3 の順で希望を決める（色・トーン・柄を交互に出さない） */
   const [preferenceRankStep, setPreferenceRankStep] = useState<1 | 2 | 3>(1)
   const [preferenceWizardDone, setPreferenceWizardDone] = useState(false)
@@ -168,6 +169,11 @@ export default function Events() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim() || !formData.date) return
+    const hostName = formData.hostName.trim()
+    if (!hostName) {
+      alert('代表者名を入力してください（参加者の1人目として登録されます）')
+      return
+    }
 
     setCreating(true)
     try {
@@ -175,7 +181,7 @@ export default function Events() {
         name: formData.name,
         date: formData.date,
         description: formData.description,
-        participants: [] as string[],
+        participants: [hostName],
         costumes: {} as Record<string, string>,
         themePreferences: themePrefs,
       }
@@ -239,11 +245,10 @@ export default function Events() {
         await addEvent(eventPayload)
       }
 
-      setFormData({ name: '', date: '', description: '' })
+      setFormData({ name: '', date: '', description: '', hostName: '' })
       setThemePrefs({ ...EMPTY_THEME_PREFS })
       resetPreferenceWizard()
       setShowForm(false)
-      setShowThemeSettings(false)
     } catch (err) {
       const msg =
         err instanceof Error && err.message
@@ -468,24 +473,21 @@ export default function Events() {
             />
           </div>
 
-          {/* Theme Settings Toggle */}
           <div className="form-group">
-            <button
-              type="button"
-              onClick={() => {
-                const next = !showThemeSettings
-                setShowThemeSettings(next)
-                if (next) resetPreferenceWizard()
-              }}
-              className="theme-settings-toggle"
-            >
-              {showThemeSettings ? '▼ テーマ設定を非表示' : '▶ テーマ設定を表示'}
-            </button>
+            <label htmlFor="hostName">代表者名 *</label>
+            <input
+              id="hostName"
+              type="text"
+              value={formData.hostName}
+              onChange={(e) => setFormData(prev => ({ ...prev, hostName: e.target.value }))}
+              placeholder="例: 山田太郎（参加者の1人目として登録）"
+              required
+            />
+            <p className="form-hint">主催者を参加者リストの1人目に含めます</p>
           </div>
 
-          {/* Theme Settings Section */}
-          {showThemeSettings && (
-            <div className="theme-settings-section">
+          <div className="theme-settings-section">
+            <h3 className="theme-settings-heading">テーマ設定</h3>
               {/* Color Unification Strategy */}
               <div className="theme-subsection">
                 <h4>色味の統一方針</h4>
@@ -660,8 +662,7 @@ export default function Events() {
                   </label>
                 </div>
               </div>
-            </div>
-          )}
+          </div>
 
           {serverEnabled && (
             <div className="form-group online-submit-options">

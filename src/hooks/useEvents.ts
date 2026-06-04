@@ -11,7 +11,21 @@ export function useEvents() {
       try {
         await storage.init()
         const allEvents = await storage.getAllEvents()
-        setEvents(allEvents)
+        const migrated: Event[] = []
+        for (const ev of allEvents) {
+          if (ev.participants.length === 0) {
+            const fixed: Event = {
+              ...ev,
+              participants: ['代表者'],
+              updatedAt: Date.now(),
+            }
+            await storage.updateEvent(fixed)
+            migrated.push(fixed)
+          } else {
+            migrated.push(ev)
+          }
+        }
+        setEvents(migrated)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load events')
       } finally {

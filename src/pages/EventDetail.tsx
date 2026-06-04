@@ -80,8 +80,11 @@ export default function EventDetail() {
     const loadEvent = async () => {
       try {
         if (!id) throw new Error('Event ID not found')
-        const eventData = await getEvent(id)
+        let eventData = await getEvent(id)
         if (!eventData) throw new Error('Event not found')
+        if (eventData.participants.length === 0) {
+          eventData = await updateEvent(id, { participants: ['代表者'] })
+        }
         setEvent(eventData)
         setParticipantPreferences(eventData.participantPreferences ?? {})
       } catch (err) {
@@ -92,7 +95,7 @@ export default function EventDetail() {
     }
 
     loadEvent()
-  }, [id, getEvent])
+  }, [id, getEvent, updateEvent])
 
   const handleAddParticipant = async () => {
     if (!newParticipant.trim() || !event) return
@@ -589,11 +592,8 @@ export default function EventDetail() {
 
       <div className="event-detail-content">
         {event.themePreferences && (
-          <details
-            className={`section theme-preferences-section${event.hostedOnServer ? ' theme-collapsible' : ''}`}
-            open={!event.hostedOnServer}
-          >
-            <summary>🎨 イベントテーマ設定</summary>
+          <section className="section theme-preferences-section">
+            <h2>🎨 イベントテーマ設定</h2>
             <div className="theme-preferences-display">
               {event.themePreferences.colors1stChoice.length > 0 && (
                 <div className="preference-display">
@@ -700,7 +700,7 @@ export default function EventDetail() {
                 </div>
               )}
             </div>
-          </details>
+          </section>
         )}
 
         {/* Participants Section */}
