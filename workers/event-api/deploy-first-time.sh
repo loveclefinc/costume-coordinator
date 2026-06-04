@@ -11,7 +11,15 @@ if ! npx wrangler whoami 2>&1 | grep -qiE 'email|account id'; then
 fi
 
 echo "=== R2 バケット ==="
-npx wrangler r2 bucket create costume-event-photos 2>&1 || true
+echo "（初回はダッシュボードで R2 を有効化: https://dash.cloudflare.com/ → R2 → Get started）"
+if ! npx wrangler r2 bucket create costume-event-photos 2>&1; then
+  echo ""
+  echo "R2 バケット作成に失敗しました。"
+  echo "  1) Cloudflare ダッシュボード → R2 → 「Get started」で R2 を有効化"
+  echo "  2) 再度: npx wrangler r2 bucket create costume-event-photos"
+  echo "  3) その後: npx wrangler deploy"
+  exit 1
+fi
 
 PLACEHOLDER='00000000-0000-0000-0000-000000000001'
 if grep -q "$PLACEHOLDER" wrangler.toml; then
