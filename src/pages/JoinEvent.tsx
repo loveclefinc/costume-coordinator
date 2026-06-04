@@ -5,6 +5,7 @@ import { importEventInvite, type CollaborationBundle } from '../utils/collaborat
 import { storage } from '../utils/storage'
 import { isEventServerEnabled } from '../event-server/config'
 import { setEventSession } from '../event-server/session'
+import { useAppUi } from '../contexts/AppUiContext'
 import './JoinEvent.css'
 
 export default function JoinEvent() {
@@ -13,6 +14,7 @@ export default function JoinEvent() {
   const eventId = searchParams.get('e')
   const inviteToken = searchParams.get('t')
   const onlineEnabled = isEventServerEnabled()
+  const { toast } = useAppUi()
 
   useEffect(() => {
     if (eventId && inviteToken && onlineEnabled) {
@@ -39,7 +41,7 @@ export default function JoinEvent() {
     const msg = result.created
       ? 'イベントを取り込みました。'
       : 'イベント情報を更新しました。'
-    alert(msg)
+    toast(msg, 'success')
     navigate(`/events/${result.eventId}`)
   }
 

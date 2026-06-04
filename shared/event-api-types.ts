@@ -105,6 +105,15 @@ export interface JoinEventResponse {
   displayName: string
 }
 
+export interface RegisterHostRequest {
+  displayName: string
+}
+
+export interface RegisterHostResponse extends JoinEventResponse {
+  /** 同名参加者が既にいた場合はトークンを再発行 */
+  reissued?: boolean
+}
+
 export interface CreateCostumeRequest {
   name: string
   colors: string[]

@@ -95,6 +95,14 @@ export default {
       if (eventMatch && request.method === 'GET') {
         return cors(await handleGetEventPublic(eventMatch[1], url, env), request, env)
       }
+      if (eventMatch && request.method === 'DELETE') {
+        return cors(await handleDeleteEvent(eventMatch[1], request, env), request, env)
+      }
+
+      const registerHostMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/register-host$/)
+      if (registerHostMatch && request.method === 'POST') {
+        return cors(await handleRegisterHost(registerHostMatch[1], request, env), request, env)
+      }
 
       const snapshotMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/snapshot$/)
       if (snapshotMatch && request.method === 'GET') {
@@ -592,6 +600,69 @@ function mediaUrl(requestUrl: string, photoId: string, _invite?: string): string
   return `${origin}/api/media/${photoId}`
 }
 
+async function purgeEventData(env: Env, eventId: string): Promise<void> {
+  const photos = await env.DB.prepare(`SELECT r2_key FROM photos WHERE event_id = ?`)
+    .bind(eventId)
+    .all<{ r2_key: string }>()
+  for (const ph of photos.results ?? []) {
+    await env.PHOTOS.delete(ph.r2_key)
+  }
+  await env.DB.prepare(`DELETE FROM photos WHERE event_id = ?`).bind(eventId).run()
+  await env.DB.prepare(`DELETE FROM costumes WHERE event_id = ?`).bind(eventId).run()
+  await env.DB.prepare(`DELETE FROM participants WHERE event_id = ?`).bind(eventId).run()
+  await env.DB.prepare(`DELETE FROM events WHERE id = ?`).bind(eventId).run()
+}
+
+async function handleDeleteEvent(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const admin = getAdminToken(new URL(request.url), request)
+  const row = await getEventRow(env, eventId)
+  await assertAdminToken(env, eventId, admin, row.admin_token)
+  await purgeEventData(env, eventId)
+  return new Response(null, { status: 204 })
+}
+
+async function handleRegisterHost(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const admin = getAdminToken(new URL(request.url), request)
+  const row = await getEventRow(env, eventId)
+  await assertAdminToken(env, eventId, admin, row.admin_token)
+  assertNotExpired(row.expires_at)
+
+  const body = (await request.json()) as { displayName?: string }
+  const displayName = body.displayName?.trim()
+  if (!displayName) return json({ error: 'displayName は必須です' }, 400)
+
+  const existing = await env.DB.prepare(
+    `SELECT id FROM participants WHERE event_id = ? AND display_name = ?`,
+  )
+    .bind(eventId, displayName)
+    .first<{ id: string }>()
+
+  if (existing?.id) {
+    const participantToken = randomToken()
+    const tokenHash = await hashToken(participantToken)
+    await env.DB.prepare(`UPDATE participants SET token_hash = ? WHERE id = ?`)
+      .bind(tokenHash, existing.id)
+      .run()
+    return json({
+      participantId: existing.id,
+      participantToken,
+      displayName,
+      reissued: true,
+    })
+  }
+
+  const res = await registerParticipant(env, eventId, displayName, Date.now())
+  return json({ ...res, reissued: false }, 201)
+}
+
 async function runExpiryCleanup(env: Env): Promise<void> {
   const now = Date.now()
   const expired = await env.DB.prepare(`SELECT id FROM events WHERE expires_at < ?`)
@@ -599,16 +670,7 @@ async function runExpiryCleanup(env: Env): Promise<void> {
     .all<{ id: string }>()
 
   for (const row of expired.results ?? []) {
-    const photos = await env.DB.prepare(`SELECT r2_key FROM photos WHERE event_id = ?`)
-      .bind(row.id)
-      .all<{ r2_key: string }>()
-    for (const ph of photos.results ?? []) {
-      await env.PHOTOS.delete(ph.r2_key)
-    }
-    await env.DB.prepare(`DELETE FROM photos WHERE event_id = ?`).bind(row.id).run()
-    await env.DB.prepare(`DELETE FROM costumes WHERE event_id = ?`).bind(row.id).run()
-    await env.DB.prepare(`DELETE FROM participants WHERE event_id = ?`).bind(row.id).run()
-    await env.DB.prepare(`DELETE FROM events WHERE id = ?`).bind(row.id).run()
+    await purgeEventData(env, row.id)
   }
 }
 

@@ -887,6 +887,28 @@
   background: rgba(13, 122, 74, 0.08);
 }
 
+.server-action-btn.host-register-btn {
+  border-color: #0d7a4a;
+  background: rgba(13, 122, 74, 0.12);
+}
+
+.server-delete-btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #e8b4b4;
+  border-radius: 8px;
+  background: transparent;
+  color: #b42318;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.server-delete-btn:disabled {
+  opacity: 0.5;
+}
+
 .server-action-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

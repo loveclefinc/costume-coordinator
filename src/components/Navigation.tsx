@@ -1,20 +1,22 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
+import { useAppUi } from '../contexts/AppUiContext'
 import './Navigation.css'
 
 export default function Navigation() {
   const location = useLocation()
   const { status, logout } = useCloudSync()
+  const { confirm } = useAppUi()
   const isActive = (path: string) => location.pathname === path
 
   const handleLogout = async () => {
-    if (
-      !window.confirm(
+    const ok = await confirm({
+      title: 'ログアウト',
+      message:
         'クラウド（Google Drive / Dropbox）からログアウトします。ローカルの衣装・イベントデータはこの端末に残ります。',
-      )
-    ) {
-      return
-    }
+      confirmLabel: 'ログアウト',
+    })
+    if (!ok) return
     await logout()
   }
 

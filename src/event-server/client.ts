@@ -8,6 +8,8 @@ import type {
   ExtendRetentionResponse,
   JoinEventRequest,
   JoinEventResponse,
+  RegisterHostRequest,
+  RegisterHostResponse,
   UploadPhotoResponse,
 } from '../../shared/event-api-types'
 import { getEventApiBaseUrl } from './config'
@@ -99,6 +101,28 @@ export async function extendServerEventRetention(
       method: 'POST',
       adminToken,
       body: JSON.stringify({ days }),
+    },
+  )
+}
+
+export async function deleteServerEvent(eventId: string, adminToken: string): Promise<void> {
+  return apiFetch<void>(`/api/events/${encodeURIComponent(eventId)}`, {
+    method: 'DELETE',
+    adminToken,
+  })
+}
+
+export async function registerHostOnServer(
+  eventId: string,
+  adminToken: string,
+  body: RegisterHostRequest,
+): Promise<RegisterHostResponse> {
+  return apiFetch<RegisterHostResponse>(
+    `/api/events/${encodeURIComponent(eventId)}/register-host`,
+    {
+      method: 'POST',
+      adminToken,
+      body: JSON.stringify(body),
     },
   )
 }

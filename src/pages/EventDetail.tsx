@@ -16,19 +16,22 @@ import {
   type CollaborationBundle,
 } from '../utils/collaboration-bundle'
 import {
+  deleteServerEvent,
   extendServerEventRetention,
   fetchAdminSnapshot,
+  registerHostOnServer,
   EventApiError,
 } from '../event-server/client'
+import { getEventSession, setEventSession, clearEventSession } from '../event-server/session'
 import {
   canExtendServerRetention,
   formatServerExpiryLabel,
 } from '../utils/server-expiry-display'
 import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
-import { getEventSession, setEventSession } from '../event-server/session'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
 import UsageGuideTip from '../components/UsageGuideTip'
+import { useAppUi } from '../contexts/AppUiContext'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -47,6 +50,7 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const { toast, confirm, prompt } = useAppUi()
   const { getEvent, updateEvent } = useEvents()
   const { costumes, reloadCostumes } = useCostumes()
 
@@ -62,6 +66,8 @@ export default function EventDetail() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [serverPulling, setServerPulling] = useState(false)
   const [extendingRetention, setExtendingRetention] = useState(false)
+  const [registeringHost, setRegisteringHost] = useState(false)
+  const [deletingServer, setDeletingServer] = useState(false)
   const [retentionMessage, setRetentionMessage] = useState('')
   const [inviteModal, setInviteModal] = useState<{
     url: string
@@ -190,18 +196,23 @@ export default function EventDetail() {
       addCostume: (c) => storage.addCostume(c),
       updateCostume: (c) => storage.updateCostume(c),
     })
-    alert(
+    toast(
       `${result.participantName} さんのデータを取り込みました（衣装 新規${result.costumesAdded} / 更新${result.costumesUpdated}）`,
+      'success',
     )
     await reloadCostumes()
     await reloadEventAndCostumes()
   }
 
-  const handleExportParticipantSubmission = () => {
+  const handleExportParticipantSubmission = async () => {
     if (!event) return
     const name =
       newParticipant.trim() ||
-      window.prompt('提出する参加者名を入力してください', event.participants[0] ?? '')?.trim()
+      (await prompt({
+        title: '参加者名',
+        message: '提出用ファイルに含める参加者名を入力してください',
+        defaultValue: event.participants[0] ?? '',
+      }))
     if (!name) return
     downloadCollaborationBundle(
       createParticipantSubmissionBundle({
@@ -366,8 +377,9 @@ export default function EventDetail() {
   const handleCopyInviteLink = () => {
     const url = buildInviteUrl()
     if (!url) {
-      alert(
+      toast(
         '招待トークンがこの端末にありません。イベント作成時に表示された URL を再利用するか、新しいオンラインイベントを作成してください。',
+        'error',
       )
       return
     }
@@ -380,11 +392,15 @@ export default function EventDetail() {
     setInviteModal({ url, variant: 'share', hostParticipateUrl })
   }
 
-  const resolveAdminToken = (): string | null => {
+  const resolveAdminToken = async (): Promise<string | null> => {
     if (!event) return null
     let adminToken = getEventSession(event.id)?.adminToken
     if (!adminToken) {
-      const entered = window.prompt('管理者トークンを貼り付けてください（作成時に保存されていない場合）')
+      const entered = await prompt({
+        title: '管理者トークン',
+        message: '作成時にコピーした管理者トークンを貼り付けてください',
+        label: '管理者トークン',
+      })
       if (!entered?.trim()) return null
       adminToken = entered.trim()
       setEventSession(event.id, { adminToken })
@@ -392,9 +408,73 @@ export default function EventDetail() {
     return adminToken
   }
 
+  const handleRegisterHostOnServer = async () => {
+    if (!event?.hostedOnServer || !serverApiEnabled) return
+    const hostName = event.participants[0]?.trim()
+    if (!hostName) {
+      toast('代表者名がローカル参加者にありません', 'error')
+      return
+    }
+    const adminToken = await resolveAdminToken()
+    if (!adminToken) return
+
+    setRegisteringHost(true)
+    setError('')
+    try {
+      const res = await registerHostOnServer(event.id, adminToken, { displayName: hostName })
+      const invite = getEventSession(event.id)?.inviteToken
+      setEventSession(event.id, {
+        adminToken,
+        inviteToken: invite,
+        participantToken: res.participantToken,
+        participantId: res.participantId,
+        displayName: res.displayName,
+      })
+      toast(
+        res.reissued
+          ? '代表者のサーバー登録を更新しました（写真提出が可能です）'
+          : '代表者をサーバーに登録しました',
+        'success',
+      )
+    } catch (e) {
+      setError(e instanceof EventApiError ? e.message : '代表者のサーバー登録に失敗しました')
+    } finally {
+      setRegisteringHost(false)
+    }
+  }
+
+  const handleDeleteServerData = async () => {
+    if (!event?.hostedOnServer || !serverApiEnabled) return
+    const ok = await confirm({
+      title: 'サーバーデータの削除',
+      message:
+        'サーバー上の写真・参加者データをすべて削除します。ローカルのイベントは残ります。この操作は取り消せません。',
+      confirmLabel: '削除する',
+      danger: true,
+    })
+    if (!ok) return
+
+    const adminToken = await resolveAdminToken()
+    if (!adminToken) return
+
+    setDeletingServer(true)
+    setError('')
+    try {
+      await deleteServerEvent(event.id, adminToken)
+      const updated = await updateEvent(event.id, { hostedOnServer: false, serverExpiresAt: undefined })
+      setEvent(updated)
+      clearEventSession(event.id)
+      toast('サーバー上のイベントデータを削除しました', 'success')
+    } catch (e) {
+      setError(e instanceof EventApiError ? e.message : 'サーバーデータの削除に失敗しました')
+    } finally {
+      setDeletingServer(false)
+    }
+  }
+
   const handleExtendRetention = async () => {
     if (!event?.serverExpiresAt || !serverApiEnabled) return
-    const adminToken = resolveAdminToken()
+    const adminToken = await resolveAdminToken()
     if (!adminToken) return
 
     setExtendingRetention(true)
@@ -415,7 +495,7 @@ export default function EventDetail() {
 
   const handlePullFromServer = async () => {
     if (!event) return
-    const adminToken = resolveAdminToken()
+    const adminToken = await resolveAdminToken()
     if (!adminToken) return
 
     setServerPulling(true)
@@ -425,8 +505,9 @@ export default function EventDetail() {
       const result = await importAdminSnapshotToLocal(snapshot, event.id)
       await reloadCostumes()
       await reloadEventAndCostumes()
-      alert(
-        `サーバーから取り込みました。\n参加者 +${result.participantsAdded}\n衣装 新規 ${result.costumesAdded} / 更新 ${result.costumesUpdated}\n提出 ${snapshot.participants.filter((p) => p.costumeCount > 0).length}/${snapshot.participants.length} 名`,
+      toast(
+        `サーバーから取り込みました。参加者 +${result.participantsAdded} / 衣装 新規 ${result.costumesAdded}・更新 ${result.costumesUpdated} / 提出 ${snapshot.participants.filter((p) => p.costumeCount > 0).length}/${snapshot.participants.length} 名`,
+        'success',
       )
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'サーバーからの取り込みに失敗しました')
@@ -543,6 +624,21 @@ export default function EventDetail() {
               <span className="server-action-step">1</span>
               <span className="server-action-text">招待 URL をコピー</span>
             </button>
+            {event.hostedOnServer &&
+              serverApiEnabled &&
+              !getEventSession(event.id)?.participantToken && (
+                <button
+                  type="button"
+                  className="server-action-btn host-register-btn"
+                  disabled={registeringHost}
+                  onClick={() => void handleRegisterHostOnServer()}
+                >
+                  <span className="server-action-step">★</span>
+                  <span className="server-action-text">
+                    {registeringHost ? '登録中…' : '代表者をサーバーに登録'}
+                  </span>
+                </button>
+              )}
             {getEventSession(event.id)?.participantToken && (
               <Link
                 to={`/events/${event.id}/participate?t=${encodeURIComponent(getEventSession(event.id)!.inviteToken!)}`}
@@ -567,6 +663,17 @@ export default function EventDetail() {
 
           {!serverApiEnabled && (
             <p className="collab-note">API 未設定のためオンライン機能は使えません。</p>
+          )}
+
+          {event.hostedOnServer && serverApiEnabled && (
+            <button
+              type="button"
+              className="server-delete-btn"
+              disabled={deletingServer}
+              onClick={() => void handleDeleteServerData()}
+            >
+              {deletingServer ? '削除中…' : 'サーバー上のデータのみ削除'}
+            </button>
           )}
         </section>
       )}
@@ -614,7 +721,11 @@ export default function EventDetail() {
                 hint="participant-submission の JSON"
                 onBundleLoaded={handleImportParticipantBundle}
               />
-              <button type="button" className="action-button" onClick={handleExportParticipantSubmission}>
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => void handleExportParticipantSubmission()}
+              >
                 提出用ファイルを書り出す
               </button>
             </section>

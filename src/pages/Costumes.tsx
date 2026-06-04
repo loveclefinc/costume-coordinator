@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCostumes } from '../hooks/useCostumes'
+import { useAppUi } from '../contexts/AppUiContext'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import './Costumes.css'
 
 export default function Costumes() {
+  const { confirm } = useAppUi()
   const { costumes, loading, error, deleteCostume } = useCostumes()
   const [filter, setFilter] = useState('')
 
@@ -13,12 +15,16 @@ export default function Costumes() {
   )
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('この衣装を削除しますか？')) {
-      try {
-        await deleteCostume(id)
-      } catch (err) {
-        console.error('Failed to delete costume:', err)
-      }
+    const ok = await confirm({
+      message: 'この衣装を削除しますか？',
+      confirmLabel: '削除する',
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      await deleteCostume(id)
+    } catch (err) {
+      console.error('Failed to delete costume:', err)
     }
   }
 

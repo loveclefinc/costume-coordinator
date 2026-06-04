@@ -47,6 +47,8 @@ npx wrangler deploy
 
 D1 マイグレーション・R2 バケット作成などの詳細手順は **ローカルの `docs/`**（非公開）にあります。
 
+代表者向け API（管理者トークン）: `DELETE /api/events/:id`、`POST /api/events/:id/register-host`（旧イベントの代表者サーバー登録）
+
 ## 開発
 
 ```bash

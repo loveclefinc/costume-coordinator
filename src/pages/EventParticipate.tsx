@@ -16,6 +16,7 @@ import {
   formatBytes,
   type UploadLimits,
 } from '../../shared/upload-limits'
+import { useAppUi } from '../contexts/AppUiContext'
 import './EventParticipate.css'
 
 function validatePhotoFiles(files: File[], limits: UploadLimits): string | null {
@@ -57,6 +58,7 @@ export default function EventParticipate() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [uploadedCount, setUploadedCount] = useState(0)
 
+  const { toast } = useAppUi()
   const session = eventId ? getEventSession(eventId) : undefined
   const inviteToken = inviteFromUrl || session?.inviteToken || ''
   const participantToken = session?.participantToken
@@ -107,7 +109,7 @@ export default function EventParticipate() {
         expiresAt: eventInfo?.expiresAt,
       })
       setJoined(true)
-      alert(`${res.displayName} さんとして参加しました。衣装と写真を登録してください。`)
+      toast(`${res.displayName} さんとして参加しました。衣装と写真を登録してください。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '参加に失敗しました')
     } finally {
@@ -153,7 +155,7 @@ export default function EventParticipate() {
       setCostumeName('')
       setColors([])
       setPhotoFiles([])
-      alert(`衣装「${costumeName}」を ${uploaded} 枚の写真付きで提出しました。`)
+      toast(`衣装「${costumeName}」を ${uploaded} 枚の写真付きで提出しました。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
     } finally {

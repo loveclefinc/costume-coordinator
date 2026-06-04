@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAppUi } from '../contexts/AppUiContext'
 import UsageGuideTip from '../components/UsageGuideTip'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
@@ -11,7 +12,8 @@ import {
   isMisconfiguredEventApiUrl,
   absoluteAppUrl,
 } from '../event-server/config'
-import { setEventSession } from '../event-server/session'
+import { setEventSession, getEventSession, clearEventSession } from '../event-server/session'
+import { deleteServerEvent, EventApiError } from '../event-server/client'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import './Events.css'
@@ -66,6 +68,7 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
 
 export default function Events() {
   const navigate = useNavigate()
+  const { toast, confirm, prompt } = useAppUi()
   const { events, loading, error, addEvent, deleteEvent } = useEvents()
   const [showForm, setShowForm] = useState(false)
   const serverEnabled = isEventServerEnabled()
@@ -172,7 +175,7 @@ export default function Events() {
     if (!formData.name.trim() || !formData.date) return
     const hostName = formData.hostName.trim()
     if (!hostName) {
-      alert('代表者名を入力してください（参加者の1人目として登録されます）')
+      toast('代表者名を入力してください（参加者の1人目として登録されます）', 'error')
       return
     }
 
@@ -271,7 +274,7 @@ export default function Events() {
         err instanceof Error && err.message
           ? err.message
           : 'イベントの作成に失敗しました'
-      alert(msg)
+      toast(msg, 'error')
       console.error('create event failed:', err)
     } finally {
       setCreating(false)
@@ -279,12 +282,43 @@ export default function Events() {
   }
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('このイベントを削除しますか？')) {
-      try {
-        await deleteEvent(id)
-      } catch (err) {
-        console.error('Failed to delete event:', err)
+    const ev = events.find((e) => e.id === id)
+    const onServer = Boolean(ev?.hostedOnServer && serverEnabled)
+    const ok = await confirm({
+      title: 'イベントの削除',
+      message: onServer
+        ? 'この端末のイベントと、サーバー上の写真・参加者データも削除します。取り消せません。'
+        : 'この端末からイベントを削除します。取り消せません。',
+      confirmLabel: '削除する',
+      danger: true,
+    })
+    if (!ok) return
+
+    try {
+      if (onServer) {
+        let adminToken: string | undefined = getEventSession(id)?.adminToken
+        if (!adminToken) {
+          const entered = await prompt({
+            title: '管理者トークン',
+            message: 'サーバー削除には管理者トークンが必要です',
+            label: '管理者トークン',
+          })
+          if (!entered?.trim()) return
+          adminToken = entered.trim()
+        }
+        try {
+          await deleteServerEvent(id, adminToken)
+        } catch (e) {
+          if (!(e instanceof EventApiError)) throw e
+          toast(`サーバー削除: ${e.message}（ローカルのみ削除を続行）`, 'error')
+        }
       }
+      await deleteEvent(id)
+      clearEventSession(id)
+      toast('イベントを削除しました', 'success')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '削除に失敗しました', 'error')
+      console.error('Failed to delete event:', err)
     }
   }
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import QRScanner from '../components/QRScanner'
 import { useEvents } from '../hooks/useEvents'
 import { isEventServerEnabled } from '../event-server/config'
+import { useAppUi } from '../contexts/AppUiContext'
 import './Home.css'
 
 export default function Home() {
@@ -10,6 +11,7 @@ export default function Home() {
   const { getEvent, updateEvent } = useEvents()
   const [addingParticipant, setAddingParticipant] = useState(false)
   const onlineEnabled = isEventServerEnabled()
+  const { toast } = useAppUi()
 
   const handleParticipantAdded = async (eventId: string, participantName: string) => {
     try {
@@ -20,20 +22,21 @@ export default function Home() {
           await updateEvent(eventId, {
             participants: [...event.participants, participantName],
           })
-          alert(`${participantName}さんを参加者に追加しました（この端末のみ）。`)
+          toast(`${participantName}さんを参加者に追加しました（この端末のみ）。`, 'success')
         } else {
-          alert(`${participantName}さんはすでに参加しています。`)
+          toast(`${participantName}さんはすでに参加しています。`, 'info')
         }
       } else {
-        alert(
+        toast(
           onlineEnabled
             ? 'この端末にイベントがありません。代表者から送られた招待 URL を開いてください。'
             : 'この端末にイベントがありません。代表者から送られた参加用ファイルを読み込んでください。',
+          'error',
         )
       }
       setShowQRScanner(false)
     } catch (err) {
-      alert('参加者の追加に失敗しました。')
+      toast('参加者の追加に失敗しました', 'error')
       console.error(err)
     } finally {
       setAddingParticipant(false)
