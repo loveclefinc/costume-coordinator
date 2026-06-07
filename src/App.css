@@ -54,14 +54,14 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-top: 60px;
+  padding-top: calc(60px + env(safe-area-inset-top, 0px));
   padding-bottom: 60px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .main-content {
-    padding-top: 50px;
+    padding-top: calc(50px + env(safe-area-inset-top, 0px));
     padding-bottom: 50px;
   }
 }
