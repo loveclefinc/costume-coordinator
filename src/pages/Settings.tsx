@@ -56,6 +56,12 @@ export default function Settings() {
             Google Drive または Dropbox と同期します。OAuth 2.0 PKCE を使用し、Client
             Secret は不要です。データは <code>CostumeCoordinator/data.json</code> に保存されます。
           </p>
+          <p className="settings-description cloud-sync-image-note">
+            衣装追加画面の「クラウドからインポート」で使う画像は、同期データとは別に各クラウドの
+            <code>CostumeCoordinator</code> フォルダへ置いてください。Dropbox の場合は
+            <strong>「アプリ」→「CostumeCoordinator」</strong>
+            です（Dropbox 全体の写真は選べません）。
+          </p>
 
           <div className="oauth-setup-box">
             <h3>開発者コンソールに登録する URI（完全一致）</h3>
@@ -229,6 +235,15 @@ export default function Settings() {
           <div className="settings-item">
             <label>バージョン</label>
             <p className="settings-value">1.1.0</p>
+          </div>
+          <div className="settings-item">
+            <label>利用規約</label>
+            <button
+              onClick={() => navigate('/terms-of-service')}
+              className="settings-link-button"
+            >
+              利用規約を表示
+            </button>
           </div>
           <div className="settings-item">
             <label>プライバシーポリシー</label>

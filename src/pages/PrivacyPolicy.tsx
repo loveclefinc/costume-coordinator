@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import PublicLegalFooter from '../components/PublicLegalFooter'
 import './PrivacyPolicy.css'
 
 export default function PrivacyPolicy() {
@@ -17,7 +18,7 @@ export default function PrivacyPolicy() {
         <section>
           <h2>1. 概要</h2>
           <p>
-            Costume Coordinator（以下「本アプリ」）は、グループイベントの衣装管理を支援するアプリケーションです。
+            CostumeCoordinator（以下「本アプリ」）は、グループイベントの衣装管理を支援するアプリケーションです。
             本プライバシーポリシーは、本アプリの利用者（以下「ユーザー」）の個人情報の取り扱いについて説明します。
           </p>
         </section>
@@ -119,6 +120,7 @@ export default function PrivacyPolicy() {
         <div className="last-updated">
           <p>最終更新日：2026年5月1日</p>
         </div>
+        <PublicLegalFooter />
       </div>
     </div>
   )

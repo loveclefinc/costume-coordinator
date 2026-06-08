@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import './About.css'
 
 export default function About() {
@@ -15,9 +15,9 @@ export default function About() {
 
       <div className="about-content">
         <section className="about-intro">
-          <h2>Costume Coordinator とは</h2>
+          <h2>CostumeCoordinator とは</h2>
           <p>
-            Costume Coordinator は、グループイベント（コンサート、演劇、ダンスパフォーマンスなど）に参加するメンバーの衣装を効率的に管理し、
+            CostumeCoordinator は、グループイベント（コンサート、演劇、ダンスパフォーマンスなど）に参加するメンバーの衣装を効率的に管理し、
             イベントのテーマに合わせた最適な衣装の組み合わせを提案するアプリです。
           </p>
         </section>
@@ -132,7 +132,7 @@ export default function About() {
         <section>
           <h2>開発者</h2>
           <p>
-            Costume Coordinator は、グループイベントの衣装管理をより簡単に、
+            CostumeCoordinator は、グループイベントの衣装管理をより簡単に、
             より楽しくするために開発されました。
           </p>
         </section>
@@ -143,6 +143,11 @@ export default function About() {
           </p>
           <p style={{ fontSize: '12px', opacity: 0.7 }}>
             最終更新日：2026年5月1日
+          </p>
+          <p className="legal-links">
+            <Link to="/terms-of-service">利用規約</Link>
+            {' · '}
+            <Link to="/privacy-policy">プライバシーポリシー</Link>
           </p>
         </section>
       </div>

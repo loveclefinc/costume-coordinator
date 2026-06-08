@@ -5,12 +5,13 @@ import {
   completeOnboarding,
   markOnboardingOAuthPending,
 } from '../utils/onboarding'
+import PublicLegalFooter from '../components/PublicLegalFooter'
 import './Login.css'
 import './Onboarding.css'
 
 const STEPS = [
   {
-    title: '衣装コーディネーターへようこそ',
+    title: 'CostumeCoordinator へようこそ',
     body: 'コンサートや舞台など、複数人での出演時に、衣装の色・柄・トーンのバランスを整えるお手伝いをします。',
     icon: '👗',
   },
@@ -158,6 +159,7 @@ export default function Onboarding() {
           )}
         </div>
       </div>
+      <PublicLegalFooter />
     </div>
   )
 }

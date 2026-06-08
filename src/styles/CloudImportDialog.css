@@ -87,9 +87,37 @@
 }
 
 .selection-subtitle {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   color: var(--text-secondary);
   font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.cloud-import-folder-help {
+  margin: 0 0 1.25rem 0;
+  padding: 0.875rem 1rem;
+  background-color: var(--background);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+}
+
+.cloud-import-folder-help-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cloud-import-folder-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.cloud-import-folder-steps li + li {
+  margin-top: 0.25rem;
 }
 
 .provider-buttons {
@@ -226,19 +254,36 @@
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  gap: 0.5rem;
+  min-height: 200px;
+  padding: 1rem;
+  text-align: center;
   color: var(--text-secondary);
   font-size: 0.95rem;
+}
+
+.empty-state-hint {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .file-item {
   display: flex;
   align-items: center;
   gap: 1rem;
+  width: 100%;
   padding: 1rem;
+  border: none;
   border-bottom: 1px solid var(--surface-border);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   transition: background-color 0.2s;
 }

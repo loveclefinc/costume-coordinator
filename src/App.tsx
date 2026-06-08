@@ -10,6 +10,7 @@ import EventDetail from './pages/EventDetail'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
 import CloudOAuthCallback from './pages/CloudOAuthCallback'
 import Onboarding from './pages/Onboarding'
 import JoinEvent from './pages/JoinEvent'
@@ -18,15 +19,25 @@ import Guide from './pages/Guide'
 import { isOnboardingComplete } from './utils/onboarding'
 import './App.css'
 
+/** Google OAuth 審査・一般公開向け。オンボーディング前でも到達できるページ */
+const PUBLIC_PATHS = new Set([
+  '/',
+  '/welcome',
+  '/about',
+  '/privacy-policy',
+  '/terms-of-service',
+])
+
 function AppShell() {
   const location = useLocation()
   const onboardingDone = isOnboardingComplete()
   const isOAuthCallback = location.pathname.includes('/oauth/')
   const isWelcome = location.pathname === '/welcome'
+  const isPublicPath = PUBLIC_PATHS.has(location.pathname)
 
   const showMainNav = onboardingDone && !isOAuthCallback && !isWelcome
 
-  if (!onboardingDone && !isOAuthCallback && !isWelcome) {
+  if (!onboardingDone && !isOAuthCallback && !isPublicPath) {
     return <Navigate to="/welcome" replace />
   }
 
@@ -48,6 +59,7 @@ function AppShell() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/about" element={<About />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route
             path="/oauth/google/callback"
             element={<CloudOAuthCallback provider="google-drive" />}

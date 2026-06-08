@@ -20,6 +20,17 @@ applyNormalizedEventApiUrl()
 export default defineConfig({
   base: '/costume-coordinator/',
   plugins: [
+    {
+      name: 'inject-google-site-verification',
+      transformIndexHtml(html) {
+        const token = process.env.VITE_GOOGLE_SITE_VERIFICATION?.trim()
+        if (!token) return html
+        return html.replace(
+          '</head>',
+          `    <meta name="google-site-verification" content="${token}" />\n  </head>`,
+        )
+      },
+    },
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -29,8 +40,8 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Costume Coordinator',
-        short_name: 'Costumes',
+        name: 'CostumeCoordinator',
+        short_name: 'CostumeCoordinator',
         description: 'Smart costume selection for group events',
         theme_color: '#ffffff',
         background_color: '#ffffff',

@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
 import { useCloudSync } from '../hooks/useCloudSync'
+import CostumeImageCloudPicker from '../components/CostumeImageCloudPicker'
+import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
 
@@ -46,6 +48,7 @@ export default function AddCostume() {
   const { status: cloudStatus } = useCloudSync()
   const cloudConnected = cloudStatus.connected
 
+  const [showCloudPicker, setShowCloudPicker] = useState(false)
   const [name, setName] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [thumbnailUri, setThumbnailUri] = useState<string | null>(null)
@@ -61,24 +64,17 @@ export default function AddCostume() {
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const applyImageDataUrl = async (dataUrl: string, sourceName?: string) => {
+    setLoading(true)
+    setError('')
     try {
-      setLoading(true)
-      setError('')
-
-      // Convert to data URL
-      const dataUrl = await fileToDataUrl(file)
       setImageUri(dataUrl)
 
-      // Create thumbnail
+      const blob = await (await fetch(dataUrl)).blob()
+      const file = new File([blob], sourceName ?? 'image.jpg', { type: blob.type || 'image/jpeg' })
       const compressedBlob = await compressImage(file, 300, 300)
-      const thumbnailUrl = URL.createObjectURL(compressedBlob)
-      setThumbnailUri(thumbnailUrl)
+      setThumbnailUri(URL.createObjectURL(compressedBlob))
 
-      // Analyze image
       setAnalyzing(true)
       const analysis = await analyzeImage(dataUrl)
       setPrimaryColor(analysis.primaryColor)
@@ -88,12 +84,31 @@ export default function AddCostume() {
       setColorCategory(analysis.colorCategory)
       setTone(analysis.tone)
       setAnalyzing(false)
+
+      if (sourceName && !name.trim()) {
+        setName(sourceName.replace(/\.[^.]+$/, ''))
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload image')
-      setLoading(false)
+      setError(err instanceof Error ? err.message : '画像の読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      await applyImageDataUrl(dataUrl, file.name)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image')
+    }
+  }
+
+  const handleCloudImageSelect = async (dataUrl: string, fileName: string) => {
+    await applyImageDataUrl(dataUrl, fileName)
   }
 
   const handleAddWearingPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,10 +197,22 @@ export default function AddCostume() {
                 ? 'クラウド上の画像から衣装写真を選ぶ'
                 : 'クラウド同期未接続のため利用できません'
             }
+            onClick={() => cloudConnected && setShowCloudPicker(true)}
           >
             ☁️ クラウドからインポート
           </button>
-          {!cloudConnected && (
+          {showCloudPicker && cloudStatus.provider && (
+            <CostumeImageCloudPicker
+              provider={cloudStatus.provider}
+              onClose={() => setShowCloudPicker(false)}
+              onSelect={(dataUrl, fileName) => void handleCloudImageSelect(dataUrl, fileName)}
+            />
+          )}
+          {cloudConnected && cloudStatus.provider ? (
+            <p className="cloud-import-hint">
+              {getCloudImageFolderHelp(cloudStatus.provider)}
+            </p>
+          ) : (
             <p className="cloud-import-hint">
               クラウド同期に未接続のため利用できません。
               <Link to="/settings">設定</Link>

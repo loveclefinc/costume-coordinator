@@ -112,6 +112,15 @@
   margin: 4px 0;
 }
 
+.legal-links {
+  margin-top: 12px !important;
+}
+
+.legal-links a {
+  color: var(--primary, #007aff);
+  text-decoration: underline;
+}
+
 @media (max-width: 600px) {
   .about-container {
     padding: 16px;

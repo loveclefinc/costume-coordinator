@@ -90,6 +90,8 @@ jobs:
           DROPBOX_FROM_SECRETS: ${{ secrets.VITE_DROPBOX_CLIENT_ID }}
           EVENT_API_FROM_VARS: ${{ vars.VITE_EVENT_API_URL }}
           EVENT_API_FROM_SECRETS: ${{ secrets.VITE_EVENT_API_URL }}
+          SITE_VERIFY_FROM_VARS: ${{ vars.VITE_GOOGLE_SITE_VERIFICATION }}
+          SITE_VERIFY_FROM_SECRETS: ${{ secrets.VITE_GOOGLE_SITE_VERIFICATION }}
         run: |
           set -euo pipefail
           if [ -n "${GOOGLE_FROM_VARS}" ]; then export VITE_GOOGLE_CLIENT_ID="${GOOGLE_FROM_VARS}"
@@ -98,6 +100,8 @@ jobs:
           else export VITE_DROPBOX_CLIENT_ID="${DROPBOX_FROM_SECRETS}"; fi
           if [ -n "${EVENT_API_FROM_VARS}" ]; then export VITE_EVENT_API_URL="${EVENT_API_FROM_VARS}"
           elif [ -n "${EVENT_API_FROM_SECRETS}" ]; then export VITE_EVENT_API_URL="${EVENT_API_FROM_SECRETS}"; fi
+          if [ -n "${SITE_VERIFY_FROM_VARS}" ]; then export VITE_GOOGLE_SITE_VERIFICATION="${SITE_VERIFY_FROM_VARS}"
+          elif [ -n "${SITE_VERIFY_FROM_SECRETS}" ]; then export VITE_GOOGLE_SITE_VERIFICATION="${SITE_VERIFY_FROM_SECRETS}"; fi
           if [ -n "${VITE_EVENT_API_URL:-}" ]; then
             FIXED="$(node --input-type=module -e "
               const raw = (process.env.VITE_EVENT_API_URL || '').trim().replace(/^[\"']|[\"']$/g, '').replace(/\/$/, '');

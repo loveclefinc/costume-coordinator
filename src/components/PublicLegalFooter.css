@@ -1,0 +1,33 @@
+.public-legal-footer {
+  margin-top: 3rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+}
+
+.public-app-name {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.public-app-tagline {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.public-legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.public-legal-nav a {
+  color: var(--primary, #007aff);
+  text-decoration: underline;
+  font-size: 0.9rem;
+}

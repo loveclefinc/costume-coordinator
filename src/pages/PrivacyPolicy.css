@@ -55,6 +55,11 @@
   line-height: 1.6;
 }
 
+.privacy-policy-content a {
+  color: var(--primary, #007aff);
+  text-decoration: underline;
+}
+
 .last-updated {
   text-align: center;
   margin-top: 48px;
