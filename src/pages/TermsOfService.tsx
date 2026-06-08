@@ -18,7 +18,7 @@ export default function TermsOfService() {
         <section>
           <h2>1. はじめに</h2>
           <p>
-            本利用規約（以下「本規約」）は、CostumeCoordinator（以下「本アプリ」）の利用条件を定めるものです。
+            本利用規約（以下「本規約」）は、Costume Coordinator（以下「本アプリ」）の利用条件を定めるものです。
             本アプリを利用するすべての方（以下「ユーザー」）は、本規約に同意したうえで本アプリを利用するものとします。
           </p>
         </section>

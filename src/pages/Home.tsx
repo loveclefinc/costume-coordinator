@@ -5,6 +5,7 @@ import { useEvents } from '../hooks/useEvents'
 import { isEventServerEnabled } from '../event-server/config'
 import { useAppUi } from '../contexts/AppUiContext'
 import PublicLegalFooter from '../components/PublicLegalFooter'
+import { APP_DISPLAY_NAME } from '../constants/app-brand'
 import './Home.css'
 
 export default function Home() {
@@ -47,8 +48,8 @@ export default function Home() {
   return (
     <div className="home-page">
       <div className="hero">
-        <h1 className="hero-app-name">CostumeCoordinator</h1>
-        <p className="hero-app-subtitle">衣装コーディネーター — グループイベントの衣装選択を最適化</p>
+        <h1 className="hero-app-name">{APP_DISPLAY_NAME}</h1>
+        <p className="hero-app-subtitle">グループイベントの衣装選択を最適化</p>
         <div className="hero-description">
           <p>複数人が参加するイベントで、全体の統一感を保ちながら、各自の手持ち衣装から最適な組み合わせを自動提案します。色味の統一、トーン、柄などのテーマ設定で、理想的なコーディネートを実現します。</p>
         </div>

@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
         <section>
           <h2>1. 概要</h2>
           <p>
-            CostumeCoordinator（以下「本アプリ」）は、グループイベントの衣装管理を支援するアプリケーションです。
+            Costume Coordinator（以下「本アプリ」）は、グループイベントの衣装管理を支援するアプリケーションです。
             本プライバシーポリシーは、本アプリの利用者（以下「ユーザー」）の個人情報の取り扱いについて説明します。
           </p>
         </section>

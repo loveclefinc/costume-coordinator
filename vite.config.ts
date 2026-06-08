@@ -40,8 +40,8 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'CostumeCoordinator',
-        short_name: 'CostumeCoordinator',
+        name: 'Costume Coordinator',
+        short_name: 'Costume Coord',
         description: 'Smart costume selection for group events',
         theme_color: '#ffffff',
         background_color: '#ffffff',

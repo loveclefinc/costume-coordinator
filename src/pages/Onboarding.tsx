@@ -6,12 +6,13 @@ import {
   markOnboardingOAuthPending,
 } from '../utils/onboarding'
 import PublicLegalFooter from '../components/PublicLegalFooter'
+import { APP_DISPLAY_NAME } from '../constants/app-brand'
 import './Login.css'
 import './Onboarding.css'
 
 const STEPS = [
   {
-    title: 'CostumeCoordinator へようこそ',
+    title: `${APP_DISPLAY_NAME} へようこそ`,
     body: 'コンサートや舞台など、複数人での出演時に、衣装の色・柄・トーンのバランスを整えるお手伝いをします。',
     icon: '👗',
   },
