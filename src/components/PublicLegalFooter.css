@@ -1,13 +1,13 @@
 .public-legal-footer {
   margin-top: 3rem;
-  padding: 2rem 1rem;
+  padding: 2rem 1rem 1rem;
   text-align: center;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.1));
 }
 
 .public-app-name {
   margin: 0 0 0.35rem 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text);
@@ -15,7 +15,8 @@
 
 .public-app-tagline {
   margin: 0 0 1rem 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
@@ -23,11 +24,52 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.75rem 1.25rem;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 
 .public-legal-nav a {
   color: var(--primary, #007aff);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.public-legal-nav a:hover {
+  background-color: rgba(0, 122, 255, 0.08);
   text-decoration: underline;
-  font-size: 0.9rem;
+  text-underline-offset: 2px;
+}
+
+/* welcome / ログイン画面（グラデーション背景） */
+.public-legal-footer--on-dark {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 1.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.25rem 0.5rem 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.public-legal-footer--on-dark .public-app-name {
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 1rem;
+}
+
+.public-legal-footer--on-dark .public-app-tagline {
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 0.85rem;
+}
+
+.public-legal-footer--on-dark .public-legal-nav a {
+  color: rgba(255, 255, 255, 0.92);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.public-legal-footer--on-dark .public-legal-nav a:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.22);
 }

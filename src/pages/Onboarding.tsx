@@ -160,7 +160,7 @@ export default function Onboarding() {
           )}
         </div>
       </div>
-      <PublicLegalFooter />
+      <PublicLegalFooter tone="onDark" />
     </div>
   )
 }
