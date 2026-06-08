@@ -18,7 +18,7 @@ function applyNormalizedEventApiUrl(): void {
 applyNormalizedEventApiUrl()
 
 export default defineConfig({
-  base: '/costume-coordinator/',
+  base: '/',
   plugins: [
     {
       name: 'inject-google-site-verification',
@@ -35,7 +35,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'generateSW',
-      scope: '/costume-coordinator/',
+      scope: '/',
       filename: 'sw.js',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
@@ -46,29 +46,29 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        scope: '/costume-coordinator/',
-        start_url: '/costume-coordinator/',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
-            src: '/costume-coordinator/icon-192.png',
+            src: '/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/costume-coordinator/icon-512.png',
+            src: '/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/costume-coordinator/icon-192-maskable.png',
+            src: '/icon-192-maskable.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: '/costume-coordinator/icon-512-maskable.png',
+            src: '/icon-512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -76,13 +76,13 @@ export default defineConfig({
         ],
         screenshots: [
           {
-            src: '/costume-coordinator/screenshot-1.png',
+            src: '/screenshot-1.png',
             sizes: '540x720',
             type: 'image/png',
             form_factor: 'narrow'
           },
           {
-            src: '/costume-coordinator/screenshot-2.png',
+            src: '/screenshot-2.png',
             sizes: '1280x720',
             type: 'image/png',
             form_factor: 'wide'

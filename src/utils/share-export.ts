@@ -3,6 +3,8 @@
  * Handles Web Share API, CSV/JSON export, and QR code generation
  */
 
+import { resolveAppPath } from '../constants/app-brand'
+
 export interface EventData {
   id: string;
   name: string;
@@ -139,8 +141,7 @@ export async function generateEventQRCode(
  * Generate event participation link
  */
 export function generateEventLink(eventId: string, baseUrl: string = window.location.origin): string {
-  const path = `/costume-coordinator/events/${eventId}`;
-  return `${baseUrl}${path}`;
+  return `${baseUrl}${resolveAppPath(`/events/${eventId}`)}`
 }
 
 /**

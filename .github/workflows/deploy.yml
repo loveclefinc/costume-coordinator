@@ -119,6 +119,7 @@ jobs:
             fi
           fi
           pnpm build
+          cp dist/index.html dist/404.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

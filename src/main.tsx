@@ -5,9 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { CloudSyncProvider } from './contexts/CloudSyncContext'
 import { AppUiProvider } from './contexts/AppUiContext'
+import { getAppBasePath } from './constants/app-brand'
 import './index.css'
 
-// 旧ビルドがルート /sw.js を登録している場合は解除（vite-plugin-pwa が正しいパスで登録）
+const routerBasename = getAppBasePath()
+
+// 旧ビルド（/costume-coordinator/）の Service Worker を解除
 if ('serviceWorker' in navigator) {
   void navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const registration of registrations) {
@@ -16,7 +19,7 @@ if ('serviceWorker' in navigator) {
         registration.installing?.scriptURL ??
         registration.waiting?.scriptURL ??
         ''
-      if (scriptUrl.includes('/sw.js') && !scriptUrl.includes('/costume-coordinator/')) {
+      if (scriptUrl.includes('/costume-coordinator/')) {
         void registration.unregister()
       }
     }
@@ -37,7 +40,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <CloudSyncProvider>
         <AppUiProvider>
-          <BrowserRouter basename="/costume-coordinator">
+          <BrowserRouter basename={routerBasename || undefined}>
             <App />
           </BrowserRouter>
         </AppUiProvider>

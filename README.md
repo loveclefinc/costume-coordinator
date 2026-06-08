@@ -4,7 +4,8 @@
 
 ## 本番
 
-- アプリ: https://loveclefinc.github.io/costume-coordinator/
+- アプリ: https://dress.l-clef.com/
+- （旧）GitHub Pages: https://loveclefinc.github.io/costume-coordinator/
 - オンライン提出 API（Cloudflare Worker）: `https://costume-coordinator-events.<アカウント>.workers.dev`
 
 ## 使い方（オンライン提出）

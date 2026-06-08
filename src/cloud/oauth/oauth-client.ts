@@ -5,24 +5,23 @@ import {
   generateOAuthState,
   storePkceSession,
 } from './pkce'
+import { APP_PUBLIC_ORIGIN, resolveAppPath } from '../../constants/app-brand'
 
 export function getRedirectUri(provider: CloudProvider): string {
-  const base = (import.meta.env.BASE_URL || '/costume-coordinator/').replace(/\/$/, '')
   const path =
     provider === 'google-drive'
       ? '/oauth/google/callback'
       : '/oauth/dropbox/callback'
-  return `${window.location.origin}${base}${path}`
+  return `${window.location.origin}${resolveAppPath(path)}`
 }
 
 /** OAuth コンソールに登録する値（設定画面表示用） */
 export function getOAuthSetupInfo() {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://loveclefinc.github.io'
-  const base = (import.meta.env.BASE_URL || '/costume-coordinator/').replace(/\/$/, '')
+  const origin = typeof window !== 'undefined' ? window.location.origin : APP_PUBLIC_ORIGIN
   return {
     javascriptOrigin: origin,
-    googleRedirectUri: `${origin}${base}/oauth/google/callback`,
-    dropboxRedirectUri: `${origin}${base}/oauth/dropbox/callback`,
+    googleRedirectUri: `${origin}${resolveAppPath('/oauth/google/callback')}`,
+    dropboxRedirectUri: `${origin}${resolveAppPath('/oauth/dropbox/callback')}`,
     googleClientConfigured: Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID),
     dropboxClientConfigured: Boolean(import.meta.env.VITE_DROPBOX_CLIENT_ID),
   }
