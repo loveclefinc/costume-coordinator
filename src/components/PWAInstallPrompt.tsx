@@ -6,19 +6,38 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+const DISMISS_STORAGE_KEY = 'pwa-install-prompt-dismissed'
+
+function readDismissed(): boolean {
+  try {
+    return localStorage.getItem(DISMISS_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function isStandaloneApp(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [dismissed, setDismissed] = useState(readDismissed)
+  const [standalone, setStandalone] = useState(isStandaloneApp)
 
   useEffect(() => {
-    // Check if it's iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
     setIsIOS(isIOSDevice)
+    setStandalone(isStandaloneApp())
 
-    // Handle beforeinstallprompt event (Android and some desktop browsers)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
+      if (readDismissed()) return
       setDeferredPrompt(e as BeforeInstallPromptEvent)
       setShowPrompt(true)
     }
@@ -49,14 +68,31 @@ export default function PWAInstallPrompt() {
   }
 
   const handleDismiss = () => {
+    setDismissed(true)
     setShowPrompt(false)
+    try {
+      localStorage.setItem(DISMISS_STORAGE_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (dismissed || standalone) {
+    return null
   }
 
   // Show iOS installation instructions
   if (isIOS) {
     return (
       <div className="pwa-install-prompt ios-prompt">
-        <button className="pwa-close-button" onClick={handleDismiss}>✕</button>
+        <button
+          type="button"
+          className="pwa-close-button"
+          aria-label="閉じる"
+          onClick={handleDismiss}
+        >
+          ✕
+        </button>
         <div className="pwa-install-content">
           <div className="pwa-install-icon">📱</div>
           <h3>ホーム画面に追加</h3>
@@ -79,7 +115,14 @@ export default function PWAInstallPrompt() {
   if (showPrompt && deferredPrompt) {
     return (
       <div className="pwa-install-prompt android-prompt">
-        <button className="pwa-close-button" onClick={handleDismiss}>✕</button>
+        <button
+          type="button"
+          className="pwa-close-button"
+          aria-label="閉じる"
+          onClick={handleDismiss}
+        >
+          ✕
+        </button>
         <div className="pwa-install-content">
           <div className="pwa-install-icon">📱</div>
           <h3>アプリをインストール</h3>

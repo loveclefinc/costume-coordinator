@@ -44,7 +44,6 @@ function AppShell() {
   return (
     <>
       {showMainNav && <Navigation />}
-      <PWAInstallPrompt />
       <main className={showMainNav ? 'main-content' : 'main-content main-content-full'}>
         <Routes>
           <Route path="/welcome" element={<Onboarding />} />
@@ -73,6 +72,7 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <PWAInstallPrompt />
     </>
   )
 }
