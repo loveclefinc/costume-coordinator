@@ -47,6 +47,12 @@ fi
 echo "=== D1 スキーマ適用（remote） ==="
 npx wrangler d1 execute costume-events --remote --file=./schema.sql
 
+echo "=== Google OAuth シークレット（クラウド同期に必要） ==="
+echo "未設定の場合は次を実行（対話で値を貼り付け）:"
+echo "  npx wrangler secret put GOOGLE_CLIENT_ID"
+echo "  npx wrangler secret put GOOGLE_CLIENT_SECRET"
+echo ""
+
 echo "=== Worker デプロイ ==="
 DEPLOY_LOG=$(npx wrangler deploy 2>&1)
 echo "$DEPLOY_LOG"

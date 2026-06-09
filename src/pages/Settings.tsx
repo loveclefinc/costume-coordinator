@@ -68,6 +68,12 @@ export default function Settings() {
             <p className="settings-description">
               接続エラーが出る場合は、下の文字列を<strong>そのまま</strong>コピーして各コンソールに追加してください。
             </p>
+            <p className="settings-description">
+              Google 連携は <strong>Client Secret</strong> が必要です（ブラウザには載せません）。Cloudflare
+              Worker に <code>GOOGLE_CLIENT_ID</code> と <code>GOOGLE_CLIENT_SECRET</code> を{' '}
+              <code>wrangler secret put</code> で登録し、Worker を再デプロイしてください（手順は{' '}
+              <code>docs/CLOUDFLARE_EVENT_API_DEPLOY.md</code>）。
+            </p>
             <div className="settings-item">
               <label>Google — 承認済みの JavaScript 生成元</label>
               <code className="oauth-uri">{oauthSetup.javascriptOrigin}</code>

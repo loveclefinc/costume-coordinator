@@ -29,6 +29,10 @@ export interface Env {
   MAX_PHOTO_BYTES: string
   MAX_COSTUMES_PER_PARTICIPANT: string
   MAX_EVENT_STORAGE_BYTES: string
+  /** wrangler secret put GOOGLE_CLIENT_ID */
+  GOOGLE_CLIENT_ID?: string
+  /** wrangler secret put GOOGLE_CLIENT_SECRET */
+  GOOGLE_CLIENT_SECRET?: string
 }
 
 function parseUploadLimits(env: Env): UploadLimits {
@@ -136,6 +140,14 @@ export default {
       const mediaMatch = url.pathname.match(/^\/api\/media\/([^/]+)$/)
       if (mediaMatch && request.method === 'GET') {
         return cors(await handleMedia(mediaMatch[1], url, env), request, env)
+      }
+
+      if (url.pathname === '/api/oauth/google/token' && request.method === 'POST') {
+        return cors(await handleGoogleTokenExchange(request, env), request, env)
+      }
+
+      if (url.pathname === '/api/oauth/google/refresh' && request.method === 'POST') {
+        return cors(await handleGoogleTokenRefresh(request, env), request, env)
       }
 
       return cors(json({ error: 'Not found' }, 404), request, env)
@@ -808,6 +820,105 @@ function randomToken(): string {
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS })
+}
+
+function isAllowedGoogleRedirectUri(redirectUri: string, env: Env): boolean {
+  const allowed = (env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim())
+  return allowed.some((origin) => redirectUri === `${origin}/oauth/google/callback`)
+}
+
+async function handleGoogleTokenExchange(request: Request, env: Env): Promise<Response> {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return json(
+      {
+        error:
+          'Google OAuth が Worker に未設定です。GOOGLE_CLIENT_ID と GOOGLE_CLIENT_SECRET を wrangler secret で登録してください。',
+      },
+      503,
+    )
+  }
+
+  let body: { code?: string; code_verifier?: string; redirect_uri?: string }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  if (!body.code || !body.code_verifier || !body.redirect_uri) {
+    return json({ error: 'code, code_verifier, redirect_uri は必須です' }, 400)
+  }
+
+  if (!isAllowedGoogleRedirectUri(body.redirect_uri, env)) {
+    return json({ error: 'redirect_uri が許可されていません' }, 400)
+  }
+
+  const params = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    code: body.code,
+    code_verifier: body.code_verifier,
+    grant_type: 'authorization_code',
+    redirect_uri: body.redirect_uri,
+  })
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    const detail =
+      (data as { error_description?: string; error?: string }).error_description ??
+      (data as { error?: string }).error ??
+      'Token exchange failed'
+    return json({ error: detail }, res.status)
+  }
+
+  return json(data)
+}
+
+async function handleGoogleTokenRefresh(request: Request, env: Env): Promise<Response> {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    return json({ error: 'Google OAuth が Worker に未設定です' }, 503)
+  }
+
+  let body: { refresh_token?: string }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  if (!body.refresh_token) {
+    return json({ error: 'refresh_token は必須です' }, 400)
+  }
+
+  const params = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    refresh_token: body.refresh_token,
+    grant_type: 'refresh_token',
+  })
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params,
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    const detail =
+      (data as { error_description?: string; error?: string }).error_description ??
+      (data as { error?: string }).error ??
+      'Token refresh failed'
+    return json({ error: detail }, res.status)
+  }
+
+  return json(data)
 }
 
 function cors(response: Response, request: Request, env: Env): Response {

@@ -6,6 +6,7 @@ import {
   storePkceSession,
 } from './pkce'
 import { APP_PUBLIC_ORIGIN, resolveAppPath } from '../../constants/app-brand'
+import { getEventApiBaseUrl } from '../../event-server/config'
 
 export function getRedirectUri(provider: CloudProvider): string {
   const path =
@@ -37,6 +38,36 @@ function getDropboxClientId(): string {
   const id = import.meta.env.VITE_DROPBOX_CLIENT_ID
   if (!id) throw new SyncError('Dropbox Client ID が未設定です', 'CONFIG_MISSING')
   return id
+}
+
+function getGoogleOAuthProxyBase(): string | null {
+  return getEventApiBaseUrl()
+}
+
+/** Google Web クライアントは client_secret 必須のため Worker 経由でトークン交換する */
+async function postGoogleOAuthProxy<T>(
+  path: '/api/oauth/google/token' | '/api/oauth/google/refresh',
+  payload: Record<string, string>,
+): Promise<T> {
+  const base = getGoogleOAuthProxyBase()
+  if (!base) {
+    throw new SyncError(
+      'Google 連携には VITE_EVENT_API_URL（Cloudflare Worker）の設定と、Worker への GOOGLE_CLIENT_SECRET 登録が必要です。docs/CLOUDFLARE_EVENT_API_DEPLOY.md を参照してください。',
+      'CONFIG_MISSING',
+    )
+  }
+
+  const res = await fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    throw await tokenError(res, 'AUTH_EXPIRED')
+  }
+
+  return (await res.json()) as T
 }
 
 export async function startGoogleOAuth(): Promise<void> {
@@ -82,25 +113,16 @@ export async function exchangeGoogleCode(
   code: string,
   codeVerifier: string,
 ): Promise<TokenPair & { accountLabel: string }> {
-  const body = new URLSearchParams({
-    client_id: getGoogleClientId(),
+  const data = await postGoogleOAuthProxy<{
+    access_token: string
+    refresh_token?: string
+    expires_in?: number
+  }>('/api/oauth/google/token', {
     code,
     code_verifier: codeVerifier,
-    grant_type: 'authorization_code',
     redirect_uri: getRedirectUri('google-drive'),
   })
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-
-  if (!res.ok) {
-    throw await tokenError(res, 'AUTH_EXPIRED')
-  }
-
-  const data = await res.json()
   const accountLabel = await fetchGoogleAccountLabel(data.access_token)
   return {
     accessToken: data.access_token,
@@ -111,23 +133,14 @@ export async function exchangeGoogleCode(
 }
 
 export async function refreshGoogleToken(refreshToken: string): Promise<TokenPair> {
-  const body = new URLSearchParams({
-    client_id: getGoogleClientId(),
+  const data = await postGoogleOAuthProxy<{
+    access_token: string
+    refresh_token?: string
+    expires_in?: number
+  }>('/api/oauth/google/refresh', {
     refresh_token: refreshToken,
-    grant_type: 'refresh_token',
   })
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-
-  if (!res.ok) {
-    throw await tokenError(res, 'AUTH_EXPIRED')
-  }
-
-  const data = await res.json()
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token ?? refreshToken,
