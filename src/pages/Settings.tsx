@@ -41,8 +41,10 @@ export default function Settings() {
           </p>
           <p className="settings-description cloud-sync-image-note">
             衣装追加画面の「クラウドからインポート」で使う画像は、同期データとは別に各クラウドの
-            <code>CostumeCoordinator</code> フォルダへ置いてください。Dropbox の場合は
-            <strong>「アプリ」→「CostumeCoordinator」</strong>
+            <code>CostumeCoordinator</code> フォルダへ置いてください。
+            Google Drive の場合はマイドライブ直下の<strong>「CostumeCoordinator」</strong>
+            フォルダです（初回同期後に自動作成されます）。
+            Dropbox の場合は<strong>「アプリ」→「CostumeCoordinator」</strong>
             です（Dropbox 全体の写真は選べません）。
           </p>
 
