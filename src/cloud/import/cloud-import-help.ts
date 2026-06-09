@@ -3,9 +3,9 @@ import type { CloudProvider } from '../types'
 /** クラウドから画像インポート時にユーザーへ表示するフォルダ案内 */
 export function getCloudImageFolderHelp(provider: CloudProvider): string {
   if (provider === 'dropbox') {
-    return 'Dropbox の「アプリ」→「CostumeCoordinator」フォルダに画像を置くと、ここから選べます。Dropbox 全体の写真は表示されません。'
+    return '同期と同じ「アプリ」→ CostumeCoordinator フォルダに画像を置くと、ここから選べます。Dropbox 全体の写真は表示されません。'
   }
-  return 'Google Drive の「CostumeCoordinator」フォルダに画像を置くと、ここから選べます。'
+  return '同期と同じ CostumeCoordinator フォルダ（マイドライブ直下）に画像を置くと、ここから選べます。'
 }
 
 export function getCloudImageFolderSteps(provider: CloudProvider): string[] {

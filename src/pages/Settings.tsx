@@ -36,17 +36,44 @@ export default function Settings() {
         <section className="settings-section">
           <h2>クラウド同期</h2>
           <p className="settings-description">
-            Google Drive または Dropbox と同期します。OAuth 2.0 で安全に接続します。データは{' '}
-            <code>CostumeCoordinator/data.json</code> に保存されます。
+            Google Drive または Dropbox と接続すると、この端末の衣装・イベントデータが約 5 分ごとに
+            自動同期されます（オフライン時は端末内だけで編集できます）。
           </p>
-          <p className="settings-description cloud-sync-image-note">
-            衣装追加画面の「クラウドからインポート」で使う画像は、同期データとは別に各クラウドの
-            <code>CostumeCoordinator</code> フォルダへ置いてください。
-            Google Drive の場合はマイドライブ直下の<strong>「CostumeCoordinator」</strong>
-            フォルダです（初回同期後に自動作成されます）。
-            Dropbox の場合は<strong>「アプリ」→「CostumeCoordinator」</strong>
-            です（Dropbox 全体の写真は選べません）。
-          </p>
+
+          <div className="cloud-sync-guide">
+            <h3 className="cloud-sync-guide-title">クラウド上のフォルダは 1 つだけ</h3>
+            <p className="settings-description">
+              同期も画像の取り込みも、どちらも同じ <code>CostumeCoordinator</code>{' '}
+              フォルダを使います。フォルダが違うわけではありません。
+            </p>
+            <ul className="cloud-sync-guide-list">
+              <li>
+                <strong><code>data.json</code></strong>
+                … アプリが自動で読み書きする同期用ファイル（衣装・イベントなど）
+              </li>
+              <li>
+                <strong>画像ファイル（jpg など）</strong>
+                … あなたが手動で置く。衣装追加の「クラウドからインポート」で選べます
+              </li>
+            </ul>
+            <div className="cloud-sync-guide-paths">
+              <p className="settings-description">
+                <strong>Google Drive</strong>
+                <br />
+                マイドライブ直下の <code>CostumeCoordinator</code>
+                （初回同期で自動作成）
+              </p>
+              <p className="settings-description">
+                <strong>Dropbox</strong>
+                <br />
+                「アプリ」→ <code>CostumeCoordinator</code>
+                <br />
+                <span className="cloud-sync-guide-note">
+                  Dropbox 全体の写真は表示されません
+                </span>
+              </p>
+            </div>
+          </div>
 
           {status.connected ? (
             <div className="backup-connected">
