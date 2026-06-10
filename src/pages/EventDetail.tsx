@@ -359,6 +359,61 @@ export default function EventDetail() {
     }
   }
 
+  const buildClientReportAssignments = (): ClientReportAssignment[] => {
+    if (!event) return []
+
+    if (optimizationResults.length > 0) {
+      return optimizationResults.map((result) => ({
+        participantName: result.participantName,
+        costumeName: result.costume.name,
+        costumeImage: result.costume.image,
+        colors: normalizeCostumeColors(result.costume.colors),
+        tone: result.costume.tone,
+        pattern: result.costume.pattern,
+      }))
+    }
+
+    return event.participants
+      .map((name: string) => {
+        const costumeId = event.costumes?.[name]
+        if (!costumeId) return null
+        const costume = costumes.find((c) => c.id === costumeId)
+        if (!costume) return null
+        return {
+          participantName: name,
+          costumeName: costume.name,
+          costumeImage: costume.image,
+          colors: normalizeCostumeColors(costume.colors),
+          tone: costume.tone,
+          pattern: costume.pattern,
+        }
+      })
+      .filter((assignment): assignment is ClientReportAssignment => assignment !== null)
+  }
+
+  const handleExportClientPdf = async () => {
+    if (!event) return
+    setIsExportingPdf(true)
+    try {
+      const assignments = buildClientReportAssignments()
+      await exportClientCostumeReportPdf(
+        {
+          name: event.name,
+          eventDate: event.date,
+          description: event.description,
+        },
+        assignments,
+      )
+      toast('クライアント提出用PDFをダウンロードしました', 'success')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'PDFの作成に失敗しました'
+      setError(message)
+      toast(message, 'error')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
+
   const handleGenerateQR = async () => {
     if (!event) return
     try {
@@ -699,6 +754,14 @@ export default function EventDetail() {
             <button type="button" onClick={handleExportJSON} className="action-button export-button">
               📋 JSON
             </button>
+            <button
+              type="button"
+              onClick={() => void handleExportClientPdf()}
+              disabled={isExportingPdf || buildClientReportAssignments().length === 0}
+              className="action-button export-button client-pdf-button"
+            >
+              {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
+            </button>
             <button type="button" onClick={handleGenerateQR} className="action-button qr-button">
               🔲 QR
             </button>
@@ -975,12 +1038,26 @@ export default function EventDetail() {
                     <button onClick={handleExportCSV} className="action-button export-button">
                       📊 結果をCSVで出力
                     </button>
+                    <button
+                      onClick={() => void handleExportClientPdf()}
+                      disabled={isExportingPdf}
+                      className="action-button export-button client-pdf-button"
+                    >
+                      {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
+                    </button>
                   </div>
                 )}
 
                 {isConfirmed && (
                   <div className="confirmation-message">
                     <p>✅ 組み合わせが確定されました。使用履歴に記録されました。</p>
+                    <button
+                      onClick={() => void handleExportClientPdf()}
+                      disabled={isExportingPdf}
+                      className="action-button export-button client-pdf-button"
+                    >
+                      {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
+                    </button>
                     <button
                       onClick={() => {
                         setIsConfirmed(false)

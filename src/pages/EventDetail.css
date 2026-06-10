@@ -321,6 +321,11 @@
   font-weight: 500;
 }
 
+.confirmation-message .action-button,
+.confirmation-message .back-to-events-button {
+  margin: 0 0.35rem 0.5rem;
+}
+
 .back-to-events-button {
   background-color: var(--primary);
   color: white;
