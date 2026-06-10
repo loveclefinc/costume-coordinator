@@ -73,6 +73,39 @@
   line-height: 1.4;
 }
 
+.name-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.name-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.name-fill-button {
+  flex-shrink: 0;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.name-fill-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.name-fill-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .theme-settings-heading {
   margin: 0 0 1rem;
   font-size: 1.05rem;

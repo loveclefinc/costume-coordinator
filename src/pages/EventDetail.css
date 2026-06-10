@@ -68,10 +68,39 @@
 }
 
 /* Participants Section */
+.participant-name-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .participant-input {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+.participant-input .name-fill-button {
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.participant-input .name-fill-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.participant-input .name-fill-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .participant-input input {

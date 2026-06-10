@@ -75,6 +75,23 @@
   border-radius: 6px;
 }
 
+.settings-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  font-size: 1rem;
+  color: var(--text);
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
 .settings-description {
   margin: 0;
   color: var(--text-secondary);

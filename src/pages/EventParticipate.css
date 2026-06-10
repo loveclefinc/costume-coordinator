@@ -63,9 +63,41 @@
   color: #fff;
 }
 
+.participate-btn.secondary {
+  background: transparent;
+  color: var(--primary, #6366f1);
+  border: 1px solid var(--primary, #6366f1);
+}
+
+.participate-btn.secondary:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.08);
+}
+
 .participate-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.participate-name-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.45;
+}
+
+.participate-name-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.participate-name-row .participate-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.participate-change-name {
+  align-self: flex-start;
 }
 
 .participate-error {

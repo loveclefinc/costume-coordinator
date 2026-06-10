@@ -16,6 +16,7 @@ import { setEventSession, getEventSession, clearEventSession } from '../event-se
 import { deleteServerEvent, EventApiError } from '../event-server/client'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
+import { getDisplayName } from '../utils/user-profile'
 import './Events.css'
 
 // Color options for theme preferences
@@ -98,6 +99,13 @@ export default function Events() {
     }
     void checkEventApiHealth().then(setApiReachable)
   }, [serverEnabled])
+
+  useEffect(() => {
+    if (!showForm) return
+    const savedName = getDisplayName()
+    if (!savedName) return
+    setFormData((prev) => (prev.hostName ? prev : { ...prev, hostName: savedName }))
+  }, [showForm])
 
   const clearPreferenceRank = (priority: PreferencePriority) => {
     setThemePrefs(prev => {
@@ -526,15 +534,32 @@ export default function Events() {
 
           <div className="form-group">
             <label htmlFor="hostName">代表者名 *</label>
-            <input
-              id="hostName"
-              type="text"
-              value={formData.hostName}
-              onChange={(e) => setFormData(prev => ({ ...prev, hostName: e.target.value }))}
-              placeholder="例: 山田太郎（参加者の1人目として登録）"
-              required
-            />
-            <p className="form-hint">主催者を参加者リストの1人目に含めます</p>
+            <div className="name-input-row">
+              <input
+                id="hostName"
+                type="text"
+                value={formData.hostName}
+                onChange={(e) => setFormData(prev => ({ ...prev, hostName: e.target.value }))}
+                placeholder="例: 山田太郎（参加者の1人目として登録）"
+                maxLength={100}
+                required
+              />
+              {getDisplayName() && (
+                <button
+                  type="button"
+                  className="name-fill-button"
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, hostName: getDisplayName() }))
+                  }
+                  disabled={formData.hostName === getDisplayName()}
+                >
+                  設定の名前
+                </button>
+              )}
+            </div>
+            <p className="form-hint">
+              主催者を参加者リストの1人目に含めます。設定の表示名とは別名でも登録できます。
+            </p>
           </div>
 
           <div className="theme-settings-section">

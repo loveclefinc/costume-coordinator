@@ -7,6 +7,10 @@ import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/opti
 import { recordCostumeUsage } from '../utils/usage-tracker'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
+import {
+  exportClientCostumeReportPdf,
+  type ClientReportAssignment,
+} from '../utils/client-costume-report'
 import CollaborationFileImport from '../components/CollaborationFileImport'
 import {
   createEventInviteBundle,
@@ -32,6 +36,7 @@ import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
 import UsageGuideTip from '../components/UsageGuideTip'
 import { useAppUi } from '../contexts/AppUiContext'
+import { getDisplayName } from '../utils/user-profile'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -59,9 +64,10 @@ export default function EventDetail() {
   const [error, setError] = useState('')
   const [optimizationResults, setOptimizationResults] = useState<any[]>([])
   const [harmonyScore, setHarmonyScore] = useState(0)
-  const [newParticipant, setNewParticipant] = useState('')
+  const [newParticipant, setNewParticipant] = useState(() => getDisplayName())
   const [participantPreferences, setParticipantPreferences] = useState<{ [key: string]: string[] }>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [serverPulling, setServerPulling] = useState(false)
@@ -211,7 +217,7 @@ export default function EventDetail() {
       (await prompt({
         title: '参加者名',
         message: '提出用ファイルに含める参加者名を入力してください',
-        defaultValue: event.participants[0] ?? '',
+        defaultValue: getDisplayName() || event.participants[0] || '',
       }))
     if (!name) return
     downloadCollaborationBundle(
@@ -856,14 +862,28 @@ export default function EventDetail() {
         {/* Participants Section */}
         <section className="section">
           <h2>👥 参加者</h2>
+          <p className="participant-name-hint">
+            参加者ごとに別名を登録できます。空欄のときは設定の表示名を初期値にします。
+          </p>
           <div className="participant-input">
             <input
               type="text"
               value={newParticipant}
               onChange={(e) => setNewParticipant(e.target.value)}
-              placeholder="参加者名を入力"
+              placeholder={getDisplayName() ? `例: ${getDisplayName()} 以外の名前` : '参加者名を入力'}
+              maxLength={100}
               onKeyPress={(e) => e.key === 'Enter' && handleAddParticipant()}
             />
+            {getDisplayName() && (
+              <button
+                type="button"
+                className="name-fill-button"
+                onClick={() => setNewParticipant(getDisplayName())}
+                disabled={newParticipant === getDisplayName()}
+              >
+                設定の名前
+              </button>
+            )}
             <button onClick={handleAddParticipant} className="add-button">
               追加
             </button>

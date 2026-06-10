@@ -1,10 +1,15 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
 import { resetOnboarding } from '../utils/onboarding'
+import { getDisplayName, setDisplayName } from '../utils/user-profile'
+import { useAppUi } from '../contexts/AppUiContext'
 import './Settings.css'
 
 export default function Settings() {
   const navigate = useNavigate()
+  const { toast } = useAppUi()
+  const [displayName, setDisplayNameState] = useState(getDisplayName)
   const {
     status,
     message,
@@ -32,6 +37,34 @@ export default function Settings() {
         {!status.online && (
           <div className="settings-message error">オフラインです。同期は接続復帰後に行えます。</div>
         )}
+
+        <section className="settings-section">
+          <h2>プロフィール</h2>
+          <p className="settings-description">
+            イベント作成・参加時の名前の初期値です。イベントごとに別名で登録・参加することもできます。
+          </p>
+          <div className="settings-item">
+            <label htmlFor="displayName">表示名</label>
+            <input
+              id="displayName"
+              type="text"
+              className="settings-input"
+              value={displayName}
+              onChange={(e) => setDisplayNameState(e.target.value)}
+              onBlur={() => {
+                const trimmed = displayName.trim()
+                const previous = getDisplayName()
+                setDisplayName(trimmed)
+                if (trimmed && trimmed !== previous) {
+                  toast('表示名を保存しました', 'success')
+                }
+              }}
+              placeholder="例: 山田太郎"
+              maxLength={100}
+              autoComplete="name"
+            />
+          </div>
+        </section>
 
         <section className="settings-section">
           <h2>クラウド同期</h2>

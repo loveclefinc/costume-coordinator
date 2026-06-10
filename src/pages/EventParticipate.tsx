@@ -9,7 +9,11 @@ import {
   EventApiError,
 } from '../event-server/client'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
-import { getEventSession, setEventSession } from '../event-server/session'
+import {
+  clearEventParticipantSession,
+  getEventSession,
+  setEventSession,
+} from '../event-server/session'
 import type { EventPublicInfo } from '../../shared/event-api-types'
 import {
   DEFAULT_UPLOAD_LIMITS,
@@ -17,6 +21,7 @@ import {
   type UploadLimits,
 } from '../../shared/upload-limits'
 import { useAppUi } from '../contexts/AppUiContext'
+import { getDisplayName } from '../utils/user-profile'
 import './EventParticipate.css'
 
 function validatePhotoFiles(files: File[], limits: UploadLimits): string | null {
@@ -45,7 +50,7 @@ export default function EventParticipate() {
   const inviteFromUrl = searchParams.get('t') ?? ''
 
   const [eventInfo, setEventInfo] = useState<EventPublicInfo | null>(null)
-  const [displayName, setDisplayName] = useState('')
+  const [displayName, setDisplayNameInput] = useState(() => getDisplayName())
   const [joined, setJoined] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -63,6 +68,11 @@ export default function EventParticipate() {
   const inviteToken = inviteFromUrl || session?.inviteToken || ''
   const participantToken = session?.participantToken
   const limits = eventInfo?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS
+  const profileName = getDisplayName()
+
+  const fillProfileName = () => {
+    if (profileName) setDisplayNameInput(profileName)
+  }
 
   const loadPublic = useCallback(async () => {
     if (!eventId || !inviteToken) {
@@ -74,8 +84,10 @@ export default function EventParticipate() {
       const info = await fetchEventPublic(eventId, inviteToken)
       setEventInfo(info)
       if (session?.displayName) {
-        setDisplayName(session.displayName)
+        setDisplayNameInput(session.displayName)
         setJoined(!!session.participantToken)
+      } else if (!displayName && getDisplayName()) {
+        setDisplayNameInput(getDisplayName())
       }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
@@ -115,6 +127,18 @@ export default function EventParticipate() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const handleChangeParticipationName = () => {
+    if (!eventId) return
+    clearEventParticipantSession(eventId)
+    setJoined(false)
+    setDisplayNameInput(getDisplayName())
+    setUploadedCount(0)
+    setCostumeName('')
+    setPhotoFiles([])
+    setError('')
+    toast('別の名前で参加し直せます', 'info')
   }
 
   const handleSubmitCostume = async () => {
@@ -195,13 +219,29 @@ export default function EventParticipate() {
       {!joined ? (
         <section className="participate-section">
           <h3>1. 参加者名</h3>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="表示名（例: 太郎）"
-            className="participate-input"
-          />
+          <p className="participate-name-hint">
+            このイベントでの表示名です。設定の表示名とは別名でも参加できます。
+          </p>
+          <div className="participate-name-row">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayNameInput(e.target.value)}
+              placeholder="表示名（例: 太郎）"
+              className="participate-input"
+              maxLength={100}
+            />
+            {profileName && (
+              <button
+                type="button"
+                className="participate-btn secondary"
+                onClick={fillProfileName}
+                disabled={displayName === profileName}
+              >
+                設定の名前
+              </button>
+            )}
+          </div>
           <button
             type="button"
             className="participate-btn primary"
@@ -216,6 +256,13 @@ export default function EventParticipate() {
           <p className="participate-joined">
             <strong>{session?.displayName ?? displayName}</strong> として登録済みです。衣装と写真を登録してください。
           </p>
+          <button
+            type="button"
+            className="participate-btn secondary participate-change-name"
+            onClick={handleChangeParticipationName}
+          >
+            別の名前で参加し直す
+          </button>
           <h3>
             2. 衣装を提出（写真必須・最大{limits.maxPhotosPerCostume}枚・各
             {formatBytes(limits.maxPhotoBytes)}まで）
