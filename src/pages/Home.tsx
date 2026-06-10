@@ -98,7 +98,7 @@ export default function Home() {
           </Link>
         )}
         <a
-          href="https://concert-jp.com"
+          href="https://concert-jp.info"
           target="_blank"
           rel="noopener noreferrer"
           className="cta-button concert-button"
