@@ -38,7 +38,7 @@ export default defineConfig({
       scope: '/',
       filename: 'sw.js',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'icon-64.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'icon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Costume Coordinator',
         short_name: 'Costume Coord',

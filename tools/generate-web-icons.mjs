@@ -24,7 +24,7 @@ function resizeWithSips(input, output, size) {
   })
 }
 
-function pngToIco(pngBuffer, size = 64) {
+function pngToIco(pngBuffer, size = 32) {
   const header = Buffer.alloc(6)
   header.writeUInt16LE(0, 0)
   header.writeUInt16LE(1, 2)
@@ -44,7 +44,8 @@ function pngToIco(pngBuffer, size = 64) {
 mkdirSync(publicDir, { recursive: true })
 
 const outputs = [
-  { src: 'favicon', out: 'favicon.png', size: 64 },
+  { src: 'favicon', out: 'favicon.png', size: 32 },
+  { src: 'favicon', out: 'icon-32.png', size: 32 },
   { src: 'favicon', out: 'icon-64.png', size: 64 },
   { src: 'icon', out: 'icon-192.png', size: 192 },
   { src: 'icon', out: 'icon-256.png', size: 256 },
@@ -61,6 +62,6 @@ for (const { src, out, size } of outputs) {
   console.log(`✓ ${out} (${size}px) ← ${src}`)
 }
 
-const favicon64 = readFileSync(resolve(publicDir, 'favicon.png'))
-writeFileSync(resolve(publicDir, 'favicon.ico'), pngToIco(favicon64, 64))
-console.log('✓ favicon.ico ← favicon.png')
+const favicon32 = readFileSync(resolve(publicDir, 'favicon.png'))
+writeFileSync(resolve(publicDir, 'favicon.ico'), pngToIco(favicon32, 32))
+console.log('✓ favicon.ico ← favicon.png (32px)')
