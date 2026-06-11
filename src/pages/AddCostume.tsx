@@ -1,6 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
+import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { useCloudSync } from '../hooks/useCloudSync'
 import CostumeImageCloudPicker from '../components/CostumeImageCloudPicker'
 import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
@@ -42,9 +43,19 @@ const COSTUME_TYPE_OPTIONS = [
   { value: 'other', label: 'その他' },
 ]
 
+function pickHexColors(colors: string[]): string[] {
+  return normalizeCostumeColors(colors).filter((c) => /^#?[0-9A-Fa-f]{6}$/.test(c.trim()))
+}
+
+function patternForForm(pattern: string): string {
+  return pattern === 'plain' ? 'solid' : pattern
+}
+
 export default function AddCostume() {
   const navigate = useNavigate()
-  const { addCostume } = useCostumes()
+  const { id } = useParams<{ id: string }>()
+  const isEditMode = Boolean(id)
+  const { addCostume, updateCostume, getCostume } = useCostumes()
   const { status: cloudStatus } = useCloudSync()
   const cloudConnected = cloudStatus.connected
 
@@ -60,9 +71,60 @@ export default function AddCostume() {
   const [pattern, setPattern] = useState('solid')
   const [costumeType, setCostumeType] = useState('dress')
   const [tags, setTags] = useState('')
+  const [season, setSeason] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(isEditMode)
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+
+  useEffect(() => {
+    if (!id) return
+
+    let cancelled = false
+
+    const loadCostume = async () => {
+      try {
+        const costume = await getCostume(id)
+        if (cancelled) return
+
+        if (!costume) {
+          setError('衣装が見つかりません')
+          return
+        }
+
+        const hexColors = pickHexColors(costume.colors)
+        setName(costume.name)
+        setImageUri(costume.image || null)
+
+        if (hexColors[0]) {
+          const primary = hexColors[0].startsWith('#') ? hexColors[0] : `#${hexColors[0]}`
+          setPrimaryColor(primary)
+          setColorCategory(classifyColorCategory(primary))
+        }
+        if (hexColors[1]) {
+          const secondary = hexColors[1].startsWith('#') ? hexColors[1] : `#${hexColors[1]}`
+          setSecondaryColor(secondary)
+        }
+
+        setTone((costume.tone as 'pastel' | 'vivid' | 'dark' | 'neutral') || 'neutral')
+        setPattern(patternForForm(costume.pattern))
+        if (costume.type) setCostumeType(costume.type)
+        setSeason(Array.isArray(costume.season) ? costume.season : [])
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : '衣装の読み込みに失敗しました')
+        }
+      } finally {
+        if (!cancelled) setInitialLoading(false)
+      }
+    }
+
+    void loadCostume()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, getCostume])
 
   const applyImageDataUrl = async (dataUrl: string, sourceName?: string) => {
     setLoading(true)
@@ -143,15 +205,21 @@ export default function AddCostume() {
       setError('')
 
       const colors = enrichCostumeColors([primaryColor, secondaryColor].filter(Boolean))
-      await addCostume({
+      const payload = {
         name: name.trim(),
         image: imageUri,
         colors,
         tone,
         pattern: normalizePattern(pattern),
-        season: [],
+        season,
         type: costumeType,
-      })
+      }
+
+      if (isEditMode && id) {
+        await updateCostume(id, payload)
+      } else {
+        await addCostume(payload)
+      }
       navigate('/costumes')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save costume')
@@ -160,9 +228,17 @@ export default function AddCostume() {
     }
   }
 
+  if (initialLoading) {
+    return (
+      <div className="add-costume-page" style={{ padding: '2rem', textAlign: 'center' }}>
+        <p>読み込み中...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="add-costume-page">
-      <h1>👗 衣装を追加</h1>
+      <h1>{isEditMode ? '👗 衣装を編集' : '👗 衣装を追加'}</h1>
 
       {error && (
         <div className="error-message">
@@ -424,7 +500,7 @@ export default function AddCostume() {
           disabled={loading || !name.trim() || !imageUri}
           className="save-button"
         >
-          {loading ? '保存中...' : '保存'}
+          {loading ? '保存中...' : isEditMode ? '更新' : '保存'}
         </button>
         <button
           onClick={() => navigate('/costumes')}

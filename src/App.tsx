@@ -52,6 +52,7 @@ function AppShell() {
           <Route path="/" element={<Home />} />
           <Route path="/costumes" element={<Costumes />} />
           <Route path="/costumes/add" element={<AddCostume />} />
+          <Route path="/costumes/:id" element={<AddCostume />} />
           <Route path="/events" element={<Events />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/events/:id" element={<EventDetail />} />
