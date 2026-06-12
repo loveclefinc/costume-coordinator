@@ -11,16 +11,30 @@ export interface ColorAnalysisResult {
 }
 
 export interface ExtractDominantColorsOptions {
-  /** 中心から見る領域の割合（幅・高さそれぞれ）。既定 0.5 = 中央50% */
+  /** 中心から見る領域の割合（幅・高さそれぞれ）。衣装領域モード時は幅のみ参照 */
   centerFraction?: number
   /** 中心に近いピクセルほど重みを大きくする */
   radialWeighting?: boolean
   /** 白っぽい背景（壁など）をカウントから除外 */
   skipLikelyBackground?: boolean
+  /** 四隅に共通する色を背景として除外 */
+  excludeCornerBackground?: boolean
+  /** ドレス・スーツ等の胴体領域に絞ってサンプル */
+  useGarmentBounds?: boolean
 }
 
 const ANALYSIS_MAX_SIDE = 480
 const SAMPLE_STEP = 3
+/** 衣装は画面中央に写る想定 — 幅のこの割合だけをサンプル */
+const DEFAULT_CENTER_FRACTION = 0.32
+/** 四隅パッチのサイズ（短辺に対する割合） */
+const CORNER_PATCH_FRACTION = 0.12
+/** 四隅で同色とみなす RGB 距離 */
+const CORNER_COLOR_MATCH_DISTANCE = 42
+/** 背景色とみなして除外するために必要な角の数 */
+const CORNER_BACKGROUND_MIN_MATCHES = 3
+/** 類似色をまとめる量子化（チャンネルあたりの段階数） */
+const COLOR_QUANTIZE_LEVELS = 12
 
 /** 中央領域のサンプル範囲（ピクセル座標） */
 export function getCenterSampleBounds(
@@ -55,10 +69,188 @@ export function getCenterSampleWeight(
 
 /** 白壁・黒背景などを弱く除外（真っ白い衣装は彩度で残す） */
 export function isLikelyBackgroundPixel(r: number, g: number, b: number): boolean {
-  const [, s, l] = rgbToHsl(r, g, b)
+  const [h, s, l] = rgbToHsl(r, g, b)
   if (l > 92 && s < 15) return true
   if (l < 10 && s < 20) return true
+  if (isLikelyWarmNeutralBackground(r, g, b, h, s, l)) return true
   return false
+}
+
+/**
+ * スタジオのベージュ・タン・砂色背景（D1B68B 系）を除外。
+ * 白・銀・青い衣装は残す。
+ */
+export function isLikelyWarmNeutralBackground(
+  r: number,
+  g: number,
+  b: number,
+  h?: number,
+  s?: number,
+  l?: number,
+): boolean {
+  const hsl = h !== undefined && s !== undefined && l !== undefined
+    ? [h, s, l] as [number, number, number]
+    : rgbToHsl(r, g, b)
+  const [hue, sat, light] = hsl
+
+  if (light < 52 || light > 82) return false
+  if (sat < 12 || sat > 58) return false
+  if (hue < 18 || hue > 72) return false
+  if (r - b < 28 || g <= b) return false
+  return true
+}
+
+/** 近い色をまとめて、ベージュの微妙な色差が上位を占めないようにする */
+export function quantizeRgb(r: number, g: number, b: number, levels = COLOR_QUANTIZE_LEVELS): [number, number, number] {
+  const step = 255 / (levels - 1)
+  const q = (v: number) => Math.min(255, Math.round(Math.round(v / step) * step))
+  return [q(r), q(g), q(b)]
+}
+
+export interface ImageBounds {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** 四隅それぞれのサンプル領域 */
+export function getCornerSampleBounds(
+  width: number,
+  height: number,
+  cornerFraction: number = CORNER_PATCH_FRACTION,
+): ImageBounds[] {
+  const patchW = Math.max(4, Math.round(width * cornerFraction))
+  const patchH = Math.max(4, Math.round(height * cornerFraction))
+  return [
+    { x0: 0, y0: 0, x1: patchW, y1: patchH },
+    { x0: width - patchW, y0: 0, x1: width, y1: patchH },
+    { x0: 0, y0: height - patchH, x1: patchW, y1: height },
+    { x0: width - patchW, y0: height - patchH, x1: width, y1: height },
+  ]
+}
+
+/**
+ * ドレス・スーツ等が中央に写る写真向けの衣装領域。
+ * 頭上・床・左右の背景を避け、胴体〜スカート付近を優先する。
+ */
+export function getGarmentSampleBounds(
+  width: number,
+  height: number,
+  widthFraction: number = DEFAULT_CENTER_FRACTION,
+): ImageBounds {
+  const wf = Math.min(0.5, Math.max(0.22, widthFraction))
+  const marginX = (width * (1 - wf)) / 2
+  return {
+    x0: Math.floor(marginX),
+    y0: Math.floor(height * 0.2),
+    x1: Math.ceil(width - marginX),
+    y1: Math.ceil(height * 0.88),
+  }
+}
+
+export function colorDistanceRgb(
+  a: [number, number, number],
+  b: [number, number, number],
+): number {
+  return Math.sqrt(
+    (a[0] - b[0]) ** 2 +
+    (a[1] - b[1]) ** 2 +
+    (a[2] - b[2]) ** 2,
+  )
+}
+
+function countQuantizedColorsInBounds(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  bounds: ImageBounds,
+): Record<string, number> {
+  const colorMap: Record<string, number> = {}
+  for (let y = bounds.y0; y < bounds.y1; y += SAMPLE_STEP) {
+    for (let x = bounds.x0; x < bounds.x1; x += SAMPLE_STEP) {
+      const i = (y * width + x) * 4
+      const a = data[i + 3]
+      if (a < 128) continue
+      const [qr, qg, qb] = quantizeRgb(data[i], data[i + 1], data[i + 2])
+      const hex = rgbToHex(qr, qg, qb)
+      colorMap[hex] = (colorMap[hex] || 0) + 1
+    }
+  }
+  return colorMap
+}
+
+function getDominantRgbInBounds(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  bounds: ImageBounds,
+): [number, number, number] | null {
+  const colorMap = countQuantizedColorsInBounds(data, width, height, bounds)
+  const top = Object.entries(colorMap).sort((a, b) => b[1] - a[1])[0]
+  if (!top) return null
+  return hexToRgb(top[0])
+}
+
+/**
+ * 四隅の 3 以上で共通する色を背景候補として検出する。
+ * スタジオ背景（ベージュ壁など）の除去に有効。
+ */
+export function detectCornerBackgroundColors(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  minMatches: number = CORNER_BACKGROUND_MIN_MATCHES,
+): string[] {
+  const corners = getCornerSampleBounds(width, height)
+  const dominants = corners
+    .map((bounds) => getDominantRgbInBounds(data, width, height, bounds))
+    .filter((rgb): rgb is [number, number, number] => rgb !== null)
+
+  if (dominants.length < minMatches) return []
+
+  const excluded: string[] = []
+  const used = new Set<number>()
+
+  for (let i = 0; i < dominants.length; i++) {
+    if (used.has(i)) continue
+
+    const cluster = [dominants[i]]
+    const clusterIndices = [i]
+
+    for (let j = i + 1; j < dominants.length; j++) {
+      if (used.has(j)) continue
+      if (colorDistanceRgb(dominants[i], dominants[j]) <= CORNER_COLOR_MATCH_DISTANCE) {
+        cluster.push(dominants[j])
+        clusterIndices.push(j)
+      }
+    }
+
+    if (cluster.length >= minMatches) {
+      const avg: [number, number, number] = [
+        Math.round(cluster.reduce((sum, c) => sum + c[0], 0) / cluster.length),
+        Math.round(cluster.reduce((sum, c) => sum + c[1], 0) / cluster.length),
+        Math.round(cluster.reduce((sum, c) => sum + c[2], 0) / cluster.length),
+      ]
+      excluded.push(rgbToHex(...quantizeRgb(...avg)))
+      clusterIndices.forEach((idx) => used.add(idx))
+    }
+  }
+
+  return excluded
+}
+
+export function isSimilarToAnyColor(
+  r: number,
+  g: number,
+  b: number,
+  colors: string[],
+  maxDistance: number = CORNER_COLOR_MATCH_DISTANCE,
+): boolean {
+  return colors.some((hex) => {
+    const rgb = hexToRgb(hex)
+    return rgb !== null && colorDistanceRgb([r, g, b], rgb) <= maxDistance
+  })
 }
 
 function buildAnalysisCanvas(
@@ -76,13 +268,28 @@ function buildAnalysisCanvas(
   return { canvas, ctx }
 }
 
+interface AccumulateColorsConfig extends Required<ExtractDominantColorsOptions> {
+  excludedColors: string[]
+}
+
+function getSampleBounds(
+  width: number,
+  height: number,
+  options: Required<ExtractDominantColorsOptions>,
+): ImageBounds {
+  if (options.useGarmentBounds) {
+    return getGarmentSampleBounds(width, height, options.centerFraction)
+  }
+  return getCenterSampleBounds(width, height, options.centerFraction)
+}
+
 function accumulateColorsFromImageData(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-  options: Required<ExtractDominantColorsOptions>,
+  options: AccumulateColorsConfig,
 ): Record<string, number> {
-  const { x0, y0, x1, y1 } = getCenterSampleBounds(width, height, options.centerFraction)
+  const { x0, y0, x1, y1 } = getSampleBounds(width, height, options)
   const colorMap: Record<string, number> = {}
 
   for (let y = y0; y < y1; y += SAMPLE_STEP) {
@@ -94,18 +301,33 @@ function accumulateColorsFromImageData(
       const a = data[i + 3]
       if (a < 128) continue
       if (options.skipLikelyBackground && isLikelyBackgroundPixel(r, g, b)) continue
+      if (options.excludedColors.length > 0 && isSimilarToAnyColor(r, g, b, options.excludedColors)) {
+        continue
+      }
 
       let weight = 1
       if (options.radialWeighting) {
         weight = getCenterSampleWeight(x, y, width, height)
       }
 
-      const hex = rgbToHex(r, g, b)
+      const [, sat] = rgbToHsl(r, g, b)
+      // 衣装の柄色（青など）は彩度が高い — 無地背景より優先
+      weight *= 0.45 + sat / 70
+
+      const [qr, qg, qb] = quantizeRgb(r, g, b)
+      const hex = rgbToHex(qr, qg, qb)
       colorMap[hex] = (colorMap[hex] || 0) + weight
     }
   }
 
   return colorMap
+}
+
+function sortTopColors(colorMap: Record<string, number>, limit = 5): string[] {
+  return Object.entries(colorMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([color]) => color)
 }
 
 /**
@@ -116,9 +338,11 @@ export async function extractDominantColors(
   options: ExtractDominantColorsOptions = {},
 ): Promise<string[]> {
   const opts: Required<ExtractDominantColorsOptions> = {
-    centerFraction: options.centerFraction ?? 0.5,
+    centerFraction: options.centerFraction ?? DEFAULT_CENTER_FRACTION,
     radialWeighting: options.radialWeighting ?? true,
     skipLikelyBackground: options.skipLikelyBackground ?? true,
+    excludeCornerBackground: options.excludeCornerBackground ?? true,
+    useGarmentBounds: options.useGarmentBounds ?? true,
   }
 
   return new Promise((resolve, reject) => {
@@ -128,34 +352,46 @@ export async function extractDominantColors(
       try {
         const { canvas, ctx } = buildAnalysisCanvas(img)
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const colorMap = accumulateColorsFromImageData(
-          imageData.data,
-          canvas.width,
-          canvas.height,
-          opts,
-        )
+        const { data, width, height } = {
+          data: imageData.data,
+          width: canvas.width,
+          height: canvas.height,
+        }
 
-        const sortedColors = Object.entries(colorMap)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([color]) => color)
+        const cornerBackground = opts.excludeCornerBackground
+          ? detectCornerBackgroundColors(data, width, height)
+          : []
+
+        const colorMap = accumulateColorsFromImageData(data, width, height, {
+          ...opts,
+          excludedColors: cornerBackground,
+        })
+
+        const sortedColors = sortTopColors(colorMap)
 
         if (sortedColors.length > 0) {
           resolve(sortedColors)
           return
         }
 
-        // 中央だけだと背景除外で空になる場合は、中央50%・背景除外なしで再試行
-        const fallbackMap = accumulateColorsFromImageData(
-          imageData.data,
-          canvas.width,
-          canvas.height,
-          { ...opts, skipLikelyBackground: false },
-        )
-        const fallback = Object.entries(fallbackMap)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([color]) => color)
+        // 除外しすぎた場合: 四隅除外だけ外して再試行
+        const relaxedMap = accumulateColorsFromImageData(data, width, height, {
+          ...opts,
+          excludedColors: [],
+        })
+        const relaxed = sortTopColors(relaxedMap)
+        if (relaxed.length > 0) {
+          resolve(relaxed)
+          return
+        }
+
+        // 最後の手段: ヒューリスティック除外も外す
+        const fallbackMap = accumulateColorsFromImageData(data, width, height, {
+          ...opts,
+          skipLikelyBackground: false,
+          excludedColors: [],
+        })
+        const fallback = sortTopColors(fallbackMap)
 
         resolve(fallback.length > 0 ? fallback : ['#808080'])
       } catch (error) {
@@ -379,4 +615,186 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Failed to read file'))
     reader.readAsDataURL(file)
   })
+}
+
+export interface ImageDisplayMetrics {
+  scaleX: number
+  scaleY: number
+  offsetX: number
+  offsetY: number
+}
+
+/** object-fit を考慮した表示サイズと natural サイズの対応 */
+export function computeImageDisplayMetrics(
+  naturalWidth: number,
+  naturalHeight: number,
+  renderedWidth: number,
+  renderedHeight: number,
+  objectFit: string = 'contain',
+): ImageDisplayMetrics {
+  const nw = naturalWidth
+  const nh = naturalHeight
+  const rw = renderedWidth
+  const rh = renderedHeight
+
+  if (!nw || !nh || rw === 0 || rh === 0) {
+    return { scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 }
+  }
+
+  if (objectFit === 'fill') {
+    return { scaleX: rw / nw, scaleY: rh / nh, offsetX: 0, offsetY: 0 }
+  }
+
+  let scale: number
+  if (objectFit === 'cover') {
+    scale = Math.max(rw / nw, rh / nh)
+  } else {
+    scale = Math.min(rw / nw, rh / nh)
+    if (objectFit === 'scale-down') scale = Math.min(scale, 1)
+    if (objectFit === 'none') scale = 1
+  }
+
+  const contentW = nw * scale
+  const contentH = nh * scale
+  return {
+    scaleX: scale,
+    scaleY: scale,
+    offsetX: (rw - contentW) / 2,
+    offsetY: (rh - contentH) / 2,
+  }
+}
+
+/** 画面上の img 要素と natural サイズの対応（object-fit を考慮） */
+export function getImageDisplayMetrics(img: HTMLImageElement): ImageDisplayMetrics {
+  const rect = img.getBoundingClientRect()
+  const objectFit = getComputedStyle(img).objectFit || 'fill'
+  return computeImageDisplayMetrics(
+    img.naturalWidth,
+    img.naturalHeight,
+    rect.width,
+    rect.height,
+    objectFit,
+  )
+}
+
+/** クリック位置を画像のピクセル座標に変換。画像外なら null */
+export function mapLocalPointToImagePixel(
+  naturalWidth: number,
+  naturalHeight: number,
+  localX: number,
+  localY: number,
+  metrics: ImageDisplayMetrics,
+): { x: number; y: number } | null {
+  const x = Math.floor((localX - metrics.offsetX) / metrics.scaleX)
+  const y = Math.floor((localY - metrics.offsetY) / metrics.scaleY)
+
+  if (x < 0 || y < 0 || x >= naturalWidth || y >= naturalHeight) {
+    return null
+  }
+  return { x, y }
+}
+
+/** クリック位置を画像のピクセル座標に変換。画像外なら null */
+export function clientPointToImagePixel(
+  img: HTMLImageElement,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } | null {
+  const rect = img.getBoundingClientRect()
+  const metrics = getImageDisplayMetrics(img)
+  return mapLocalPointToImagePixel(
+    img.naturalWidth,
+    img.naturalHeight,
+    clientX - rect.left,
+    clientY - rect.top,
+    metrics,
+  )
+}
+
+function averageRgbFromImageData(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  radius: number,
+): [number, number, number] | null {
+  let rSum = 0
+  let gSum = 0
+  let bSum = 0
+  let count = 0
+
+  for (let y = Math.max(0, cy - radius); y <= Math.min(height - 1, cy + radius); y++) {
+    for (let x = Math.max(0, cx - radius); x <= Math.min(width - 1, cx + radius); x++) {
+      const i = (y * width + x) * 4
+      const a = data[i + 3]
+      if (a < 128) continue
+      rSum += data[i]
+      gSum += data[i + 1]
+      bSum += data[i + 2]
+      count++
+    }
+  }
+
+  if (count === 0) return null
+  return [
+    Math.round(rSum / count),
+    Math.round(gSum / count),
+    Math.round(bSum / count),
+  ]
+}
+
+/**
+ * 画像上の座標から色を取得（周辺ピクセルの平均で安定化）
+ */
+export async function sampleColorFromImage(
+  imageUrl: string,
+  x: number,
+  y: number,
+  radius = 2,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'))
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const rgb = averageRgbFromImageData(
+          imageData.data,
+          canvas.width,
+          canvas.height,
+          x,
+          y,
+          radius,
+        )
+        resolve(rgb ? rgbToHex(...rgb) : '#808080')
+      } catch (error) {
+        reject(error)
+      }
+    }
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = imageUrl
+  })
+}
+
+/** img 要素上のクリック位置から色を取得 */
+export async function sampleColorAtClientPoint(
+  imageUrl: string,
+  img: HTMLImageElement,
+  clientX: number,
+  clientY: number,
+  radius = 2,
+): Promise<string | null> {
+  const point = clientPointToImagePixel(img, clientX, clientY)
+  if (!point) return null
+  return sampleColorFromImage(imageUrl, point.x, point.y, radius)
 }

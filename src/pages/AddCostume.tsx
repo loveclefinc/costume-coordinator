@@ -4,6 +4,7 @@ import { useCostumes } from '../hooks/useCostumes'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { useCloudSync } from '../hooks/useCloudSync'
 import CostumeImageCloudPicker from '../components/CostumeImageCloudPicker'
+import ImageColorEyedropper, { type EyedropperTarget } from '../components/ImageColorEyedropper'
 import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
@@ -76,6 +77,7 @@ export default function AddCostume() {
   const [initialLoading, setInitialLoading] = useState(isEditMode)
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+  const [eyedropperTarget, setEyedropperTarget] = useState<EyedropperTarget | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -189,6 +191,17 @@ export default function AddCostume() {
     setWearingPhotos(wearingPhotos.filter((_, i) => i !== index))
   }
 
+  const handleEyedropperPick = (target: EyedropperTarget, color: string) => {
+    if (target === 'primary') {
+      setPrimaryColor(color)
+      setColorCategory(classifyColorCategory(color))
+      setTone(classifyTone(color))
+    } else {
+      setSecondaryColor(color)
+    }
+    setEyedropperTarget(null)
+  }
+
   const handleSave = async () => {
     if (!name.trim()) {
       setError('衣装名を入力してください')
@@ -299,7 +312,13 @@ export default function AddCostume() {
 
         {imageUri && (
           <div className="image-preview">
-            <img src={imageUri} alt="Costume" />
+            <ImageColorEyedropper
+              imageUrl={imageUri}
+              activeTarget={eyedropperTarget}
+              onPick={handleEyedropperPick}
+              onCancel={() => setEyedropperTarget(null)}
+              disabled={loading}
+            />
             {analyzing && <p className="analyzing">色を分析中...</p>}
           </div>
         )}
@@ -334,6 +353,11 @@ export default function AddCostume() {
       {/* Color Section */}
       <section className="section add-costume-color-section">
         <h2>🎨 色</h2>
+        {imageUri && (
+          <p className="add-costume-field-hint add-costume-eyedropper-intro">
+            自動抽出が合わない場合は、下の「画像から取得」を押して衣装の写真をクリックしてください。
+          </p>
+        )}
         <div className="add-costume-swatch-row">
           <div className="form-group add-costume-swatch-field">
             <label htmlFor="primary-color-input">主色</label>
@@ -359,6 +383,18 @@ export default function AddCostume() {
                 )}
               </span>
             </div>
+            {imageUri && (
+              <button
+                type="button"
+                className={`eyedropper-btn${eyedropperTarget === 'primary' ? ' eyedropper-btn--active' : ''}`}
+                onClick={() => setEyedropperTarget(
+                  eyedropperTarget === 'primary' ? null : 'primary',
+                )}
+                disabled={loading}
+              >
+                🎯 画像から取得
+              </button>
+            )}
           </div>
 
           <div className="form-group add-costume-swatch-field">
@@ -381,6 +417,18 @@ export default function AddCostume() {
                 )}
               </span>
             </div>
+            {imageUri && (
+              <button
+                type="button"
+                className={`eyedropper-btn${eyedropperTarget === 'secondary' ? ' eyedropper-btn--active' : ''}`}
+                onClick={() => setEyedropperTarget(
+                  eyedropperTarget === 'secondary' ? null : 'secondary',
+                )}
+                disabled={loading}
+              >
+                🎯 画像から取得
+              </button>
+            )}
           </div>
         </div>
 

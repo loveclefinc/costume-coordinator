@@ -61,12 +61,8 @@
   position: relative;
 }
 
-.image-preview img {
+.image-preview .image-eyedropper {
   max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  max-height: 400px;
-  object-fit: cover;
 }
 
 .analyzing {
@@ -174,6 +170,39 @@
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
   color: var(--text-secondary);
+}
+
+.add-costume-eyedropper-intro {
+  margin: 0 0 1rem;
+}
+
+.eyedropper-btn {
+  margin-top: 0.5rem;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--background);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.eyedropper-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.eyedropper-btn--active {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.eyedropper-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .add-costume-color-section select {
