@@ -148,3 +148,45 @@ export function rankCostumesForEventTheme(
     .map((costume) => scoreCostumeForEventTheme(costume, themePreferences, usageHistory))
     .sort((a, b) => b.score - a.score || a.costume.name.localeCompare(b.costume.name, 'ja'))
 }
+
+/** テーマに合う衣装だけを抽出（最低スコア未満は除外。ただし1件は必ず残す） */
+export const AUTO_PICK_MIN_SCORE = 0.48
+
+function hasThemeColorChoices(theme: ThemePreferencesInput): boolean {
+  return (
+    theme.colors1stChoice.length > 0 ||
+    theme.colors2ndChoice.length > 0 ||
+    theme.colors3rdChoice.length > 0
+  )
+}
+
+export function autoPickCostumesForEventTheme(
+  costumes: Costume[],
+  themePreferences?: ThemePreferencesInput,
+  usageHistory: UsageHistory[] = [],
+  maxCount: number = 1,
+  minScore: number = AUTO_PICK_MIN_SCORE,
+): CostumeThemeMatch[] {
+  const ranked = rankCostumesForEventTheme(costumes, themePreferences, usageHistory)
+  if (ranked.length === 0) return []
+
+  const cap = Math.max(1, maxCount)
+  if (!themePreferences) {
+    return ranked.slice(0, cap)
+  }
+
+  let candidates = ranked
+
+  if (hasThemeColorChoices(themePreferences)) {
+    const colorMatched = ranked.filter(
+      (entry) => calculateColorThemeScore(entry.costume.colors, themePreferences) >= 0.6,
+    )
+    candidates = colorMatched.length > 0 ? colorMatched : ranked.slice(0, 1)
+  }
+
+  const matched = candidates.filter((entry) => entry.score >= minScore)
+  if (matched.length === 0) {
+    return candidates.slice(0, 1)
+  }
+  return matched.slice(0, cap)
+}

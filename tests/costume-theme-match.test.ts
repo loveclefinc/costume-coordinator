@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { rankCostumesForEventTheme } from '../src/utils/costume-theme-match'
+import {
+  autoPickCostumesForEventTheme,
+  rankCostumesForEventTheme,
+} from '../src/utils/costume-theme-match'
 import type { Costume, EventThemePreferences } from '../src/utils/storage'
 
 const theme: EventThemePreferences = {
@@ -45,5 +48,21 @@ describe('costume-theme-match', () => {
 
     expect(ranked[0].costume.id).toBe('blue-dress')
     expect(ranked[0].score).toBeGreaterThan(ranked[1].score)
+  })
+
+  it('autoPickCostumesForEventTheme extracts matching costumes only', () => {
+    const picked = autoPickCostumesForEventTheme(
+      [
+        costume('off-theme', { colors: ['yellow'], tone: 'dark', pattern: 'stripe' }),
+        costume('blue-dress', { colors: ['blue', 'white'], tone: 'vivid', pattern: 'floral' }),
+        costume('navy', { colors: ['blue'], tone: 'vivid', pattern: 'floral' }),
+      ],
+      theme,
+      [],
+      5,
+    )
+
+    expect(picked.every((entry) => entry.costume.id !== 'off-theme')).toBe(true)
+    expect(picked[0].costume.id).toBe('blue-dress')
   })
 })

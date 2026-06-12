@@ -6,32 +6,28 @@ import { COLOR_LABELS, PATTERN_LABELS, TONE_LABELS } from '../utils/event-theme-
 import './EventCostumeMatcher.css'
 
 interface EventCostumeMatcherProps {
-  matches: CostumeThemeMatch[]
+  picked: CostumeThemeMatch[]
   theme?: EventThemePreferencesPayload
-  selectedCostumeId: string | null
-  onSelect: (costumeId: string) => void
-  disabled?: boolean
   costumesLoading?: boolean
+  status?: 'idle' | 'picking' | 'submitting' | 'done'
 }
 
 export default function EventCostumeMatcher({
-  matches,
+  picked,
   theme,
-  selectedCostumeId,
-  onSelect,
-  disabled = false,
   costumesLoading = false,
+  status = 'idle',
 }: EventCostumeMatcherProps) {
-  if (costumesLoading) {
-    return <p className="event-costume-matcher-loading">登録衣装を読み込み中…</p>
+  if (costumesLoading || status === 'picking') {
+    return <p className="event-costume-matcher-loading">登録衣装からイベントに合う衣装を選出しています…</p>
   }
 
-  if (matches.length === 0) {
+  if (picked.length === 0) {
     return (
       <div className="event-costume-matcher-empty">
         <p>登録されている衣装がありません。</p>
         <p>
-          先に<Link to="/costumes/add">衣装を登録</Link>してから、この画面に戻って提出してください。
+          先に<Link to="/costumes/add">衣装を登録</Link>してから、この画面に戻ってください。
         </p>
       </div>
     )
@@ -47,31 +43,29 @@ export default function EventCostumeMatcher({
               <li key={line}>{line}</li>
             ))}
           </ul>
-          <p className="event-costume-matcher-lead">
-            登録済みの衣装から、テーマに合う順に並べています。提出する衣装を選んでください。
-          </p>
         </div>
       )}
 
+      <p className="event-costume-matcher-lead">
+        {status === 'done'
+          ? '以下の衣装が自動選出され、代表者へ提出されました。'
+          : status === 'submitting'
+            ? '選出した衣装を提出しています…'
+            : '登録衣装の中から、イベントのテーマに合う衣装を自動選出しました。'}
+      </p>
+
       <div className="event-costume-matcher-grid">
-        {matches.map((match, index) => {
+        {picked.map((match, index) => {
           const { costume, scorePercent, reasons } = match
-          const selected = selectedCostumeId === costume.id
           const colorLabel = costume.colors
             .map((c) => COLOR_LABELS[c] ?? c)
             .slice(0, 2)
             .join('・')
 
           return (
-            <button
-              key={costume.id}
-              type="button"
-              className={`event-costume-card${selected ? ' selected' : ''}`}
-              disabled={disabled}
-              onClick={() => onSelect(costume.id)}
-            >
+            <article key={costume.id} className="event-costume-card event-costume-card--readonly">
               <div className="event-costume-card-rank">
-                {index === 0 && theme ? 'おすすめ' : `${index + 1}位`}
+                {index === 0 ? '自動選出' : `候補 ${index + 1}`}
                 <span className="event-costume-card-score">{scorePercent}%</span>
               </div>
               {costume.image ? (
@@ -93,7 +87,7 @@ export default function EventCostumeMatcher({
                   ))}
                 </ul>
               </div>
-            </button>
+            </article>
           )
         })}
       </div>

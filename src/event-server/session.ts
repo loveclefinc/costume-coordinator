@@ -7,6 +7,8 @@ export type EventServerSessionEntry = {
   participantId?: string
   displayName?: string
   expiresAt?: number
+  /** オンライン提出が完了済みか */
+  costumesSubmitted?: boolean
 }
 
 type SessionStore = {
@@ -50,7 +52,13 @@ export function clearEventParticipantSession(eventId: string): void {
   const store = readStore()
   const entry = store.events[eventId]
   if (!entry) return
-  const { participantToken: _pt, participantId: _pi, displayName: _dn, ...rest } = entry
+  const {
+    participantToken: _pt,
+    participantId: _pi,
+    displayName: _dn,
+    costumesSubmitted: _cs,
+    ...rest
+  } = entry
   store.events[eventId] = rest
   writeStore(store)
 }

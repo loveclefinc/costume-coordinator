@@ -5,7 +5,8 @@ import { useEvents } from '../hooks/useEvents'
 import { isEventServerEnabled } from '../event-server/config'
 import { useAppUi } from '../contexts/AppUiContext'
 import PublicLegalFooter from '../components/PublicLegalFooter'
-import { APP_DISPLAY_NAME } from '../constants/app-brand'
+import AppIcon from '../components/AppIcon'
+import { APP_DISPLAY_NAME, APP_DISPLAY_NAME_JA } from '../constants/app-brand'
 import './Home.css'
 
 export default function Home() {
@@ -48,7 +49,9 @@ export default function Home() {
   return (
     <div className="home-page">
       <div className="hero">
-        <h1 className="hero-app-name">{APP_DISPLAY_NAME}</h1>
+        <AppIcon size="lg" className="hero-app-icon" />
+        <h1 className="hero-app-name">{APP_DISPLAY_NAME_JA}</h1>
+        <p className="hero-app-name-en">{APP_DISPLAY_NAME}</p>
         <p className="hero-app-subtitle">グループイベントの衣装選択を最適化</p>
         <div className="hero-description">
           <p>複数人が参加するイベントで、全体の統一感を保ちながら、各自の手持ち衣装から最適な組み合わせを自動提案します。色味の統一、トーン、柄などのテーマ設定で、理想的なコーディネートを実現します。</p>
@@ -119,7 +122,7 @@ export default function Home() {
         <h2>👥 複数人で使うとき（推奨: オンライン提出）</h2>
         <ol>
           <li>代表者: イベント作成で<strong>「オンライン提出」</strong>をオン → 招待 URL を参加者へ送る</li>
-          <li>参加者: URL を開く → 名前登録 → <strong>登録済み衣装からテーマに合うものを選んで提出</strong>（イベント日まで / 最大14日保持）</li>
+          <li>参加者: URL を開く → 名前登録 → <strong>登録済み衣装からテーマに合うものを自動選出して提出</strong>（イベント日まで / 最大14日保持）</li>
           <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
         </ol>
         <p className="collab-alt">

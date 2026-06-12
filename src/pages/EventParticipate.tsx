@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { enrichCostumeColors, normalizePattern } from '../utils/theme-colors'
-import { rankCostumesForEventTheme } from '../utils/costume-theme-match'
+import {
+  autoPickCostumesForEventTheme,
+  type CostumeThemeMatch,
+} from '../utils/costume-theme-match'
 import { dataUrlToBlob } from '../utils/image-blob'
 import EventCostumeMatcher from '../components/EventCostumeMatcher'
 import {
@@ -28,6 +31,52 @@ import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import './EventParticipate.css'
 
+type SubmitPhase = 'idle' | 'picking' | 'submitting' | 'done' | 'error'
+
+async function submitPickedCostumes(
+  eventId: string,
+  participantToken: string,
+  picked: CostumeThemeMatch[],
+  limits: typeof DEFAULT_UPLOAD_LIMITS,
+): Promise<number> {
+  const preferenceOrder = picked.map((entry) => entry.costume.id)
+  let submitted = 0
+
+  for (const [index, match] of picked.entries()) {
+    const costume = match.costume
+    if (!costume.image) {
+      throw new EventApiError(
+        `「${costume.name}」に写真がありません。衣装管理から画像を登録してください。`,
+        400,
+      )
+    }
+
+    const enriched = enrichCostumeColors(costume.colors)
+    const { costumeId } = await createServerCostume(eventId, participantToken, {
+      name: costume.name.trim(),
+      colors: enriched,
+      tone: costume.tone,
+      pattern: normalizePattern(costume.pattern),
+      season: costume.season ?? [],
+      type: costume.type,
+      preferences: index === 0 ? preferenceOrder : [],
+    })
+
+    const { blob, contentType } = await dataUrlToBlob(costume.image)
+    if (blob.size > limits.maxPhotoBytes) {
+      throw new EventApiError(
+        `「${costume.name}」の写真が大きすぎます（${formatBytes(blob.size)}）。${formatBytes(limits.maxPhotoBytes)} 以下にしてください。`,
+        400,
+      )
+    }
+
+    await uploadServerPhoto(eventId, costumeId, participantToken, blob, contentType)
+    submitted++
+  }
+
+  return submitted
+}
+
 export default function EventParticipate() {
   const { id: eventId } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
@@ -40,9 +89,10 @@ export default function EventParticipate() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null)
-  const [submittedCount, setSubmittedCount] = useState(0)
   const [usageHistoryLoaded, setUsageHistoryLoaded] = useState(false)
+  const [pickedMatches, setPickedMatches] = useState<CostumeThemeMatch[]>([])
+  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
+  const autoSubmitStarted = useRef(false)
 
   const { costumes, loading: costumesLoading } = useCostumes()
   const { toast } = useAppUi()
@@ -54,22 +104,7 @@ export default function EventParticipate() {
 
   const [usageHistory, setUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
 
-  const rankedMatches = useMemo(
-    () => rankCostumesForEventTheme(
-      costumes,
-      eventInfo?.themePreferences,
-      usageHistory,
-    ),
-    [costumes, eventInfo?.themePreferences, usageHistory],
-  )
-
-  const selectedMatch = rankedMatches.find((m) => m.costume.id === selectedCostumeId) ?? null
-
-  useEffect(() => {
-    if (rankedMatches.length > 0 && !selectedCostumeId) {
-      setSelectedCostumeId(rankedMatches[0].costume.id)
-    }
-  }, [rankedMatches, selectedCostumeId])
+  const wardrobeReady = !costumesLoading && usageHistoryLoaded
 
   const fillProfileName = () => {
     if (profileName) setDisplayNameInput(profileName)
@@ -90,12 +125,15 @@ export default function EventParticipate() {
       } else if (!displayName && getDisplayName()) {
         setDisplayNameInput(getDisplayName())
       }
+      if (session?.costumesSubmitted) {
+        setSubmitPhase('done')
+      }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
-  }, [eventId, inviteToken, session?.displayName, session?.participantToken, displayName])
+  }, [eventId, inviteToken, session?.displayName, session?.participantToken, session?.costumesSubmitted, displayName])
 
   useEffect(() => {
     if (!isEventServerEnabled()) {
@@ -120,6 +158,79 @@ export default function EventParticipate() {
     }
   }, [])
 
+  const runAutoPickAndSubmit = useCallback(async () => {
+    if (!eventId || !participantToken || !wardrobeReady) return
+    if (autoSubmitStarted.current || session?.costumesSubmitted) return
+
+    autoSubmitStarted.current = true
+    setSubmitPhase('picking')
+    setError('')
+
+    const picked = autoPickCostumesForEventTheme(
+      costumes,
+      eventInfo?.themePreferences,
+      usageHistory,
+      limits.maxCostumesPerParticipant,
+    )
+
+    setPickedMatches(picked)
+
+    if (picked.length === 0) {
+      setSubmitPhase('error')
+      autoSubmitStarted.current = false
+      return
+    }
+
+    setSubmitPhase('submitting')
+    try {
+      const count = await submitPickedCostumes(eventId, participantToken, picked, limits)
+      setEventSession(eventId, { costumesSubmitted: true })
+      setSubmitPhase('done')
+      const names = picked.map((entry) => entry.costume.name).join('、')
+      toast(`${count} 件の衣装を自動選出して提出しました（${names}）`, 'success')
+    } catch (e) {
+      autoSubmitStarted.current = false
+      setSubmitPhase('error')
+      setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
+    }
+  }, [
+    eventId,
+    participantToken,
+    wardrobeReady,
+    session?.costumesSubmitted,
+    costumes,
+    eventInfo?.themePreferences,
+    usageHistory,
+    limits,
+    toast,
+  ])
+
+  useEffect(() => {
+    if (!joined || !wardrobeReady) return
+    if (pickedMatches.length > 0) return
+    const picked = autoPickCostumesForEventTheme(
+      costumes,
+      eventInfo?.themePreferences,
+      usageHistory,
+      limits.maxCostumesPerParticipant,
+    )
+    setPickedMatches(picked)
+  }, [
+    joined,
+    wardrobeReady,
+    pickedMatches.length,
+    costumes,
+    eventInfo?.themePreferences,
+    usageHistory,
+    limits.maxCostumesPerParticipant,
+  ])
+
+  useEffect(() => {
+    if (!joined || !participantToken) return
+    if (submitPhase === 'done' || session?.costumesSubmitted) return
+    void runAutoPickAndSubmit()
+  }, [joined, participantToken, submitPhase, session?.costumesSubmitted, runAutoPickAndSubmit])
+
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
     setBusy(true)
@@ -134,9 +245,11 @@ export default function EventParticipate() {
         participantId: res.participantId,
         displayName: res.displayName,
         expiresAt: eventInfo?.expiresAt,
+        costumesSubmitted: false,
       })
       setJoined(true)
-      toast(`${res.displayName} さんとして参加しました。テーマに合う衣装を選んで提出してください。`, 'success')
+      autoSubmitStarted.current = false
+      toast(`${res.displayName} さんとして参加しました。衣装を自動選出して提出します。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '参加に失敗しました')
     } finally {
@@ -149,55 +262,26 @@ export default function EventParticipate() {
     clearEventParticipantSession(eventId)
     setJoined(false)
     setDisplayNameInput(getDisplayName())
-    setSubmittedCount(0)
-    setSelectedCostumeId(rankedMatches[0]?.costume.id ?? null)
+    setPickedMatches([])
+    setSubmitPhase('idle')
+    autoSubmitStarted.current = false
     setError('')
     toast('別の名前で参加し直せます', 'info')
   }
 
-  const handleSubmitCostume = async () => {
-    if (!eventId || !participantToken || !selectedMatch) return
-    if (submittedCount >= limits.maxCostumesPerParticipant) {
-      setError(`衣装はお一人様 ${limits.maxCostumesPerParticipant} 件までです`)
-      return
-    }
-
-    const costume = selectedMatch.costume
-    if (!costume.image) {
-      setError('選択した衣装に写真がありません。衣装管理から画像を登録してください。')
-      return
-    }
-
-    setBusy(true)
+  const handleRetrySubmit = () => {
+    autoSubmitStarted.current = false
+    setSubmitPhase('idle')
     setError('')
-    try {
-      const enriched = enrichCostumeColors(costume.colors)
-      const { costumeId } = await createServerCostume(eventId, participantToken, {
-        name: costume.name.trim(),
-        colors: enriched,
-        tone: costume.tone,
-        pattern: normalizePattern(costume.pattern),
-        season: costume.season ?? [],
-        type: costume.type,
-      })
-
-      const { blob, contentType } = await dataUrlToBlob(costume.image)
-      if (blob.size > limits.maxPhotoBytes) {
-        throw new EventApiError(
-          `衣装写真が大きすぎます（${formatBytes(blob.size)}）。${formatBytes(limits.maxPhotoBytes)} 以下に圧縮してください。`,
-          400,
-        )
-      }
-
-      await uploadServerPhoto(eventId, costumeId, participantToken, blob, contentType)
-      setSubmittedCount((c) => c + 1)
-      toast(`「${costume.name}」を提出しました（適合度 ${selectedMatch.scorePercent}%）`, 'success')
-    } catch (e) {
-      setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
-    } finally {
-      setBusy(false)
-    }
+    void runAutoPickAndSubmit()
   }
+
+  const matcherStatus = useMemo(() => {
+    if (submitPhase === 'done') return 'done' as const
+    if (submitPhase === 'submitting') return 'submitting' as const
+    if (submitPhase === 'picking') return 'picking' as const
+    return 'idle' as const
+  }, [submitPhase])
 
   if (loading) {
     return (
@@ -217,10 +301,6 @@ export default function EventParticipate() {
           <p className="participate-expiry">
             データ保存期限: {new Date(eventInfo.expiresAt).toLocaleString('ja-JP')}
           </p>
-          <ul className="participate-limits">
-            <li>お一人様: 衣装最大 {limits.maxCostumesPerParticipant} 件</li>
-            <li>1枚あたり: 最大 {formatBytes(limits.maxPhotoBytes)}</li>
-          </ul>
         </div>
       )}
 
@@ -230,7 +310,7 @@ export default function EventParticipate() {
         <section className="participate-section">
           <h3>1. 参加者名</h3>
           <p className="participate-name-hint">
-            このイベントでの表示名です。設定の表示名とは別名でも参加できます。
+            参加後、登録済みの衣装からイベントに合うものを自動で選出し、代表者へ提出します。
           </p>
           <div className="participate-name-row">
             <input
@@ -258,7 +338,7 @@ export default function EventParticipate() {
             disabled={busy || !displayName.trim()}
             onClick={() => void handleJoin()}
           >
-            参加する
+            参加して自動提出する
           </button>
         </section>
       ) : (
@@ -274,42 +354,36 @@ export default function EventParticipate() {
             別の名前で参加し直す
           </button>
 
-          <h3>2. 登録衣装から提出する衣装を選ぶ</h3>
-          <p className="participate-name-hint">
-            この端末に登録した衣装の中から、イベントのテーマに合うものを自動で並べ替えています。
-          </p>
+          <h3>2. 衣装の自動選出</h3>
 
           <EventCostumeMatcher
-            matches={rankedMatches}
+            picked={pickedMatches}
             theme={eventInfo?.themePreferences}
-            selectedCostumeId={selectedCostumeId}
-            onSelect={setSelectedCostumeId}
-            disabled={busy}
-            costumesLoading={costumesLoading || !usageHistoryLoaded}
+            costumesLoading={!wardrobeReady && submitPhase !== 'done'}
+            status={matcherStatus}
           />
 
-          <button
-            type="button"
-            className="participate-btn primary"
-            disabled={busy || !selectedMatch || submittedCount >= limits.maxCostumesPerParticipant}
-            onClick={() => void handleSubmitCostume()}
-          >
-            {selectedMatch
-              ? `「${selectedMatch.costume.name}」を提出する`
-              : '衣装を選択してください'}
-          </button>
-
-          {submittedCount > 0 && (
-            <p className="participate-success">
-              {submittedCount} 件提出済み（残り {Math.max(0, limits.maxCostumesPerParticipant - submittedCount)} 件）
-            </p>
+          {submitPhase === 'error' && pickedMatches.length > 0 && (
+            <button
+              type="button"
+              className="participate-btn primary"
+              onClick={handleRetrySubmit}
+            >
+              提出を再試行
+            </button>
           )}
 
-          <p className="participate-name-hint">
-            衣装が未登録の場合は
-            <Link to="/costumes/add"> 衣装を追加 </Link>
-            してから戻ってください。
-          </p>
+          {submitPhase === 'done' && (
+            <p className="participate-success">提出が完了しました。代表者が取り込むまでお待ちください。</p>
+          )}
+
+          {wardrobeReady && costumes.length === 0 && (
+            <p className="participate-name-hint">
+              衣装が未登録です。
+              <Link to="/costumes/add"> 衣装を追加 </Link>
+              してから「提出を再試行」してください。
+            </p>
+          )}
         </section>
       )}
 

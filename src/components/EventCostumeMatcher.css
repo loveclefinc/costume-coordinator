@@ -47,22 +47,11 @@
   background: var(--background, #fff);
   padding: 0;
   overflow: hidden;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.event-costume-card:hover:not(:disabled) {
+.event-costume-card--readonly {
   border-color: var(--primary, #6366f1);
-}
-
-.event-costume-card.selected {
-  border-color: var(--primary, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-}
-
-.event-costume-card:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
 }
 
 .event-costume-card-rank {
