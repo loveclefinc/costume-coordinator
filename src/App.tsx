@@ -34,10 +34,11 @@ function AppShell() {
   const isOAuthCallback = location.pathname.includes('/oauth/')
   const isWelcome = location.pathname === '/welcome'
   const isPublicPath = PUBLIC_PATHS.has(location.pathname)
+  const isParticipatePath = /^\/events\/[^/]+\/participate$/.test(location.pathname)
 
   const showMainNav = onboardingDone && !isOAuthCallback && !isWelcome
 
-  if (!onboardingDone && !isOAuthCallback && !isPublicPath) {
+  if (!onboardingDone && !isOAuthCallback && !isPublicPath && !isParticipatePath) {
     return <Navigate to="/welcome" replace />
   }
 

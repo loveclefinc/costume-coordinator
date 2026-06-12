@@ -5,6 +5,12 @@ import {
   colorNamesAreSimilar,
   themeColorNamesFrom,
 } from './theme-colors'
+import {
+  calculateColorThemeScore,
+  calculateToneThemeScore,
+  calculatePatternThemeScore,
+  calculateUsagePenalty,
+} from './costume-theme-match'
 
 export interface OptimizationResult {
   participantId: string
@@ -20,63 +26,6 @@ export interface OptimizationInput {
   costumes: Costume[]
   usageHistory: UsageHistory[]
   themePreferences?: EventThemePreferences
-}
-
-/**
- * Calculate color match score against theme preferences
- * Returns 0-1 where 1 is perfect match
- */
-function calculateColorThemeScore(costumeColors: string[], themePrefs?: EventThemePreferences): number {
-  if (!themePrefs) return 0.5 // Neutral if no theme preferences
-
-  const colors = enrichCostumeColors(costumeColors)
-
-  for (const color of colors) {
-    if (themePrefs.colors1stChoice.includes(color)) return 1.0
-  }
-
-  for (const color of colors) {
-    if (themePrefs.colors2ndChoice.includes(color)) return 0.8
-  }
-
-  for (const color of colors) {
-    if (themePrefs.colors3rdChoice.includes(color)) return 0.6
-  }
-
-  return 0.3
-}
-
-/**
- * Calculate tone match score against theme preferences
- */
-function calculateToneThemeScore(costumeTone: string, themePrefs?: EventThemePreferences): number {
-  if (!themePrefs) return 0.5
-
-  // Check 1st choice tones
-  if (themePrefs.tones1stChoice.includes(costumeTone)) return 1.0
-
-  // Check 2nd choice tones
-  if (themePrefs.tones2ndChoice.includes(costumeTone)) return 0.8
-
-  // Check 3rd choice tones
-  if (themePrefs.tones3rdChoice.includes(costumeTone)) return 0.6
-
-  return 0.3
-}
-
-/**
- * Calculate pattern match score against theme preferences
- */
-function calculatePatternThemeScore(costumePattern: string, themePrefs?: EventThemePreferences): number {
-  if (!themePrefs) return 0.5
-
-  const pattern = normalizePattern(costumePattern)
-
-  if (themePrefs.patterns1stChoice.map(normalizePattern).includes(pattern)) return 1.0
-  if (themePrefs.patterns2ndChoice.map(normalizePattern).includes(pattern)) return 0.8
-  if (themePrefs.patterns3rdChoice.map(normalizePattern).includes(pattern)) return 0.6
-
-  return 0.3
 }
 
 /**
@@ -132,18 +81,6 @@ function calculateColorUnificationScore(
   }
 
   return similarToAny ? 0.7 : 1.15
-}
-
-/**
- * Calculate usage history penalty (prefer less recently used)
- */
-function calculateUsagePenalty(costumeId: string, usageHistory: UsageHistory[], excludeDays: number = 30): number {
-  const recentUsages = usageHistory.filter(h => {
-    const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-    return daysSinceUse <= excludeDays && h.costumeId === costumeId
-  })
-
-  return Math.max(0, 1 - recentUsages.length * 0.1)
 }
 
 /**

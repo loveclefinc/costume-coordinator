@@ -119,7 +119,7 @@ export default function Home() {
         <h2>👥 複数人で使うとき（推奨: オンライン提出）</h2>
         <ol>
           <li>代表者: イベント作成で<strong>「オンライン提出」</strong>をオン → 招待 URL を参加者へ送る</li>
-          <li>参加者: URL を開く → 名前登録 → <strong>衣装写真をサーバーにアップロード</strong>（イベント日まで / 最大14日保持）</li>
+          <li>参加者: URL を開く → 名前登録 → <strong>登録済み衣装からテーマに合うものを選んで提出</strong>（イベント日まで / 最大14日保持）</li>
           <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
         </ol>
         <p className="collab-alt">

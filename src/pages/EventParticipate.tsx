@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { enrichCostumeColors, normalizePattern } from '../utils/theme-colors'
-import { getThemeGuidedDefaults } from '../utils/event-theme-ui'
-import ThemeGuidedCostumeFields, {
-  buildPhotoPreviewUrl,
-  type ThemeGuidedCostumeValues,
-} from '../components/ThemeGuidedCostumeFields'
+import { rankCostumesForEventTheme } from '../utils/costume-theme-match'
+import { dataUrlToBlob } from '../utils/image-blob'
+import EventCostumeMatcher from '../components/EventCostumeMatcher'
 import {
   createServerCostume,
   fetchEventPublic,
@@ -23,30 +21,12 @@ import type { EventPublicInfo } from '../../shared/event-api-types'
 import {
   DEFAULT_UPLOAD_LIMITS,
   formatBytes,
-  type UploadLimits,
 } from '../../shared/upload-limits'
 import { useAppUi } from '../contexts/AppUiContext'
 import { getDisplayName } from '../utils/user-profile'
+import { useCostumes } from '../hooks/useCostumes'
+import { storage } from '../utils/storage'
 import './EventParticipate.css'
-
-function validatePhotoFiles(files: File[], limits: UploadLimits): string | null {
-  if (files.length > limits.maxPhotosPerCostume) {
-    return `写真は最大 ${limits.maxPhotosPerCostume} 枚までです`
-  }
-  for (const f of files) {
-    if (!f.type.startsWith('image/')) {
-      return '画像ファイルのみ選択できます'
-    }
-    if (f.size > limits.maxPhotoBytes) {
-      return `「${f.name}」は ${formatBytes(f.size)} です。1枚あたり ${formatBytes(limits.maxPhotoBytes)} まで`
-    }
-  }
-  const total = files.reduce((s, f) => s + f.size, 0)
-  if (total > limits.maxPhotoBytes * limits.maxPhotosPerCostume) {
-    return `選択した写真の合計が大きすぎます`
-  }
-  return null
-}
 
 export default function EventParticipate() {
   const { id: eventId } = useParams<{ id: string }>()
@@ -60,21 +40,36 @@ export default function EventParticipate() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null)
+  const [submittedCount, setSubmittedCount] = useState(0)
+  const [usageHistoryLoaded, setUsageHistoryLoaded] = useState(false)
 
-  const [costumeName, setCostumeName] = useState('')
-  const [colors, setColors] = useState<string[]>([])
-  const [tone, setTone] = useState('neutral')
-  const [pattern, setPattern] = useState('plain')
-  const [photoFiles, setPhotoFiles] = useState<File[]>([])
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
-  const [uploadedCount, setUploadedCount] = useState(0)
-
+  const { costumes, loading: costumesLoading } = useCostumes()
   const { toast } = useAppUi()
   const session = eventId ? getEventSession(eventId) : undefined
   const inviteToken = inviteFromUrl || session?.inviteToken || ''
   const participantToken = session?.participantToken
   const limits = eventInfo?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS
   const profileName = getDisplayName()
+
+  const [usageHistory, setUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
+
+  const rankedMatches = useMemo(
+    () => rankCostumesForEventTheme(
+      costumes,
+      eventInfo?.themePreferences,
+      usageHistory,
+    ),
+    [costumes, eventInfo?.themePreferences, usageHistory],
+  )
+
+  const selectedMatch = rankedMatches.find((m) => m.costume.id === selectedCostumeId) ?? null
+
+  useEffect(() => {
+    if (rankedMatches.length > 0 && !selectedCostumeId) {
+      setSelectedCostumeId(rankedMatches[0].costume.id)
+    }
+  }, [rankedMatches, selectedCostumeId])
 
   const fillProfileName = () => {
     if (profileName) setDisplayNameInput(profileName)
@@ -100,7 +95,7 @@ export default function EventParticipate() {
     } finally {
       setLoading(false)
     }
-  }, [eventId, inviteToken, session?.displayName, session?.participantToken])
+  }, [eventId, inviteToken, session?.displayName, session?.participantToken, displayName])
 
   useEffect(() => {
     if (!isEventServerEnabled()) {
@@ -112,26 +107,18 @@ export default function EventParticipate() {
   }, [loadPublic])
 
   useEffect(() => {
-    if (!eventInfo?.themePreferences) return
-    const defaults = getThemeGuidedDefaults(eventInfo.themePreferences)
-    setColors(defaults.colors)
-    setTone(defaults.tone)
-    setPattern(defaults.pattern)
-  }, [eventInfo?.themePreferences])
-
-  useEffect(() => {
-    if (photoFiles.length === 0) {
-      setPhotoPreviewUrl(null)
-      return
-    }
     let cancelled = false
-    void buildPhotoPreviewUrl(photoFiles).then((url) => {
-      if (!cancelled) setPhotoPreviewUrl(url)
+    void storage.init().then(async () => {
+      const history = await storage.getAllUsageHistory()
+      if (!cancelled) {
+        setUsageHistory(history)
+        setUsageHistoryLoaded(true)
+      }
     })
     return () => {
       cancelled = true
     }
-  }, [photoFiles])
+  }, [])
 
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
@@ -149,7 +136,7 @@ export default function EventParticipate() {
         expiresAt: eventInfo?.expiresAt,
       })
       setJoined(true)
-      toast(`${res.displayName} さんとして参加しました。衣装と写真を登録してください。`, 'success')
+      toast(`${res.displayName} さんとして参加しました。テーマに合う衣装を選んで提出してください。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '参加に失敗しました')
     } finally {
@@ -157,78 +144,54 @@ export default function EventParticipate() {
     }
   }
 
-  const handleCostumeValuesChange = useCallback((next: ThemeGuidedCostumeValues) => {
-    setColors(next.colors)
-    setTone(next.tone)
-    setPattern(next.pattern)
-  }, [])
-
   const handleChangeParticipationName = () => {
     if (!eventId) return
     clearEventParticipantSession(eventId)
     setJoined(false)
     setDisplayNameInput(getDisplayName())
-    setUploadedCount(0)
-    setCostumeName('')
-    setPhotoFiles([])
-    setPhotoPreviewUrl(null)
+    setSubmittedCount(0)
+    setSelectedCostumeId(rankedMatches[0]?.costume.id ?? null)
     setError('')
     toast('別の名前で参加し直せます', 'info')
   }
 
   const handleSubmitCostume = async () => {
-    if (!eventId || !participantToken || !costumeName.trim()) return
-    if (colors.length === 0) {
-      setError('色を選択してください')
+    if (!eventId || !participantToken || !selectedMatch) return
+    if (submittedCount >= limits.maxCostumesPerParticipant) {
+      setError(`衣装はお一人様 ${limits.maxCostumesPerParticipant} 件までです`)
       return
     }
-    if (photoFiles.length === 0) {
-      setError('写真を1枚以上選んでください')
+
+    const costume = selectedMatch.costume
+    if (!costume.image) {
+      setError('選択した衣装に写真がありません。衣装管理から画像を登録してください。')
       return
     }
-    const fileErr = validatePhotoFiles(photoFiles, limits)
-    if (fileErr) {
-      setError(fileErr)
-      return
-    }
+
     setBusy(true)
     setError('')
     try {
-      const enriched = enrichCostumeColors(colors.length ? colors : ['#888888'])
+      const enriched = enrichCostumeColors(costume.colors)
       const { costumeId } = await createServerCostume(eventId, participantToken, {
-        name: costumeName.trim(),
+        name: costume.name.trim(),
         colors: enriched,
-        tone,
-        pattern: normalizePattern(pattern),
-        season: [],
+        tone: costume.tone,
+        pattern: normalizePattern(costume.pattern),
+        season: costume.season ?? [],
+        type: costume.type,
       })
 
-      let uploaded = 0
-      for (const file of photoFiles.slice(0, limits.maxPhotosPerCostume)) {
-        await uploadServerPhoto(
-          eventId,
-          costumeId,
-          participantToken,
-          file,
-          file.type || 'image/jpeg',
+      const { blob, contentType } = await dataUrlToBlob(costume.image)
+      if (blob.size > limits.maxPhotoBytes) {
+        throw new EventApiError(
+          `衣装写真が大きすぎます（${formatBytes(blob.size)}）。${formatBytes(limits.maxPhotoBytes)} 以下に圧縮してください。`,
+          400,
         )
-        uploaded++
       }
-      setUploadedCount((c) => c + uploaded)
-      setCostumeName('')
-      if (eventInfo?.themePreferences) {
-        const defaults = getThemeGuidedDefaults(eventInfo.themePreferences)
-        setColors(defaults.colors)
-        setTone(defaults.tone)
-        setPattern(defaults.pattern)
-      } else {
-        setColors([])
-        setTone('neutral')
-        setPattern('plain')
-      }
-      setPhotoFiles([])
-      setPhotoPreviewUrl(null)
-      toast(`衣装「${costumeName}」を ${uploaded} 枚の写真付きで提出しました。`, 'success')
+
+      await uploadServerPhoto(eventId, costumeId, participantToken, blob, contentType)
+      setSubmittedCount((c) => c + 1)
+      toast(`「${costume.name}」を提出しました（適合度 ${selectedMatch.scorePercent}%）`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
     } finally {
@@ -255,10 +218,8 @@ export default function EventParticipate() {
             データ保存期限: {new Date(eventInfo.expiresAt).toLocaleString('ja-JP')}
           </p>
           <ul className="participate-limits">
-            <li>1枚あたり: 最大 {formatBytes(limits.maxPhotoBytes)}（JPEG/PNG 等）</li>
-            <li>1衣装あたり: 最大 {limits.maxPhotosPerCostume} 枚</li>
             <li>お一人様: 衣装最大 {limits.maxCostumesPerParticipant} 件</li>
-            <li>イベント全体: 最大 {formatBytes(limits.maxEventStorageBytes)}</li>
+            <li>1枚あたり: 最大 {formatBytes(limits.maxPhotoBytes)}</li>
           </ul>
         </div>
       )}
@@ -303,7 +264,7 @@ export default function EventParticipate() {
       ) : (
         <section className="participate-section">
           <p className="participate-joined">
-            <strong>{session?.displayName ?? displayName}</strong> として登録済みです。衣装と写真を登録してください。
+            <strong>{session?.displayName ?? displayName}</strong> として登録済みです。
           </p>
           <button
             type="button"
@@ -312,51 +273,43 @@ export default function EventParticipate() {
           >
             別の名前で参加し直す
           </button>
-          <h3>
-            2. 衣装を提出（写真必須・最大{limits.maxPhotosPerCostume}枚・各
-            {formatBytes(limits.maxPhotoBytes)}まで）
-          </h3>
-          <label className="participate-label">
-            衣装名
-            <input
-              type="text"
-              className="participate-input"
-              value={costumeName}
-              onChange={(e) => setCostumeName(e.target.value)}
-            />
-          </label>
-          <label className="participate-label">
-            写真（{photoFiles.length}/{limits.maxPhotosPerCostume}）— 先に選ぶと色を自動判定
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/*"
-              multiple
-              onChange={(e) => {
-                const files = [...(e.target.files ?? [])].slice(0, limits.maxPhotosPerCostume)
-                const err = validatePhotoFiles(files, limits)
-                setError(err ?? '')
-                setPhotoFiles(err ? [] : files)
-              }}
-            />
-          </label>
-          <ThemeGuidedCostumeFields
+
+          <h3>2. 登録衣装から提出する衣装を選ぶ</h3>
+          <p className="participate-name-hint">
+            この端末に登録した衣装の中から、イベントのテーマに合うものを自動で並べ替えています。
+          </p>
+
+          <EventCostumeMatcher
+            matches={rankedMatches}
             theme={eventInfo?.themePreferences}
-            photoPreviewUrl={photoPreviewUrl}
+            selectedCostumeId={selectedCostumeId}
+            onSelect={setSelectedCostumeId}
             disabled={busy}
-            values={{ colors, tone, pattern } satisfies ThemeGuidedCostumeValues}
-            onChange={handleCostumeValuesChange}
+            costumesLoading={costumesLoading || !usageHistoryLoaded}
           />
+
           <button
             type="button"
             className="participate-btn primary"
-            disabled={busy}
+            disabled={busy || !selectedMatch || submittedCount >= limits.maxCostumesPerParticipant}
             onClick={() => void handleSubmitCostume()}
           >
-            この衣装を提出
+            {selectedMatch
+              ? `「${selectedMatch.costume.name}」を提出する`
+              : '衣装を選択してください'}
           </button>
-          {uploadedCount > 0 && (
-            <p className="participate-success">これまでに {uploadedCount} 枚アップロード済み</p>
+
+          {submittedCount > 0 && (
+            <p className="participate-success">
+              {submittedCount} 件提出済み（残り {Math.max(0, limits.maxCostumesPerParticipant - submittedCount)} 件）
+            </p>
           )}
+
+          <p className="participate-name-hint">
+            衣装が未登録の場合は
+            <Link to="/costumes/add"> 衣装を追加 </Link>
+            してから戻ってください。
+          </p>
         </section>
       )}
 
