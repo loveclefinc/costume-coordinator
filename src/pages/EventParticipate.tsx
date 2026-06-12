@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { enrichCostumeColors, normalizePattern } from '../utils/theme-colors'
+import { getThemeGuidedDefaults } from '../utils/event-theme-ui'
+import ThemeGuidedCostumeFields, {
+  buildPhotoPreviewUrl,
+  type ThemeGuidedCostumeValues,
+} from '../components/ThemeGuidedCostumeFields'
 import {
   createServerCostume,
   fetchEventPublic,
@@ -61,6 +66,7 @@ export default function EventParticipate() {
   const [tone, setTone] = useState('neutral')
   const [pattern, setPattern] = useState('plain')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [uploadedCount, setUploadedCount] = useState(0)
 
   const { toast } = useAppUi()
@@ -105,6 +111,28 @@ export default function EventParticipate() {
     void loadPublic()
   }, [loadPublic])
 
+  useEffect(() => {
+    if (!eventInfo?.themePreferences) return
+    const defaults = getThemeGuidedDefaults(eventInfo.themePreferences)
+    setColors(defaults.colors)
+    setTone(defaults.tone)
+    setPattern(defaults.pattern)
+  }, [eventInfo?.themePreferences])
+
+  useEffect(() => {
+    if (photoFiles.length === 0) {
+      setPhotoPreviewUrl(null)
+      return
+    }
+    let cancelled = false
+    void buildPhotoPreviewUrl(photoFiles).then((url) => {
+      if (!cancelled) setPhotoPreviewUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [photoFiles])
+
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
     setBusy(true)
@@ -129,6 +157,12 @@ export default function EventParticipate() {
     }
   }
 
+  const handleCostumeValuesChange = useCallback((next: ThemeGuidedCostumeValues) => {
+    setColors(next.colors)
+    setTone(next.tone)
+    setPattern(next.pattern)
+  }, [])
+
   const handleChangeParticipationName = () => {
     if (!eventId) return
     clearEventParticipantSession(eventId)
@@ -137,12 +171,17 @@ export default function EventParticipate() {
     setUploadedCount(0)
     setCostumeName('')
     setPhotoFiles([])
+    setPhotoPreviewUrl(null)
     setError('')
     toast('別の名前で参加し直せます', 'info')
   }
 
   const handleSubmitCostume = async () => {
     if (!eventId || !participantToken || !costumeName.trim()) return
+    if (colors.length === 0) {
+      setError('色を選択してください')
+      return
+    }
     if (photoFiles.length === 0) {
       setError('写真を1枚以上選んでください')
       return
@@ -177,8 +216,18 @@ export default function EventParticipate() {
       }
       setUploadedCount((c) => c + uploaded)
       setCostumeName('')
-      setColors([])
+      if (eventInfo?.themePreferences) {
+        const defaults = getThemeGuidedDefaults(eventInfo.themePreferences)
+        setColors(defaults.colors)
+        setTone(defaults.tone)
+        setPattern(defaults.pattern)
+      } else {
+        setColors([])
+        setTone('neutral')
+        setPattern('plain')
+      }
       setPhotoFiles([])
+      setPhotoPreviewUrl(null)
       toast(`衣装「${costumeName}」を ${uploaded} 枚の写真付きで提出しました。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
@@ -277,32 +326,7 @@ export default function EventParticipate() {
             />
           </label>
           <label className="participate-label">
-            メインカラー（HEX）
-            <input
-              type="color"
-              onChange={(e) => setColors([e.target.value])}
-            />
-          </label>
-          <label className="participate-label">
-            トーン
-            <select value={tone} onChange={(e) => setTone(e.target.value)}>
-              <option value="pastel">パステル</option>
-              <option value="vivid">ビビッド</option>
-              <option value="dark">ダーク</option>
-              <option value="neutral">ニュートラル</option>
-            </select>
-          </label>
-          <label className="participate-label">
-            柄
-            <select value={pattern} onChange={(e) => setPattern(e.target.value)}>
-              <option value="plain">無地</option>
-              <option value="floral">花柄</option>
-              <option value="stripe">ストライプ</option>
-              <option value="dot">ドット</option>
-            </select>
-          </label>
-          <label className="participate-label">
-            写真（{photoFiles.length}/{limits.maxPhotosPerCostume}）
+            写真（{photoFiles.length}/{limits.maxPhotosPerCostume}）— 先に選ぶと色を自動判定
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic,image/*"
@@ -315,6 +339,13 @@ export default function EventParticipate() {
               }}
             />
           </label>
+          <ThemeGuidedCostumeFields
+            theme={eventInfo?.themePreferences}
+            photoPreviewUrl={photoPreviewUrl}
+            disabled={busy}
+            values={{ colors, tone, pattern } satisfies ThemeGuidedCostumeValues}
+            onChange={handleCostumeValuesChange}
+          />
           <button
             type="button"
             className="participate-btn primary"
