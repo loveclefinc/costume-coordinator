@@ -22,7 +22,7 @@
 }
 
 .app-toast.success {
-  background: #0d7a4a;
+  background: var(--success);
   color: #fff;
 }
 
@@ -114,7 +114,7 @@
 }
 
 .app-dialog-btn.primary {
-  background: var(--primary, #6366f1);
+  background: var(--primary);
   color: #fff;
 }
 

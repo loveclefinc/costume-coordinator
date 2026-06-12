@@ -43,7 +43,7 @@ export default defineConfig({
         name: 'Costume Coordinator',
         short_name: 'Costume Coord',
         description: 'Smart costume selection for group events',
-        theme_color: '#007AFF',
+        theme_color: '#B8727A',
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',

@@ -98,8 +98,8 @@
 }
 
 .notification-card.notified {
-  border-left-color: #007AFF;
-  background-color: rgba(0, 122, 255, 0.05);
+  border-left-color: var(--primary);
+  background-color: rgba(var(--primary-rgb), 0.05);
 }
 
 .notification-card.acknowledged {
@@ -153,7 +153,7 @@
 }
 
 .status-badge.notified {
-  background-color: #007AFF;
+  background-color: var(--primary);
   color: white;
 }
 
@@ -269,7 +269,7 @@
 .acknowledge-button:hover {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3);
 }
 
 .acknowledge-button:active {

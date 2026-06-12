@@ -3,9 +3,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, #007AFF 0%, #0056b3 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
   border-top: none;
-  box-shadow: 0 -4px 16px rgba(0, 122, 255, 0.2);
+  box-shadow: 0 -4px 16px rgba(var(--primary-rgb), 0.2);
   z-index: 1010;
   animation: slideUp 0.3s ease-out;
   max-height: 200px;
@@ -86,7 +86,7 @@
 
 .pwa-install-button.primary {
   background-color: white;
-  color: #007AFF;
+  color: var(--primary);
 }
 
 .pwa-install-button.primary:hover {

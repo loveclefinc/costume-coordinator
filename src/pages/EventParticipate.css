@@ -59,18 +59,18 @@
 }
 
 .participate-btn.primary {
-  background: var(--primary, #6366f1);
+  background: var(--primary);
   color: #fff;
 }
 
 .participate-btn.secondary {
   background: transparent;
-  color: var(--primary, #6366f1);
-  border: 1px solid var(--primary, #6366f1);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .participate-btn.secondary:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(var(--primary-rgb), 0.08);
 }
 
 .participate-btn:disabled {
@@ -106,7 +106,7 @@
 }
 
 .participate-joined {
-  color: var(--primary, #6366f1);
+  color: var(--primary);
 }
 
 .participate-success {

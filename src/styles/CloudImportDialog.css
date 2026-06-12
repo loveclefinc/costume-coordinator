@@ -142,7 +142,7 @@
 
 .provider-button:hover:not(:disabled) {
   border-color: var(--primary);
-  background-color: rgba(0, 122, 255, 0.05);
+  background-color: rgba(var(--primary-rgb), 0.05);
   transform: translateY(-2px);
 }
 
@@ -293,7 +293,7 @@
 }
 
 .file-item.selected {
-  background-color: rgba(0, 122, 255, 0.1);
+  background-color: rgba(var(--primary-rgb), 0.1);
 }
 
 .file-item input {
@@ -426,6 +426,6 @@
   }
 
   .file-item.selected {
-    background-color: rgba(0, 122, 255, 0.15);
+    background-color: rgba(var(--primary-rgb), 0.15);
   }
 }

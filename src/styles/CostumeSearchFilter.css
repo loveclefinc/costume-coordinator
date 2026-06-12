@@ -26,7 +26,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 .search-input::placeholder {
@@ -126,7 +126,7 @@
 }
 
 .filter-option:hover {
-  background-color: rgba(0, 122, 255, 0.05);
+  background-color: rgba(var(--primary-rgb), 0.05);
   border-color: var(--primary);
 }
 
@@ -247,7 +247,7 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .filter-option:hover {
-    background-color: rgba(0, 122, 255, 0.1);
+    background-color: rgba(var(--primary-rgb), 0.1);
   }
 
   .filter-color-option:hover {

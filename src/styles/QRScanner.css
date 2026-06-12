@@ -162,8 +162,8 @@
 
 .participant-name-input:focus {
   outline: none;
-  border-color: #007AFF;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 .button-group {
@@ -175,7 +175,7 @@
 .qr-scanner-confirm-button {
   flex: 1;
   min-width: 120px;
-  background: #007AFF;
+  background: var(--primary);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -187,7 +187,7 @@
 }
 
 .qr-scanner-confirm-button:hover {
-  background: #0056b3;
+  background: var(--primary-hover);
 }
 
 .qr-scanner-confirm-button:active {

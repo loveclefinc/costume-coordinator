@@ -10,8 +10,8 @@
 .event-costume-matcher-theme {
   padding: 0.85rem 1rem;
   border-radius: 10px;
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(var(--primary-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
   margin-bottom: 1rem;
 }
 
@@ -50,8 +50,8 @@
 }
 
 .event-costume-card--readonly {
-  border-color: var(--primary, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.12);
 }
 
 .event-costume-card-rank {
@@ -65,7 +65,7 @@
 }
 
 .event-costume-card-score {
-  color: var(--primary, #6366f1);
+  color: var(--primary);
 }
 
 .event-costume-card-image {

@@ -32,7 +32,7 @@
 }
 
 .add-button:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
   transform: translateY(-2px);
 }
 
@@ -62,7 +62,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 .empty-state {
@@ -89,7 +89,7 @@
 }
 
 .cta-link:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
   transform: translateY(-2px);
 }
 
@@ -212,7 +212,7 @@
 }
 
 .action-button.edit:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
 }
 
 .action-button.delete {

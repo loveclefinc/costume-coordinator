@@ -96,7 +96,7 @@
   font-size: 0.88rem;
   line-height: 1.5;
   background: rgba(13, 122, 74, 0.08);
-  border-left: 4px solid #0d7a4a;
+  border-left: 4px solid var(--success);
   border-radius: 8px;
 }
 
@@ -130,7 +130,7 @@
 }
 
 .invite-url-admin-copy.success {
-  border-color: #0d7a4a;
+  border-color: var(--success);
   background: rgba(13, 122, 74, 0.1);
 }
 
@@ -143,7 +143,7 @@
   font-size: 1.05rem;
   font-weight: 700;
   color: #fff;
-  background: #0d7a4a;
+  background: var(--success);
   cursor: pointer;
 }
 

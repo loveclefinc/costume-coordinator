@@ -56,7 +56,7 @@
 }
 
 .privacy-policy-content a {
-  color: var(--primary, #007aff);
+  color: var(--primary, var(--primary));
   text-decoration: underline;
 }
 

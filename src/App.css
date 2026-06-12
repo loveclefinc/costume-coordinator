@@ -1,24 +1,33 @@
 :root {
-  --primary: #007AFF;
-  --secondary: #5AC8FA;
-  --background: #ffffff;
-  --surface: #f5f5f5;
-  --text: #11181C;
-  --text-secondary: #687076;
-  --border: #e0e0e0;
-  --success: #34C759;
-  --warning: #FF9500;
-  --error: #FF3B30;
+  /* Dusty rose — chic, fashion-forward, gender-neutral */
+  --primary: #B8727A;
+  --primary-hover: #9E5A62;
+  --primary-rgb: 184, 114, 122;
+  --secondary: #A8988A;
+  --secondary-rgb: 168, 152, 138;
+  --background: #FDFBF9;
+  --surface: #F3EEEA;
+  --surface-alt: rgba(var(--primary-rgb), 0.06);
+  --text: #2C2825;
+  --text-secondary: #7A726C;
+  --border: #E5DDD6;
+  --success: #5A9A7A;
+  --warning: #C9955A;
+  --error: #C45C5C;
 }
 
 .dark {
-  --primary: #0a7ea4;
-  --secondary: #64B5F6;
-  --background: #151718;
-  --surface: #2a2a2a;
-  --text: #ECEDEE;
-  --text-secondary: #9BA1A6;
-  --border: #444444;
+  --primary: #D4959C;
+  --primary-hover: #E5ACB2;
+  --primary-rgb: 212, 149, 156;
+  --secondary: #C4B5A8;
+  --secondary-rgb: 196, 181, 168;
+  --background: #1A1816;
+  --surface: #2A2623;
+  --surface-alt: rgba(var(--primary-rgb), 0.1);
+  --text: #F5F0ED;
+  --text-secondary: #A89F98;
+  --border: #3D3834;
 }
 
 * {
