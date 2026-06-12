@@ -19,7 +19,7 @@ export const THEME_COLOR_NAMES = [
 export type ThemeColorName = (typeof THEME_COLOR_NAMES)[number]
 
 /** 各色名の代表 HEX（最近傍判定用） */
-const THEME_COLOR_REF_HEX: Record<ThemeColorName, string> = {
+export const THEME_COLOR_REF_HEX: Record<ThemeColorName, string> = {
   red: '#E53935',
   pink: '#EC407A',
   purple: '#8E24AA',
