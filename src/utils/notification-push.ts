@@ -3,6 +3,8 @@
  * Handles sending notifications to event creators and participants when proposals are completed
  */
 
+import { getAppIconUrl } from '../constants/app-brand'
+
 export interface NotificationPayload {
   title: string
   body: string
@@ -55,7 +57,7 @@ export function sendNotification(payload: NotificationPayload): void {
     try {
       new Notification(payload.title, {
         body: payload.body,
-        icon: payload.icon || '👗',
+        icon: payload.icon || getAppIconUrl(),
         badge: payload.badge,
         tag: payload.tag || 'costume-coordinator',
         requireInteraction: payload.requireInteraction || false,
@@ -81,7 +83,7 @@ export async function notifyProposalReady(options: PushNotificationOptions): Pro
   const payload: NotificationPayload = {
     title: '✨ 衣装提案が完成しました',
     body: `イベント「${options.eventName}」の衣装提案が${options.proposalCount}件完成しました。確認して参加者に通知してください。`,
-    icon: '👗',
+    icon: getAppIconUrl(),
     tag: `proposal-${options.eventId}`,
     requireInteraction: true,
     data: {
@@ -108,7 +110,7 @@ export async function notifyParticipantAssignment(options: PushNotificationOptio
   const payload: NotificationPayload = {
     title: '👗 あなたの衣装が決まりました',
     body: `イベント「${options.eventName}」であなたの衣装が決定されました。詳細を確認してください。`,
-    icon: '👗',
+    icon: getAppIconUrl(),
     tag: `assignment-${options.eventId}`,
     requireInteraction: false,
     data: {

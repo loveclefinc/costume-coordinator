@@ -36,7 +36,10 @@ function AppShell() {
   const isPublicPath = PUBLIC_PATHS.has(location.pathname)
   const isParticipatePath = /^\/events\/[^/]+\/participate$/.test(location.pathname)
 
-  const showMainNav = onboardingDone && !isOAuthCallback && !isWelcome
+  const showFullNav = onboardingDone && !isOAuthCallback && !isWelcome
+  const showLogoNav =
+    !isOAuthCallback && !showFullNav && (isPublicPath || isWelcome || isParticipatePath)
+  const hasTopNav = showFullNav || showLogoNav
 
   if (!onboardingDone && !isOAuthCallback && !isPublicPath && !isParticipatePath) {
     return <Navigate to="/welcome" replace />
@@ -44,8 +47,9 @@ function AppShell() {
 
   return (
     <>
-      {showMainNav && <Navigation />}
-      <main className={showMainNav ? 'main-content' : 'main-content main-content-full'}>
+      {showFullNav && <Navigation />}
+      {showLogoNav && <Navigation logoOnly />}
+      <main className={hasTopNav ? 'main-content' : 'main-content main-content-full'}>
         <Routes>
           <Route path="/welcome" element={<Onboarding />} />
           <Route path="/join" element={<JoinEvent />} />

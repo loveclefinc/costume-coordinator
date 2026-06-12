@@ -1,0 +1,15 @@
+.app-icon {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 22%;
+}
+
+.app-icon--sm {
+  border-radius: 18%;
+}
+
+.app-icon--md,
+.app-icon--lg {
+  border-radius: 22%;
+}

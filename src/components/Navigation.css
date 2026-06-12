@@ -23,11 +23,40 @@
 }
 
 .nav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
   text-decoration: none;
+  min-width: 0;
+}
+
+.nav-logo-mark {
+  width: 32px;
+  height: 32px;
+}
+
+.nav-logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.nav-logo-primary {
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nav-logo-secondary {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .nav-menu {

@@ -6,6 +6,7 @@ import {
   markOnboardingOAuthPending,
 } from '../utils/onboarding'
 import PublicLegalFooter from '../components/PublicLegalFooter'
+import AppIcon from '../components/AppIcon'
 import { APP_DISPLAY_NAME } from '../constants/app-brand'
 import './Login.css'
 import './Onboarding.css'
@@ -14,7 +15,7 @@ const STEPS = [
   {
     title: `${APP_DISPLAY_NAME} へようこそ`,
     body: 'コンサートや舞台など、複数人での出演時に、衣装の色・柄・トーンのバランスを整えるお手伝いをします。',
-    icon: '👗',
+    useAppIcon: true,
   },
   {
     title: 'できること',
@@ -85,7 +86,11 @@ export default function Onboarding() {
 
         <div className="login-container onboarding-card">
           <div className="login-header">
-            <span className="onboarding-step-icon">{current.icon}</span>
+            {'useAppIcon' in current && current.useAppIcon ? (
+              <AppIcon size="lg" className="onboarding-app-icon" />
+            ) : (
+              <span className="onboarding-step-icon">{'icon' in current ? current.icon : ''}</span>
+            )}
             <h1>{current.title}</h1>
             <p>{current.body}</p>
           </div>

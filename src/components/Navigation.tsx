@@ -2,9 +2,16 @@ import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useCloudSync } from '../hooks/useCloudSync'
 import { useAppUi } from '../contexts/AppUiContext'
+import { APP_DISPLAY_NAME, APP_DISPLAY_NAME_JA } from '../constants/app-brand'
+import AppIcon from './AppIcon'
 import './Navigation.css'
 
-export default function Navigation() {
+type NavigationProps = {
+  /** 初回・オンボーディング前はロゴのみ表示 */
+  logoOnly?: boolean
+}
+
+export default function Navigation({ logoOnly = false }: NavigationProps) {
   const location = useLocation()
   const { status, logout } = useCloudSync()
   const { confirm } = useAppUi()
@@ -36,24 +43,35 @@ export default function Navigation() {
   return (
     <nav className="navigation" aria-label="メインナビゲーション">
       <div className="nav-container">
-        <Link to="/" className="nav-logo" onClick={() => setMenuOpen(false)}>
-          👗 Costume Coordinator
+        <Link
+          to="/"
+          className="nav-logo"
+          onClick={() => setMenuOpen(false)}
+          title={APP_DISPLAY_NAME}
+        >
+          <AppIcon size="sm" className="nav-logo-mark" />
+          <span className="nav-logo-text">
+            <span className="nav-logo-primary">{APP_DISPLAY_NAME_JA}</span>
+            <span className="nav-logo-secondary">{APP_DISPLAY_NAME}</span>
+          </span>
         </Link>
 
-        <button
-          type="button"
-          className={`nav-toggle${menuOpen ? ' nav-toggle--open' : ''}`}
-          aria-label={menuOpen ? 'メニューを閉じる' : 'メニューを開く'}
-          aria-expanded={menuOpen}
-          aria-controls="nav-menu"
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span className="nav-toggle-bar" aria-hidden="true" />
-          <span className="nav-toggle-bar" aria-hidden="true" />
-          <span className="nav-toggle-bar" aria-hidden="true" />
-        </button>
+        {!logoOnly && (
+          <button
+            type="button"
+            className={`nav-toggle${menuOpen ? ' nav-toggle--open' : ''}`}
+            aria-label={menuOpen ? 'メニューを閉じる' : 'メニューを開く'}
+            aria-expanded={menuOpen}
+            aria-controls="nav-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span className="nav-toggle-bar" aria-hidden="true" />
+            <span className="nav-toggle-bar" aria-hidden="true" />
+            <span className="nav-toggle-bar" aria-hidden="true" />
+          </button>
+        )}
 
-        {menuOpen && (
+        {!logoOnly && menuOpen && (
           <button
             type="button"
             className="nav-backdrop"
@@ -62,6 +80,7 @@ export default function Navigation() {
           />
         )}
 
+        {!logoOnly && (
         <ul
           id="nav-menu"
           className={`nav-menu${menuOpen ? ' nav-menu--open' : ''}`}
@@ -127,6 +146,7 @@ export default function Navigation() {
             </li>
           )}
         </ul>
+        )}
       </div>
     </nav>
   )

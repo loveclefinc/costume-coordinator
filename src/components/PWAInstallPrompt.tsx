@@ -23,6 +23,29 @@ function isStandaloneApp(): boolean {
   )
 }
 
+function isIOSDevice(): boolean {
+  const ua = navigator.userAgent
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+}
+
+/** タッチ主体のモバイル端末のみ（Mac/Windows のデスクトップ Chrome は除外） */
+function isMobileDevice(): boolean {
+  if (isIOSDevice()) return true
+
+  if (/Android/i.test(navigator.userAgent)) return true
+
+  if (typeof window.matchMedia === 'function') {
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    const noHover = window.matchMedia('(hover: none)').matches
+    if (coarsePointer && noHover) return true
+  }
+
+  return false
+}
+
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
@@ -31,8 +54,9 @@ export default function PWAInstallPrompt() {
   const [standalone, setStandalone] = useState(isStandaloneApp)
 
   useEffect(() => {
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    setIsIOS(isIOSDevice)
+    if (!isMobileDevice()) return
+
+    setIsIOS(isIOSDevice())
     setStandalone(isStandaloneApp())
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -77,7 +101,7 @@ export default function PWAInstallPrompt() {
     }
   }
 
-  if (dismissed || standalone) {
+  if (!isMobileDevice() || dismissed || standalone) {
     return null
   }
 
@@ -111,7 +135,7 @@ export default function PWAInstallPrompt() {
     )
   }
 
-  // Show Android/Desktop installation prompt
+  // Show Android installation prompt
   if (showPrompt && deferredPrompt) {
     return (
       <div className="pwa-install-prompt android-prompt">
