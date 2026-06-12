@@ -1,33 +1,33 @@
 :root {
-  /* Dusty rose — chic, fashion-forward, gender-neutral */
-  --primary: #B8727A;
-  --primary-hover: #9E5A62;
-  --primary-rgb: 184, 114, 122;
-  --secondary: #A8988A;
-  --secondary-rgb: 168, 152, 138;
-  --background: #FDFBF9;
-  --surface: #F3EEEA;
-  --surface-alt: rgba(var(--primary-rgb), 0.06);
-  --text: #2C2825;
-  --text-secondary: #7A726C;
-  --border: #E5DDD6;
-  --success: #5A9A7A;
-  --warning: #C9955A;
-  --error: #C45C5C;
+  /* Warm coral — bright, positive, uplifting */
+  --primary: #F06E7A;
+  --primary-hover: #E05565;
+  --primary-rgb: 240, 110, 122;
+  --secondary: #FF9F6B;
+  --secondary-rgb: 255, 159, 107;
+  --background: #FFFCFA;
+  --surface: #FFF0EB;
+  --surface-alt: rgba(var(--primary-rgb), 0.08);
+  --text: #2A2420;
+  --text-secondary: #6B635C;
+  --border: #F0D8D0;
+  --success: #42B883;
+  --warning: #F5A623;
+  --error: #E85555;
 }
 
 .dark {
-  --primary: #D4959C;
-  --primary-hover: #E5ACB2;
-  --primary-rgb: 212, 149, 156;
-  --secondary: #C4B5A8;
-  --secondary-rgb: 196, 181, 168;
-  --background: #1A1816;
-  --surface: #2A2623;
-  --surface-alt: rgba(var(--primary-rgb), 0.1);
-  --text: #F5F0ED;
-  --text-secondary: #A89F98;
-  --border: #3D3834;
+  --primary: #FF8A96;
+  --primary-hover: #FFA5AE;
+  --primary-rgb: 255, 138, 150;
+  --secondary: #FFBE8A;
+  --secondary-rgb: 255, 190, 138;
+  --background: #1E1816;
+  --surface: #2D2424;
+  --surface-alt: rgba(var(--primary-rgb), 0.12);
+  --text: #FFF5F2;
+  --text-secondary: #C4B5AE;
+  --border: #453A38;
 }
 
 * {

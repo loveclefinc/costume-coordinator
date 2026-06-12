@@ -151,7 +151,7 @@ function NotificationCard({
 }: NotificationCardProps) {
   const statusColor = {
     pending: '#FF9500',
-    notified: '#B8727A',
+    notified: '#F06E7A',
     acknowledged: '#34C759',
   }
 
