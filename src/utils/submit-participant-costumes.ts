@@ -35,6 +35,7 @@ export async function submitPickedCostumesIdempotent(
 ): Promise<number> {
   let status = await deps.fetchStatus(eventId, participantToken)
   let processed = 0
+  const serverCostumes = status.costumes ?? []
 
   for (const match of picked) {
     const costume = match.costume
@@ -46,7 +47,7 @@ export async function submitPickedCostumesIdempotent(
     }
 
     const name = costume.name.trim()
-    let serverCostume = findServerCostumeByName(status.costumes, name)
+    let serverCostume = findServerCostumeByName(serverCostumes, name)
 
     if (!serverCostume) {
       if (status.costumeCount >= limits.maxCostumesPerParticipant) {
@@ -80,8 +81,9 @@ export async function submitPickedCostumesIdempotent(
       status = {
         ...status,
         costumeCount: status.costumeCount + 1,
-        costumes: [...status.costumes, serverCostume],
+        costumes: [...serverCostumes, serverCostume],
       }
+      serverCostumes.push(serverCostume)
     }
 
     if (serverCostume.photoCount > 0) {
@@ -102,7 +104,7 @@ export async function submitPickedCostumesIdempotent(
     status = {
       ...status,
       photoCount: status.photoCount + 1,
-      costumes: status.costumes.map((entry) =>
+      costumes: serverCostumes.map((entry) =>
         entry.id === serverCostume!.id ? { ...entry, photoCount: 1 } : entry,
       ),
     }

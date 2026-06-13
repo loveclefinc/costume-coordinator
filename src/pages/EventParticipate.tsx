@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import {
-  autoPickCostumesForEventTheme,
-  type CostumeThemeMatch,
-} from '../utils/costume-theme-match'
+import { autoPickCostumesForParticipation } from '../utils/participate-costume-pick'
+import type { CostumeThemeMatch } from '../utils/costume-theme-match'
 import { dataUrlToBlob } from '../utils/image-blob'
 import EventCostumeMatcher from '../components/EventCostumeMatcher'
 import {
@@ -58,7 +56,7 @@ export default function EventParticipate() {
   const autoSubmitStarted = useRef(false)
   const submitInFlightRef = useRef(false)
 
-  const { costumes, loading: costumesLoading } = useCostumes()
+  const { costumes, loading: costumesLoading, reloadCostumes } = useCostumes()
   const { toast } = useAppUi()
   const session = eventId ? getEventSession(eventId) : undefined
   const inviteToken = inviteFromUrl || session?.inviteToken || ''
@@ -133,6 +131,10 @@ export default function EventParticipate() {
   }, [eventId, inviteToken])
 
   useEffect(() => {
+    void reloadCostumes()
+  }, [reloadCostumes])
+
+  useEffect(() => {
     if (!isEventServerEnabled()) {
       setError('このサイトはオンライン提出 API が未設定です（VITE_EVENT_API_URL）')
       setLoading(false)
@@ -155,47 +157,57 @@ export default function EventParticipate() {
     }
   }, [])
 
-  const runAutoPickAndSubmit = useCallback(async () => {
+  useEffect(() => {
+    if (!joined || !wardrobeReady) return
+    if (submitPhase === 'submitting' || submitPhase === 'done') return
+
+    if (costumes.length === 0) {
+      setPickedMatches([])
+      return
+    }
+
+    const recentUsageExcludeDays = getRecentUsageExcludeDays()
+    const picked = autoPickCostumesForParticipation(
+      costumes,
+      eventInfo?.themePreferences,
+      usageHistory,
+      limits.maxCostumesPerParticipant,
+      recentUsageExcludeDays,
+    )
+    setPickedMatches(picked)
+  }, [
+    joined,
+    wardrobeReady,
+    submitPhase,
+    costumes,
+    eventInfo?.themePreferences,
+    usageHistory,
+    limits.maxCostumesPerParticipant,
+  ])
+
+  const runSubmitPicked = useCallback(async () => {
     if (!eventId || !participantToken || !wardrobeReady) return
     if (submitInFlightRef.current) return
-    if (autoSubmitStarted.current) return
+    if (pickedMatches.length === 0) {
+      setSubmitPhase('error')
+      setError(
+        costumes.length === 0
+          ? ''
+          : 'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
+      )
+      return
+    }
 
     submitInFlightRef.current = true
     autoSubmitStarted.current = true
-    setSubmitPhase('picking')
+    setSubmitPhase('submitting')
     setError('')
 
     try {
-      const recentUsageExcludeDays = getRecentUsageExcludeDays()
-      const picked = autoPickCostumesForEventTheme(
-        costumes,
-        eventInfo?.themePreferences,
-        usageHistory,
-        limits.maxCostumesPerParticipant,
-        undefined,
-        recentUsageExcludeDays,
-      )
-
-      setPickedMatches(picked)
-
-      if (picked.length === 0) {
-        setSubmitPhase('error')
-        autoSubmitStarted.current = false
-        if (costumes.length === 0) {
-          setError('')
-        } else {
-          setError(
-            'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
-          )
-        }
-        return
-      }
-
-      setSubmitPhase('submitting')
       const count = await submitPickedCostumesIdempotent(
         eventId,
         participantToken,
-        picked,
+        pickedMatches,
         limits,
         {
           fetchStatus: fetchParticipantSubmissionStatus,
@@ -207,7 +219,7 @@ export default function EventParticipate() {
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
       const participantName = getEventSession(eventId)?.displayName ?? displayName
-      const primary = picked[0]
+      const primary = pickedMatches[0]
       if (primary && participantName.trim()) {
         try {
           await recordSingleCostumeUsage(
@@ -219,7 +231,7 @@ export default function EventParticipate() {
           /* 使用履歴は任意 */
         }
       }
-      const names = picked.map((entry) => entry.costume.name).join('、')
+      const names = pickedMatches.map((entry) => entry.costume.name).join('、')
       toast(
         `候補 ${count} 件を提出しました（${names}）。全員提出後にシステムが組み合わせを自動決定します。`,
         'success',
@@ -235,34 +247,11 @@ export default function EventParticipate() {
     eventId,
     participantToken,
     wardrobeReady,
-    costumes,
-    eventInfo?.themePreferences,
-    usageHistory,
+    pickedMatches,
+    costumes.length,
     limits,
     displayName,
     toast,
-  ])
-
-  useEffect(() => {
-    if (submitPhase !== 'done' || pickedMatches.length > 0 || !wardrobeReady) return
-    const recentUsageExcludeDays = getRecentUsageExcludeDays()
-    const picked = autoPickCostumesForEventTheme(
-      costumes,
-      eventInfo?.themePreferences,
-      usageHistory,
-      limits.maxCostumesPerParticipant,
-      undefined,
-      recentUsageExcludeDays,
-    )
-    setPickedMatches(picked)
-  }, [
-    submitPhase,
-    pickedMatches.length,
-    wardrobeReady,
-    costumes,
-    eventInfo?.themePreferences,
-    usageHistory,
-    limits.maxCostumesPerParticipant,
   ])
 
   useEffect(() => {
@@ -277,8 +266,16 @@ export default function EventParticipate() {
     ) {
       return
     }
-    void runAutoPickAndSubmit()
-  }, [joined, participantToken, wardrobeReady, submitPhase, runAutoPickAndSubmit])
+    if (pickedMatches.length === 0) return
+    void runSubmitPicked()
+  }, [
+    joined,
+    participantToken,
+    wardrobeReady,
+    submitPhase,
+    pickedMatches.length,
+    runSubmitPicked,
+  ])
 
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
@@ -301,6 +298,7 @@ export default function EventParticipate() {
       }
       setJoined(true)
       autoSubmitStarted.current = false
+      setSubmitPhase('idle')
       toast(`${res.displayName} さんとして参加しました。衣装を自動選出して提出します。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '参加に失敗しました')
@@ -327,15 +325,15 @@ export default function EventParticipate() {
     autoSubmitStarted.current = false
     setSubmitPhase('idle')
     setError('')
-    void runAutoPickAndSubmit()
+    void runSubmitPicked()
   }
 
   const matcherStatus = useMemo(() => {
     if (submitPhase === 'done') return 'done' as const
     if (submitPhase === 'submitting') return 'submitting' as const
-    if (submitPhase === 'picking') return 'picking' as const
+    if (submitPhase === 'picking' || (!wardrobeReady && joined)) return 'picking' as const
     return 'idle' as const
-  }, [submitPhase])
+  }, [submitPhase, wardrobeReady, joined])
 
   if (loading) {
     return (
@@ -414,7 +412,7 @@ export default function EventParticipate() {
             picked={pickedMatches}
             theme={eventInfo?.themePreferences}
             wardrobeCount={wardrobeReady ? costumes.length : undefined}
-            costumesLoading={!wardrobeReady && submitPhase !== 'done'}
+            costumesLoading={!wardrobeReady}
             status={matcherStatus}
           />
 
