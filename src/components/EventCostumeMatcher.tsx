@@ -8,6 +8,7 @@ import './EventCostumeMatcher.css'
 interface EventCostumeMatcherProps {
   picked: CostumeThemeMatch[]
   theme?: EventThemePreferencesPayload
+  wardrobeCount?: number
   costumesLoading?: boolean
   status?: 'idle' | 'picking' | 'submitting' | 'done'
 }
@@ -15,6 +16,7 @@ interface EventCostumeMatcherProps {
 export default function EventCostumeMatcher({
   picked,
   theme,
+  wardrobeCount,
   costumesLoading = false,
   status = 'idle',
 }: EventCostumeMatcherProps) {
@@ -27,6 +29,19 @@ export default function EventCostumeMatcher({
   }
 
   if (picked.length === 0) {
+    if (wardrobeCount != null && wardrobeCount > 0) {
+      return (
+        <div className="event-costume-matcher-empty">
+          <p>登録衣装 {wardrobeCount} 件のうち、提出できる候補がありません。</p>
+          <p>
+            テーマ設定や使用履歴の除外期間を確認してください。条件を緩めるか、別の衣装を
+            <Link to="/costumes/add"> 登録 </Link>
+            してから再試行してください。
+          </p>
+        </div>
+      )
+    }
+
     return (
       <div className="event-costume-matcher-empty">
         <p>登録されている衣装がありません。</p>

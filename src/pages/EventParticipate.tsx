@@ -233,6 +233,13 @@ export default function EventParticipate() {
     if (picked.length === 0) {
       setSubmitPhase('error')
       autoSubmitStarted.current = false
+      if (costumes.length === 0) {
+        setError('')
+      } else {
+        setError(
+          'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
+        )
+      }
       return
     }
 
@@ -310,7 +317,6 @@ export default function EventParticipate() {
     ) {
       return
     }
-    autoSubmitStarted.current = true
     void runAutoPickAndSubmit()
   }, [joined, participantToken, wardrobeReady, submitPhase, runAutoPickAndSubmit])
 
@@ -447,9 +453,20 @@ export default function EventParticipate() {
           <EventCostumeMatcher
             picked={pickedMatches}
             theme={eventInfo?.themePreferences}
+            wardrobeCount={wardrobeReady ? costumes.length : undefined}
             costumesLoading={!wardrobeReady && submitPhase !== 'done'}
             status={matcherStatus}
           />
+
+          {submitPhase === 'error' && pickedMatches.length === 0 && costumes.length > 0 && (
+            <button
+              type="button"
+              className="participate-btn primary"
+              onClick={handleRetrySubmit}
+            >
+              提出を再試行
+            </button>
+          )}
 
           {submitPhase === 'error' && pickedMatches.length > 0 && (
             <button
