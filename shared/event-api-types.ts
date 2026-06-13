@@ -4,8 +4,10 @@ import type { UploadLimits } from './upload-limits'
 
 export type RetentionDays = 7 | 14
 
+export type ColorUnificationPolicy = 'unified' | 'varied' | 'varied_distinct'
+
 export interface EventThemePreferencesPayload {
-  colorUnification: 'unified' | 'varied'
+  colorUnification: ColorUnificationPolicy
   colors1stChoice: string[]
   colors2ndChoice: string[]
   colors3rdChoice: string[]
@@ -15,8 +17,16 @@ export interface EventThemePreferencesPayload {
   patterns1stChoice: string[]
   patterns2ndChoice: string[]
   patterns3rdChoice: string[]
+  silhouettes1stChoice: string[]
+  silhouettes2ndChoice: string[]
+  silhouettes3rdChoice: string[]
+  suitStyles1stChoice: string[]
+  suitStyles2ndChoice: string[]
+  suitStyles3rdChoice: string[]
+  suitBreasting1stChoice: string[]
+  suitBreasting2ndChoice: string[]
+  suitBreasting3rdChoice: string[]
   avoidSimilarColors: boolean
-  recentUsageExcludeDays: number
 }
 
 export interface CreateEventRequest {
@@ -58,6 +68,9 @@ export interface ServerCostume {
   pattern: string
   season: string[]
   type?: string
+  silhouette?: string
+  suitStyle?: string
+  suitBreasting?: string
   preferences: string[]
   photos: ServerPhoto[]
   createdAt: number
@@ -121,6 +134,9 @@ export interface CreateCostumeRequest {
   pattern: string
   season?: string[]
   type?: string
+  silhouette?: string
+  suitStyle?: string
+  suitBreasting?: string
   preferences?: string[]
 }
 

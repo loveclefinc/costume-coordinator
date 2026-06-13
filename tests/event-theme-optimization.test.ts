@@ -66,8 +66,16 @@ describe('Event Theme Optimization', () => {
       patterns1stChoice: ['plain'],
       patterns2ndChoice: ['stripe'],
       patterns3rdChoice: ['floral'],
+      silhouettes1stChoice: [],
+      silhouettes2ndChoice: [],
+      silhouettes3rdChoice: [],
+      suitStyles1stChoice: [],
+      suitStyles2ndChoice: [],
+      suitStyles3rdChoice: [],
+  suitBreasting1stChoice: [],
+  suitBreasting2ndChoice: [],
+  suitBreasting3rdChoice: [],
       avoidSimilarColors: false,
-      recentUsageExcludeDays: 30,
     }
 
     mockUsageHistory = []
@@ -183,67 +191,52 @@ describe('Event Theme Optimization', () => {
   })
 
   describe('Usage History', () => {
-    it('should consider usage history in scoring', () => {
+    it('should exclude recently used costumes from assignment', () => {
       const recentUsage: UsageHistory[] = [
         {
           id: 'usage1',
           costumeId: 'costume1',
           eventId: 'event1',
           participantName: 'Alice',
-          usedAt: Date.now() - 5 * 24 * 60 * 60 * 1000, // 5 days ago
+          usedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
         },
       ]
 
-      const participants = [
-        { id: 'p1', name: 'Alice', preferences: [] },
-        { id: 'p2', name: 'Bob', preferences: [] },
-      ]
-
-      const resultWithUsage = optimizeCostumeAssignments({
-        participants,
-        costumes: mockCostumes,
-        usageHistory: recentUsage,
-        themePreferences: mockThemePreferences,
-      })
-
-      const resultWithoutUsage = optimizeCostumeAssignments({
-        participants,
-        costumes: mockCostumes,
-        usageHistory: [],
-        themePreferences: mockThemePreferences,
-      })
-
-      // Both should return valid results
-      expect(resultWithUsage.assignments.length).toBe(2)
-      expect(resultWithoutUsage.assignments.length).toBe(2)
-    })
-
-    it('should respect recentUsageExcludeDays setting', () => {
-      const recentUsage: UsageHistory[] = [
-        {
-          id: 'usage1',
-          costumeId: 'costume1',
-          eventId: 'event1',
-          participantName: 'Alice',
-          usedAt: Date.now() - 35 * 24 * 60 * 60 * 1000, // 35 days ago
-        },
-      ]
-
-      const prefs = { ...mockThemePreferences, recentUsageExcludeDays: 30 }
-
-      const participants = [
-        { id: 'p1', name: 'Alice', preferences: [] },
-      ]
+      const participants = [{ id: 'p1', name: 'Alice', preferences: [] }]
 
       const result = optimizeCostumeAssignments({
         participants,
         costumes: mockCostumes,
         usageHistory: recentUsage,
-        themePreferences: prefs,
+        themePreferences: mockThemePreferences,
+        recentUsageExcludeDays: 30,
       })
 
-      // costume1 should be available since it was used 35 days ago and exclude is 30 days
-      expect(result.assignments).toBeDefined()
+      expect(result.assignments[0].costumeId).not.toBe('costume1')
+    })
+
+    it('should respect recentUsageExcludeDays from app settings input', () => {
+      const recentUsage: UsageHistory[] = [
+        {
+          id: 'usage1',
+          costumeId: 'costume1',
+          eventId: 'event1',
+          participantName: 'Alice',
+          usedAt: Date.now() - 35 * 24 * 60 * 60 * 1000,
+        },
+      ]
+
+      const participants = [{ id: 'p1', name: 'Alice', preferences: [] }]
+
+      const result = optimizeCostumeAssignments({
+        participants,
+        costumes: mockCostumes,
+        usageHistory: recentUsage,
+        themePreferences: mockThemePreferences,
+        recentUsageExcludeDays: 30,
+      })
+
+      expect(result.assignments[0].costumeId).toBe('costume1')
     })
   })
 

@@ -1,6 +1,19 @@
 import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
 import type { ColorAnalysisResult } from './image-analysis'
 import { hexToThemeColorName, THEME_COLOR_REF_HEX, type ThemeColorName } from './theme-colors'
+import {
+  COLOR_UNIFICATION_LABELS,
+  migrateColorUnificationPolicy,
+} from './theme-color-policy'
+import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from './silhouette'
+import {
+  SUIT_BREASTING_LABELS,
+  SUIT_BREASTING_OPTIONS,
+  SUIT_STYLE_LABELS,
+  SUIT_STYLE_OPTIONS,
+} from './suit-attributes'
+
+export { SILHOUETTE_LABELS }
 
 export const THEME_COLOR_OPTIONS = [
   'red', 'pink', 'purple', 'blue', 'cyan', 'green',
@@ -12,6 +25,10 @@ export const THEME_TONE_OPTIONS = ['pastel', 'vivid', 'dark', 'neutral'] as cons
 export const THEME_PATTERN_OPTIONS = [
   'plain', 'floral', 'stripe', 'dot', 'check', 'geometric', 'animal',
 ] as const
+
+export const THEME_SILHOUETTE_OPTIONS = DRESS_SILHOUETTE_OPTIONS
+export const THEME_SUIT_STYLE_OPTIONS = SUIT_STYLE_OPTIONS
+export const THEME_SUIT_BREASTING_OPTIONS = SUIT_BREASTING_OPTIONS
 
 export const COLOR_LABELS: Record<string, string> = {
   red: '赤',
@@ -49,6 +66,9 @@ export interface ThemeChoiceSets {
   colors: string[]
   tones: string[]
   patterns: string[]
+  silhouettes: string[]
+  suitStyles: string[]
+  suitBreasting: string[]
 }
 
 export interface ThemeGuidedDefaults {
@@ -63,14 +83,14 @@ function uniqueList(values: string[]): string[] {
 
 function unionRankChoices(
   theme: EventThemePreferencesPayload | undefined,
-  key: 'colors' | 'tones' | 'patterns',
+  key: 'colors' | 'tones' | 'patterns' | 'silhouettes' | 'suitStyles' | 'suitBreasting',
 ): string[] {
   if (!theme) return []
-  const suffix = key === 'colors' ? 'Choice' : 'Choice'
+  const suffix = 'Choice'
   return uniqueList([
-    ...theme[`${key}1st${suffix}` as keyof EventThemePreferencesPayload] as string[],
-    ...theme[`${key}2nd${suffix}` as keyof EventThemePreferencesPayload] as string[],
-    ...theme[`${key}3rd${suffix}` as keyof EventThemePreferencesPayload] as string[],
+    ...((theme[`${key}1st${suffix}` as keyof EventThemePreferencesPayload] as string[] | undefined) ?? []),
+    ...((theme[`${key}2nd${suffix}` as keyof EventThemePreferencesPayload] as string[] | undefined) ?? []),
+    ...((theme[`${key}3rd${suffix}` as keyof EventThemePreferencesPayload] as string[] | undefined) ?? []),
   ])
 }
 
@@ -81,11 +101,17 @@ export function getAllowedThemeChoices(
   const colors = unionRankChoices(theme, 'colors')
   const tones = unionRankChoices(theme, 'tones')
   const patterns = unionRankChoices(theme, 'patterns')
+  const silhouettes = unionRankChoices(theme, 'silhouettes')
+  const suitStyles = unionRankChoices(theme, 'suitStyles')
+  const suitBreasting = unionRankChoices(theme, 'suitBreasting')
 
   return {
     colors: colors.length > 0 ? colors : [...THEME_COLOR_OPTIONS],
     tones: tones.length > 0 ? tones : [...THEME_TONE_OPTIONS],
     patterns: patterns.length > 0 ? patterns : [...THEME_PATTERN_OPTIONS],
+    silhouettes: silhouettes.length > 0 ? silhouettes : [...THEME_SILHOUETTE_OPTIONS],
+    suitStyles: suitStyles.length > 0 ? suitStyles : [...THEME_SUIT_STYLE_OPTIONS],
+    suitBreasting: suitBreasting.length > 0 ? suitBreasting : [...THEME_SUIT_BREASTING_OPTIONS],
   }
 }
 
@@ -186,22 +212,36 @@ export function hasThemePreferences(theme?: EventThemePreferencesPayload): boole
     theme.tones3rdChoice.length > 0 ||
     theme.patterns1stChoice.length > 0 ||
     theme.patterns2ndChoice.length > 0 ||
-    theme.patterns3rdChoice.length > 0
+    theme.patterns3rdChoice.length > 0 ||
+    (theme.silhouettes1stChoice?.length ?? 0) > 0 ||
+    (theme.silhouettes2ndChoice?.length ?? 0) > 0 ||
+    (theme.silhouettes3rdChoice?.length ?? 0) > 0 ||
+    (theme.suitStyles1stChoice?.length ?? 0) > 0 ||
+    (theme.suitStyles2ndChoice?.length ?? 0) > 0 ||
+    (theme.suitStyles3rdChoice?.length ?? 0) > 0 ||
+    (theme.suitBreasting1stChoice?.length ?? 0) > 0 ||
+    (theme.suitBreasting2ndChoice?.length ?? 0) > 0 ||
+    (theme.suitBreasting3rdChoice?.length ?? 0) > 0
   )
 }
 
+export {
+  COLOR_UNIFICATION_LABELS,
+  COLOR_UNIFICATION_HINTS,
+  effectiveAvoidSimilarColors,
+  migrateColorUnificationPolicy,
+  normalizeThemeColorPolicy,
+} from './theme-color-policy'
+
 export function formatThemeSummary(theme: EventThemePreferencesPayload): string[] {
   const lines: string[] = []
-  if (theme.colorUnification === 'unified') {
-    lines.push('色味: 同じ色系で統一')
-  } else {
-    lines.push('色味: 異なる色をバラして配置')
-  }
+  const policy = migrateColorUnificationPolicy(theme.colorUnification, theme.avoidSimilarColors)
+  lines.push(`色味: ${COLOR_UNIFICATION_LABELS[policy]}`)
 
   const ranks = [
-    { label: '第1希望', colors: theme.colors1stChoice, tones: theme.tones1stChoice, patterns: theme.patterns1stChoice },
-    { label: '第2希望', colors: theme.colors2ndChoice, tones: theme.tones2ndChoice, patterns: theme.patterns2ndChoice },
-    { label: '第3希望', colors: theme.colors3rdChoice, tones: theme.tones3rdChoice, patterns: theme.patterns3rdChoice },
+    { label: '第1希望', colors: theme.colors1stChoice, tones: theme.tones1stChoice, patterns: theme.patterns1stChoice, silhouettes: theme.silhouettes1stChoice ?? [], suitStyles: theme.suitStyles1stChoice ?? [], suitBreasting: theme.suitBreasting1stChoice ?? [] },
+    { label: '第2希望', colors: theme.colors2ndChoice, tones: theme.tones2ndChoice, patterns: theme.patterns2ndChoice, silhouettes: theme.silhouettes2ndChoice ?? [], suitStyles: theme.suitStyles2ndChoice ?? [], suitBreasting: theme.suitBreasting2ndChoice ?? [] },
+    { label: '第3希望', colors: theme.colors3rdChoice, tones: theme.tones3rdChoice, patterns: theme.patterns3rdChoice, silhouettes: theme.silhouettes3rdChoice ?? [], suitStyles: theme.suitStyles3rdChoice ?? [], suitBreasting: theme.suitBreasting3rdChoice ?? [] },
   ]
 
   for (const rank of ranks) {
@@ -214,6 +254,15 @@ export function formatThemeSummary(theme: EventThemePreferencesPayload): string[
     }
     if (rank.patterns.length > 0) {
       parts.push(`柄: ${rank.patterns.map((p) => PATTERN_LABELS[p] ?? p).join('・')}`)
+    }
+    if (rank.silhouettes.length > 0) {
+      parts.push(`シルエット: ${rank.silhouettes.map((s) => SILHOUETTE_LABELS[s as keyof typeof SILHOUETTE_LABELS] ?? s).join('・')}`)
+    }
+    if (rank.suitStyles.length > 0) {
+      parts.push(`スーツ形式: ${rank.suitStyles.map((s) => SUIT_STYLE_LABELS[s as keyof typeof SUIT_STYLE_LABELS] ?? s).join('・')}`)
+    }
+    if (rank.suitBreasting.length > 0) {
+      parts.push(`前釦: ${rank.suitBreasting.map((p) => SUIT_BREASTING_LABELS[p as keyof typeof SUIT_BREASTING_LABELS] ?? p).join('・')}`)
     }
     if (parts.length > 0) lines.push(`${rank.label}: ${parts.join(' / ')}`)
   }

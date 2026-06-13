@@ -17,6 +17,19 @@ import { deleteServerEvent, EventApiError } from '../event-server/client'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
+import {
+  COLOR_UNIFICATION_HINTS,
+  COLOR_UNIFICATION_LABELS,
+  migrateColorUnificationPolicy,
+  normalizeThemeColorPolicy,
+} from '../utils/theme-color-policy'
+import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
+import {
+  SUIT_BREASTING_LABELS,
+  SUIT_BREASTING_OPTIONS,
+  SUIT_STYLE_LABELS,
+  SUIT_STYLE_OPTIONS,
+} from '../utils/suit-attributes'
 import './Events.css'
 
 // Color options for theme preferences
@@ -63,8 +76,16 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
   patterns1stChoice: [],
   patterns2ndChoice: [],
   patterns3rdChoice: [],
+  silhouettes1stChoice: [],
+  silhouettes2ndChoice: [],
+  silhouettes3rdChoice: [],
+  suitStyles1stChoice: [],
+  suitStyles2ndChoice: [],
+  suitStyles3rdChoice: [],
+  suitBreasting1stChoice: [],
+  suitBreasting2ndChoice: [],
+  suitBreasting3rdChoice: [],
   avoidSimilarColors: false,
-  recentUsageExcludeDays: 30,
 }
 
 export default function Events() {
@@ -115,6 +136,9 @@ export default function Events() {
           colors1stChoice: [],
           tones1stChoice: [],
           patterns1stChoice: [],
+          silhouettes1stChoice: [],
+          suitStyles1stChoice: [],
+          suitBreasting1stChoice: [],
         }
       }
       if (priority === '2nd') {
@@ -123,6 +147,9 @@ export default function Events() {
           colors2ndChoice: [],
           tones2ndChoice: [],
           patterns2ndChoice: [],
+          silhouettes2ndChoice: [],
+          suitStyles2ndChoice: [],
+          suitBreasting2ndChoice: [],
         }
       }
       return {
@@ -130,6 +157,9 @@ export default function Events() {
         colors3rdChoice: [],
         tones3rdChoice: [],
         patterns3rdChoice: [],
+        silhouettes3rdChoice: [],
+        suitStyles3rdChoice: [],
+        suitBreasting3rdChoice: [],
       }
     })
   }
@@ -178,6 +208,36 @@ export default function Events() {
     }))
   }
 
+  const toggleSilhouette = (silhouette: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `silhouettes${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(silhouette)
+      ? current.filter((value) => value !== silhouette)
+      : [...current, silhouette]
+    setThemePrefs(prev => ({
+      ...prev,
+      [key]: updated,
+    }))
+  }
+
+  const toggleSuitStyle = (style: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `suitStyles${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(style)
+      ? current.filter((value) => value !== style)
+      : [...current, style]
+    setThemePrefs(prev => ({ ...prev, [key]: updated }))
+  }
+
+  const toggleSuitBreasting = (breasting: string, priority: '1st' | '2nd' | '3rd') => {
+    const key = `suitBreasting${priority}Choice` as keyof EventThemePreferences
+    const current = themePrefs[key] as string[]
+    const updated = current.includes(breasting)
+      ? current.filter((value) => value !== breasting)
+      : [...current, breasting]
+    setThemePrefs(prev => ({ ...prev, [key]: updated }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim() || !formData.date) return
@@ -189,13 +249,14 @@ export default function Events() {
 
     setCreating(true)
     try {
+      const normalizedTheme = normalizeThemeColorPolicy(themePrefs)
       const eventPayload = {
         name: formData.name,
         date: formData.date,
         description: formData.description,
         participants: [hostName],
         costumes: {} as Record<string, string>,
-        themePreferences: themePrefs,
+        themePreferences: normalizedTheme,
       }
 
       if (serverEnabled && useOnlineSubmit) {
@@ -206,7 +267,7 @@ export default function Events() {
             date: formData.date,
             description: formData.description,
             retentionDays,
-            themePreferences: themePrefs,
+            themePreferences: normalizedTheme,
             hostDisplayName: hostName,
           })
         } catch (e) {
@@ -341,6 +402,10 @@ export default function Events() {
   const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const currentPriority = priorityFromStep(preferenceRankStep)
+  const activeColorPolicy = migrateColorUnificationPolicy(
+    themePrefs.colorUnification,
+    themePrefs.avoidSimilarColors,
+  )
 
   const getRankChoices = (priority: PreferencePriority) => {
     switch (priority) {
@@ -349,29 +414,38 @@ export default function Events() {
           colors: themePrefs.colors1stChoice,
           tones: themePrefs.tones1stChoice,
           patterns: themePrefs.patterns1stChoice,
+          silhouettes: themePrefs.silhouettes1stChoice,
+          suitStyles: themePrefs.suitStyles1stChoice,
+          suitBreasting: themePrefs.suitBreasting1stChoice,
         }
       case '2nd':
         return {
           colors: themePrefs.colors2ndChoice,
           tones: themePrefs.tones2ndChoice,
           patterns: themePrefs.patterns2ndChoice,
+          silhouettes: themePrefs.silhouettes2ndChoice,
+          suitStyles: themePrefs.suitStyles2ndChoice,
+          suitBreasting: themePrefs.suitBreasting2ndChoice,
         }
       case '3rd':
         return {
           colors: themePrefs.colors3rdChoice,
           tones: themePrefs.tones3rdChoice,
           patterns: themePrefs.patterns3rdChoice,
+          silhouettes: themePrefs.silhouettes3rdChoice,
+          suitStyles: themePrefs.suitStyles3rdChoice,
+          suitBreasting: themePrefs.suitBreasting3rdChoice,
         }
     }
   }
 
   const renderRankPreferencePickers = (priority: PreferencePriority, rankLabel: string) => {
-    const { colors, tones, patterns } = getRankChoices(priority)
+    const { colors, tones, patterns, silhouettes, suitStyles, suitBreasting } = getRankChoices(priority)
 
     return (
       <>
         <p className="preference-wizard-lead">
-          {rankLabel}として、色・トーン・柄をまとめて選びます（第1希望 → 第2希望 → 第3希望の順です）。
+          {rankLabel}として、色・トーン・柄・ドレス/スーツの詳細をまとめて選びます（第1希望 → 第2希望 → 第3希望の順です）。
         </p>
 
         <div className="preference-group">
@@ -421,6 +495,54 @@ export default function Events() {
             ))}
           </div>
         </div>
+
+        <div className="preference-group">
+          <label>シルエット（ドレス）</label>
+          <div className="option-grid">
+            {DRESS_SILHOUETTE_OPTIONS.map((silhouette) => (
+              <button
+                key={`silhouette-${priority}-${silhouette}`}
+                type="button"
+                onClick={() => toggleSilhouette(silhouette, priority)}
+                className={`option-button ${silhouettes.includes(silhouette) ? 'selected' : ''}`}
+              >
+                {SILHOUETTE_LABELS[silhouette]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="preference-group">
+          <label>スーツ形式</label>
+          <div className="option-grid">
+            {SUIT_STYLE_OPTIONS.map((style) => (
+              <button
+                key={`suit-style-${priority}-${style}`}
+                type="button"
+                onClick={() => toggleSuitStyle(style, priority)}
+                className={`option-button ${suitStyles.includes(style) ? 'selected' : ''}`}
+              >
+                {SUIT_STYLE_LABELS[style]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="preference-group">
+          <label>スーツの前釦（シングル / ダブル）</label>
+          <div className="option-grid">
+            {SUIT_BREASTING_OPTIONS.map((breasting) => (
+              <button
+                key={`suit-breasting-${priority}-${breasting}`}
+                type="button"
+                onClick={() => toggleSuitBreasting(breasting, priority)}
+                className={`option-button ${suitBreasting.includes(breasting) ? 'selected' : ''}`}
+              >
+                {SUIT_BREASTING_LABELS[breasting]}
+              </button>
+            ))}
+          </div>
+        </div>
       </>
     )
   }
@@ -435,15 +557,28 @@ export default function Events() {
     return (
       <div className="preference-summary">
         {ranks.map(({ label, priority }) => {
-          const { colors, tones, patterns } = getRankChoices(priority)
-          if (colors.length === 0 && tones.length === 0 && patterns.length === 0) return null
+          const { colors, tones, patterns, silhouettes, suitStyles, suitBreasting } = getRankChoices(priority)
+          if (
+            colors.length === 0 &&
+            tones.length === 0 &&
+            patterns.length === 0 &&
+            silhouettes.length === 0 &&
+            suitStyles.length === 0 &&
+            suitBreasting.length === 0
+          ) {
+            return null
+          }
+          const prefixParts = [colors.length > 0, tones.length > 0, patterns.length > 0]
           return (
             <div key={priority} className="preference-summary-row">
               <strong>{label}</strong>
               <span>
                 {colors.length > 0 && `色: ${colors.join(', ')}`}
-                {tones.length > 0 && `${colors.length > 0 ? ' / ' : ''}トーン: ${tones.map(t => TONE_LABELS[t] ?? t).join(', ')}`}
-                {patterns.length > 0 && `${colors.length > 0 || tones.length > 0 ? ' / ' : ''}柄: ${patterns.map(p => PATTERN_LABELS[p] ?? p).join(', ')}`}
+                {tones.length > 0 && `${prefixParts[0] ? ' / ' : ''}トーン: ${tones.map(t => TONE_LABELS[t] ?? t).join(', ')}`}
+                {patterns.length > 0 && `${(prefixParts[0] || prefixParts[1]) ? ' / ' : ''}柄: ${patterns.map(p => PATTERN_LABELS[p] ?? p).join(', ')}`}
+                {silhouettes.length > 0 && `${(prefixParts[0] || prefixParts[1] || prefixParts[2]) ? ' / ' : ''}シルエット: ${silhouettes.map(s => SILHOUETTE_LABELS[s as keyof typeof SILHOUETTE_LABELS] ?? s).join(', ')}`}
+                {suitStyles.length > 0 && `${(colors.length + tones.length + patterns.length + silhouettes.length) > 0 ? ' / ' : ''}スーツ形式: ${suitStyles.map(s => SUIT_STYLE_LABELS[s as keyof typeof SUIT_STYLE_LABELS] ?? s).join(', ')}`}
+                {suitBreasting.length > 0 && `${(colors.length + tones.length + patterns.length + silhouettes.length + suitStyles.length) > 0 ? ' / ' : ''}前釦: ${suitBreasting.map(p => SUIT_BREASTING_LABELS[p as keyof typeof SUIT_BREASTING_LABELS] ?? p).join(', ')}`}
               </span>
             </div>
           )
@@ -567,29 +702,56 @@ export default function Events() {
               {/* Color Unification Strategy */}
               <div className="theme-subsection">
                 <h4>色味の統一方針</h4>
-                <div className="preference-group">
+                <p className="form-hint theme-unification-hint">
+                  全員分をまとめて計算します。先着順で決まることはありません。
+                </p>
+                <div className="preference-group color-policy-option">
                   <label>
                     <input
                       type="radio"
                       name="colorUnification"
                       value="unified"
-                      checked={themePrefs.colorUnification === 'unified'}
-                      onChange={() => setThemePrefs(prev => ({ ...prev, colorUnification: 'unified' }))}
+                      checked={activeColorPolicy === 'unified'}
+                      onChange={() => setThemePrefs((prev) => normalizeThemeColorPolicy({
+                        ...prev,
+                        colorUnification: 'unified',
+                      }))}
                     />
-                    色を統一する（同じ色系で揃える）
+                    {COLOR_UNIFICATION_LABELS.unified}
                   </label>
+                  <p className="form-hint color-policy-hint">{COLOR_UNIFICATION_HINTS.unified}</p>
                 </div>
-                <div className="preference-group">
+                <div className="preference-group color-policy-option">
                   <label>
                     <input
                       type="radio"
                       name="colorUnification"
                       value="varied"
-                      checked={themePrefs.colorUnification === 'varied'}
-                      onChange={() => setThemePrefs(prev => ({ ...prev, colorUnification: 'varied' }))}
+                      checked={activeColorPolicy === 'varied'}
+                      onChange={() => setThemePrefs((prev) => normalizeThemeColorPolicy({
+                        ...prev,
+                        colorUnification: 'varied',
+                      }))}
                     />
-                    色をバラける（異なる色を組み合わせる）
+                    {COLOR_UNIFICATION_LABELS.varied}
                   </label>
+                  <p className="form-hint color-policy-hint">{COLOR_UNIFICATION_HINTS.varied}</p>
+                </div>
+                <div className="preference-group color-policy-option">
+                  <label>
+                    <input
+                      type="radio"
+                      name="colorUnification"
+                      value="varied_distinct"
+                      checked={activeColorPolicy === 'varied_distinct'}
+                      onChange={() => setThemePrefs((prev) => normalizeThemeColorPolicy({
+                        ...prev,
+                        colorUnification: 'varied_distinct',
+                      }))}
+                    />
+                    {COLOR_UNIFICATION_LABELS.varied_distinct}
+                  </label>
+                  <p className="form-hint color-policy-hint">{COLOR_UNIFICATION_HINTS.varied_distinct}</p>
                 </div>
               </div>
 
@@ -702,42 +864,6 @@ export default function Events() {
                 )}
               </div>
 
-              {/* Additional Settings */}
-              <div className="theme-subsection">
-                <h4>追加設定</h4>
-                
-                <div className="form-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={themePrefs.avoidSimilarColors}
-                      onChange={(e) => setThemePrefs(prev => ({
-                        ...prev,
-                        avoidSimilarColors: e.target.checked,
-                      }))}
-                    />
-                    似た色を避ける
-                  </label>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="recentUsageExcludeDays">
-                    直近使用除外日数:
-                    <input
-                      id="recentUsageExcludeDays"
-                      type="number"
-                      min="0"
-                      max="365"
-                      value={themePrefs.recentUsageExcludeDays}
-                      onChange={(e) => setThemePrefs(prev => ({
-                        ...prev,
-                        recentUsageExcludeDays: parseInt(e.target.value) || 0,
-                      }))}
-                    />
-                    日
-                  </label>
-                </div>
-              </div>
           </div>
 
           {serverEnabled && (
@@ -745,7 +871,7 @@ export default function Events() {
               <ol>
                 <li>代表者名でサーバーに登録 → 作成後に写真提出</li>
                 <li>招待 URL を参加者へ送る</li>
-                <li>提出後、イベント詳細から取り込み・最適化</li>
+                <li>全員提出後、イベント詳細で取り込むとシステムが自動で組み合わせを決定</li>
               </ol>
               <p>
                 <Link to="/guide">使い方ガイド（全文）</Link>

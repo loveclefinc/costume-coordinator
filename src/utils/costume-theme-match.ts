@@ -1,6 +1,9 @@
 import type { Costume, EventThemePreferences, UsageHistory } from './storage'
 import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
 import { enrichCostumeColors, normalizePattern } from './theme-colors'
+import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
+import { hasThemeSilhouetteChoices } from './silhouette'
+import { hasThemeSuitBreastingChoices, hasThemeSuitStyleChoices } from './suit-attributes'
 
 export type ThemePreferencesInput = EventThemePreferences | EventThemePreferencesPayload
 
@@ -9,6 +12,28 @@ export interface CostumeThemeMatch {
   score: number
   scorePercent: number
   reasons: string[]
+}
+
+/** 直近使用の衣装か（クリーニング中などで候補から除外） */
+export function isCostumeRecentlyUsed(
+  costumeId: string,
+  usageHistory: UsageHistory[],
+  excludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+): boolean {
+  if (excludeDays <= 0) return false
+
+  const cutoff = Date.now() - excludeDays * 24 * 60 * 60 * 1000
+  return usageHistory.some((h) => h.costumeId === costumeId && h.usedAt > cutoff)
+}
+
+/** 使用可能な衣装だけに絞る（excludeDays=0 のときは全件） */
+export function filterCostumesByUsageAvailability(
+  costumes: Costume[],
+  usageHistory: UsageHistory[],
+  excludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+): Costume[] {
+  if (excludeDays <= 0) return costumes
+  return costumes.filter((costume) => !isCostumeRecentlyUsed(costume.id, usageHistory, excludeDays))
 }
 
 /** テーマ色との一致度（0〜1） */
@@ -57,30 +82,87 @@ export function calculatePatternThemeScore(
   return 0.3
 }
 
-/** 直近使用のペナルティ（0〜1、高いほど良い） */
-export function calculateUsagePenalty(
-  costumeId: string,
-  usageHistory: UsageHistory[],
-  excludeDays: number = 30,
+/** テーマシルエットとの一致度（0〜1）。希望未設定時は null */
+export function calculateSilhouetteThemeScore(
+  costume: Pick<Costume, 'type' | 'silhouette'>,
+  themePrefs?: ThemePreferencesInput,
+): number | null {
+  if (!themePrefs || !hasThemeSilhouetteChoices(themePrefs)) return null
+  if (costume.type !== 'dress' || !costume.silhouette) return 0.3
+
+  const silhouette = costume.silhouette
+  if ((themePrefs.silhouettes1stChoice ?? []).includes(silhouette)) return 1.0
+  if ((themePrefs.silhouettes2ndChoice ?? []).includes(silhouette)) return 0.8
+  if ((themePrefs.silhouettes3rdChoice ?? []).includes(silhouette)) return 0.6
+  return 0.3
+}
+
+/** スーツ形式との一致度。希望未設定時は null */
+export function calculateSuitStyleThemeScore(
+  costume: Pick<Costume, 'type' | 'suitStyle'>,
+  themePrefs?: ThemePreferencesInput,
+): number | null {
+  if (!themePrefs || !hasThemeSuitStyleChoices(themePrefs)) return null
+  if (costume.type !== 'suit' || !costume.suitStyle) return 0.3
+
+  const style = costume.suitStyle
+  if ((themePrefs.suitStyles1stChoice ?? []).includes(style)) return 1.0
+  if ((themePrefs.suitStyles2ndChoice ?? []).includes(style)) return 0.8
+  if ((themePrefs.suitStyles3rdChoice ?? []).includes(style)) return 0.6
+  return 0.3
+}
+
+/** スーツ前釦（シングル/ダブル）との一致度。希望未設定時は null */
+export function calculateSuitBreastingThemeScore(
+  costume: Pick<Costume, 'type' | 'suitBreasting'>,
+  themePrefs?: ThemePreferencesInput,
+): number | null {
+  if (!themePrefs || !hasThemeSuitBreastingChoices(themePrefs)) return null
+  if (costume.type !== 'suit' || !costume.suitBreasting) return 0.3
+
+  const breasting = costume.suitBreasting
+  if ((themePrefs.suitBreasting1stChoice ?? []).includes(breasting)) return 1.0
+  if ((themePrefs.suitBreasting2ndChoice ?? []).includes(breasting)) return 0.8
+  if ((themePrefs.suitBreasting3rdChoice ?? []).includes(breasting)) return 0.6
+  return 0.3
+}
+
+/** 色・トーン・柄（＋任意でシルエット・スーツ属性）の平均テーマスコア */
+export function calculateCombinedThemeScore(
+  costume: Costume,
+  themePrefs?: ThemePreferencesInput,
 ): number {
-  const recentUsages = usageHistory.filter((h) => {
-    const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-    return daysSinceUse <= excludeDays && h.costumeId === costumeId
-  })
-  return Math.max(0, 1 - recentUsages.length * 0.1)
+  if (!themePrefs) return 0.5
+
+  const scores = [
+    calculateColorThemeScore(costume.colors, themePrefs),
+    calculateToneThemeScore(costume.tone, themePrefs),
+    calculatePatternThemeScore(costume.pattern, themePrefs),
+  ]
+  const silhouetteScore = calculateSilhouetteThemeScore(costume, themePrefs)
+  if (silhouetteScore !== null) scores.push(silhouetteScore)
+  const suitStyleScore = calculateSuitStyleThemeScore(costume, themePrefs)
+  if (suitStyleScore !== null) scores.push(suitStyleScore)
+  const suitBreastingScore = calculateSuitBreastingThemeScore(costume, themePrefs)
+  if (suitBreastingScore !== null) scores.push(suitBreastingScore)
+  return scores.reduce((sum, value) => sum + value, 0) / scores.length
 }
 
 function buildMatchReasons(
   costume: Costume,
   themePrefs: ThemePreferencesInput | undefined,
-  usageHistory: UsageHistory[],
-  colorScore: number,
-  toneScore: number,
-  patternScore: number,
+  excludeDays: number,
 ): string[] {
   const reasons: string[] = []
 
   if (themePrefs) {
+    const colorScore = calculateColorThemeScore(costume.colors, themePrefs)
+    const toneScore = calculateToneThemeScore(costume.tone, themePrefs)
+    const patternScore = calculatePatternThemeScore(costume.pattern, themePrefs)
+    const silhouetteScore = calculateSilhouetteThemeScore(costume, themePrefs)
+    const suitStyleScore = calculateSuitStyleThemeScore(costume, themePrefs)
+    const suitBreastingScore = calculateSuitBreastingThemeScore(costume, themePrefs)
+
     if (colorScore >= 0.95) reasons.push('色: 第1希望')
     else if (colorScore >= 0.75) reasons.push('色: 第2希望')
     else if (colorScore >= 0.55) reasons.push('色: 第3希望')
@@ -92,14 +174,29 @@ function buildMatchReasons(
     if (patternScore >= 0.95) reasons.push('柄: 第1希望')
     else if (patternScore >= 0.75) reasons.push('柄: 第2希望')
     else if (patternScore >= 0.55) reasons.push('柄: 第3希望')
+
+    if (silhouetteScore !== null) {
+      if (silhouetteScore >= 0.95) reasons.push('シルエット: 第1希望')
+      else if (silhouetteScore >= 0.75) reasons.push('シルエット: 第2希望')
+      else if (silhouetteScore >= 0.55) reasons.push('シルエット: 第3希望')
+    }
+
+    if (suitStyleScore !== null) {
+      if (suitStyleScore >= 0.95) reasons.push('スーツ形式: 第1希望')
+      else if (suitStyleScore >= 0.75) reasons.push('スーツ形式: 第2希望')
+      else if (suitStyleScore >= 0.55) reasons.push('スーツ形式: 第3希望')
+    }
+
+    if (suitBreastingScore !== null) {
+      if (suitBreastingScore >= 0.95) reasons.push('前釦: 第1希望')
+      else if (suitBreastingScore >= 0.75) reasons.push('前釦: 第2希望')
+      else if (suitBreastingScore >= 0.55) reasons.push('前釦: 第3希望')
+    }
   }
 
-  const excludeDays = themePrefs?.recentUsageExcludeDays ?? 30
-  const recent = usageHistory.some((h) => {
-    const days = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-    return days <= excludeDays && h.costumeId === costume.id
-  })
-  if (!recent) reasons.push(`直近${excludeDays}日間未使用`)
+  if (excludeDays > 0) {
+    reasons.push(`直近${excludeDays}日間未使用`)
+  }
 
   if (reasons.length === 0) reasons.push('テーマとの一致度は低め')
   return reasons
@@ -109,43 +206,37 @@ function buildMatchReasons(
 export function scoreCostumeForEventTheme(
   costume: Costume,
   themePreferences?: ThemePreferencesInput,
-  usageHistory: UsageHistory[] = [],
 ): CostumeThemeMatch {
-  const colorScore = calculateColorThemeScore(costume.colors, themePreferences)
-  const toneScore = calculateToneThemeScore(costume.tone, themePreferences)
-  const patternScore = calculatePatternThemeScore(costume.pattern, themePreferences)
-  const themeScore = (colorScore + toneScore + patternScore) / 3
-
-  const excludeDays = themePreferences?.recentUsageExcludeDays ?? 30
-  const usageScore = calculateUsagePenalty(costume.id, usageHistory, excludeDays)
-
-  const score = themePreferences
-    ? themeScore * 0.8 + usageScore * 0.2
-    : 0.5
+  const score = themePreferences ? calculateCombinedThemeScore(costume, themePreferences) : 0.5
 
   return {
     costume,
     score,
     scorePercent: Math.round(score * 100),
-    reasons: buildMatchReasons(
-      costume,
-      themePreferences,
-      usageHistory,
-      colorScore,
-      toneScore,
-      patternScore,
-    ),
+    reasons: buildMatchReasons(costume, themePreferences, 0),
   }
 }
 
-/** 登録衣装をテーマ適合度順に並べる（アプリの肝） */
+/** 登録衣装をテーマ適合度順に並べる（使用不可の衣装は除外） */
 export function rankCostumesForEventTheme(
   costumes: Costume[],
   themePreferences?: ThemePreferencesInput,
   usageHistory: UsageHistory[] = [],
+  recentUsageExcludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
 ): CostumeThemeMatch[] {
-  return costumes
-    .map((costume) => scoreCostumeForEventTheme(costume, themePreferences, usageHistory))
+  const available = filterCostumesByUsageAvailability(costumes, usageHistory, recentUsageExcludeDays)
+
+  return available
+    .map((costume) => {
+      const match = scoreCostumeForEventTheme(costume, themePreferences)
+      if (recentUsageExcludeDays > 0) {
+        return {
+          ...match,
+          reasons: buildMatchReasons(costume, themePreferences, recentUsageExcludeDays),
+        }
+      }
+      return match
+    })
     .sort((a, b) => b.score - a.score || a.costume.name.localeCompare(b.costume.name, 'ja'))
 }
 
@@ -160,14 +251,24 @@ function hasThemeColorChoices(theme: ThemePreferencesInput): boolean {
   )
 }
 
+/**
+ * 参加者が提出する「候補衣装」を自動選出する。
+ * 全員提出後にシステムが最適化で1着を決めるため、テーマに合う候補を複数（最大 maxCount）返す。
+ */
 export function autoPickCostumesForEventTheme(
   costumes: Costume[],
   themePreferences?: ThemePreferencesInput,
   usageHistory: UsageHistory[] = [],
   maxCount: number = 1,
   minScore: number = AUTO_PICK_MIN_SCORE,
+  recentUsageExcludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
 ): CostumeThemeMatch[] {
-  const ranked = rankCostumesForEventTheme(costumes, themePreferences, usageHistory)
+  const ranked = rankCostumesForEventTheme(
+    costumes,
+    themePreferences,
+    usageHistory,
+    recentUsageExcludeDays,
+  )
   if (ranked.length === 0) return []
 
   const cap = Math.max(1, maxCount)
@@ -175,18 +276,15 @@ export function autoPickCostumesForEventTheme(
     return ranked.slice(0, cap)
   }
 
-  let candidates = ranked
-
+  let pool = ranked
   if (hasThemeColorChoices(themePreferences)) {
     const colorMatched = ranked.filter(
       (entry) => calculateColorThemeScore(entry.costume.colors, themePreferences) >= 0.6,
     )
-    candidates = colorMatched.length > 0 ? colorMatched : ranked.slice(0, 1)
+    if (colorMatched.length > 0) pool = colorMatched
   }
 
-  const matched = candidates.filter((entry) => entry.score >= minScore)
-  if (matched.length === 0) {
-    return candidates.slice(0, 1)
-  }
-  return matched.slice(0, cap)
+  const qualified = pool.filter((entry) => entry.score >= minScore)
+  const picks = qualified.length > 0 ? qualified : pool
+  return picks.slice(0, cap)
 }

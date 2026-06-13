@@ -1,4 +1,6 @@
 import { Costume, EventThemePreferences, UsageHistory } from './storage'
+import { isCostumeRecentlyUsed } from './costume-theme-match'
+import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
 
 export interface ExtendedOptimizationResult {
   participantId: string
@@ -14,6 +16,7 @@ export interface ExtendedOptimizationInput {
   costumes: Costume[]
   usageHistory: UsageHistory[]
   themePreferences?: EventThemePreferences
+  recentUsageExcludeDays?: number
 }
 
 /**
@@ -92,25 +95,15 @@ function calculateToneCompatibility(tone1: string, tone2: string): number {
   return tone1 === tone2 ? 0.7 : 1
 }
 
-/**
- * Check if costume was recently used
- */
-function isRecentlyUsed(costumeId: string, usageHistory: UsageHistory[], excludeDays: number = 30): boolean {
-  const cutoffDate = Date.now() - (excludeDays * 24 * 60 * 60 * 1000)
-  return usageHistory.some(h => h.costumeId === costumeId && h.usedAt > cutoffDate)
-}
-
-/**
- * Find best matching accessories for a main costume
- */
 function findBestAccessories(
   mainCostume: Costume,
   availableAccessories: Costume[],
   usageHistory: UsageHistory[],
-  themePrefs?: EventThemePreferences
+  themePrefs?: EventThemePreferences,
+  recentUsageExcludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
 ): Costume[] {
   const scoredAccessories = availableAccessories
-    .filter(acc => !isRecentlyUsed(acc.id, usageHistory))
+    .filter((acc) => !isCostumeRecentlyUsed(acc.id, usageHistory, recentUsageExcludeDays))
     .map(acc => {
       let score = 0.5
       
@@ -140,7 +133,13 @@ function findBestAccessories(
  * Generate optimized costume combinations including accessories
  */
 export function optimizeWithAccessories(input: ExtendedOptimizationInput): ExtendedOptimizationResult[] {
-  const { participants, costumes, usageHistory, themePreferences } = input
+  const {
+    participants,
+    costumes,
+    usageHistory,
+    themePreferences,
+    recentUsageExcludeDays = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+  } = input
   const { mainCostumes, accessories } = categorizeCostumesByType(costumes)
   
   const results: ExtendedOptimizationResult[] = []
@@ -148,7 +147,7 @@ export function optimizeWithAccessories(input: ExtendedOptimizationInput): Exten
   for (const participant of participants) {
     // Find best main costume
     const scoredCostumes = mainCostumes
-      .filter(c => !isRecentlyUsed(c.id, usageHistory, themePreferences?.recentUsageExcludeDays || 30))
+      .filter((c) => !isCostumeRecentlyUsed(c.id, usageHistory, recentUsageExcludeDays))
       .map(costume => {
         let score = 0.5
         
@@ -178,7 +177,8 @@ export function optimizeWithAccessories(input: ExtendedOptimizationInput): Exten
       mainCostume,
       accessories,
       usageHistory,
-      themePreferences
+      themePreferences,
+      recentUsageExcludeDays,
     )
     
     // Calculate average accessory score

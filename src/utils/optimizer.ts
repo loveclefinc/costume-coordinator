@@ -9,8 +9,18 @@ import {
   calculateColorThemeScore,
   calculateToneThemeScore,
   calculatePatternThemeScore,
-  calculateUsagePenalty,
+  calculateSilhouetteThemeScore,
+  calculateSuitStyleThemeScore,
+  calculateSuitBreastingThemeScore,
+  calculateCombinedThemeScore,
+  isCostumeRecentlyUsed,
 } from './costume-theme-match'
+import {
+  effectiveAvoidSimilarColors,
+  isSpreadColorPolicy,
+  migrateColorUnificationPolicy,
+} from './theme-color-policy'
+import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
 
 export interface OptimizationResult {
   participantId: string
@@ -26,6 +36,7 @@ export interface OptimizationInput {
   costumes: Costume[]
   usageHistory: UsageHistory[]
   themePreferences?: EventThemePreferences
+  recentUsageExcludeDays?: number
 }
 
 /**
@@ -76,11 +87,60 @@ function calculateColorUnificationScore(
 
   const similarToAny = assigned.some((c) => colorNamesAreSimilar(costume.colors, c.colors))
 
-  if (themePrefs.colorUnification === 'unified') {
+  if (!isSpreadColorPolicy(themePrefs.colorUnification)) {
     return similarToAny ? 1.2 : 0.75
   }
 
   return similarToAny ? 0.7 : 1.15
+}
+
+/** 色味バラけ時は同じシルエットでまとまりを出す */
+function calculateSilhouetteUnificationScore(
+  costume: Costume,
+  assigned: Costume[],
+  themePrefs?: EventThemePreferences,
+): number {
+  if (!themePrefs || assigned.length === 0 || costume.type !== 'dress' || !costume.silhouette) {
+    return 1
+  }
+
+  const sameSilhouette = assigned.some(
+    (c) => c.type === 'dress' && c.silhouette && c.silhouette === costume.silhouette,
+  )
+
+  if (isSpreadColorPolicy(themePrefs.colorUnification)) {
+    return sameSilhouette ? 1.2 : 0.75
+  }
+
+  return sameSilhouette ? 0.85 : 1
+}
+
+/** 色味バラけ時は同じスーツ形式・前釦でまとまりを出す */
+function calculateSuitUnificationScore(
+  costume: Costume,
+  assigned: Costume[],
+  themePrefs?: EventThemePreferences,
+): number {
+  if (!themePrefs || assigned.length === 0 || costume.type !== 'suit') return 1
+
+  let score = 1
+  const spread = isSpreadColorPolicy(themePrefs.colorUnification)
+
+  if (costume.suitStyle) {
+    const sameStyle = assigned.some(
+      (c) => c.type === 'suit' && c.suitStyle && c.suitStyle === costume.suitStyle,
+    )
+    score *= spread ? (sameStyle ? 1.15 : 0.85) : (sameStyle ? 0.9 : 1)
+  }
+
+  if (costume.suitBreasting) {
+    const sameBreasting = assigned.some(
+      (c) => c.type === 'suit' && c.suitBreasting && c.suitBreasting === costume.suitBreasting,
+    )
+    score *= spread ? (sameBreasting ? 1.15 : 0.85) : (sameBreasting ? 0.9 : 1)
+  }
+
+  return score
 }
 
 /**
@@ -98,7 +158,13 @@ function calculatePreferenceScore(costumeId: string, preferences: string[]): num
  * Main optimization algorithm - prioritizes event theme preferences
  */
 export function optimizeCostumeAssignments(input: OptimizationInput): { assignments: OptimizationResult[]; harmonyScore: number } {
-  const { participants, costumes, usageHistory, themePreferences } = input
+  const {
+    participants,
+    costumes,
+    usageHistory,
+    themePreferences,
+    recentUsageExcludeDays = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+  } = input
 
   if (costumes.length === 0) {
     return { assignments: [], harmonyScore: 0 }
@@ -117,33 +183,33 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
     let bestScore = -Infinity
     const reasons: string[] = []
 
-    for (const costume of costumes) {
+    const preferenceIds = new Set(participant.preferences)
+    const eligibleCostumes =
+      preferenceIds.size > 0
+        ? costumes.filter((costume) => preferenceIds.has(costume.id))
+        : costumes
+
+    for (const costume of eligibleCostumes) {
       // Skip already assigned costumes
       if (assignedCostumes.has(costume.id)) continue
 
+      // Skip recently used costumes (cleaning / unavailable)
+      if (isCostumeRecentlyUsed(costume.id, usageHistory, recentUsageExcludeDays)) continue
+
       let score = 0
 
-      // PRIORITY 1: Event Theme Preferences (50%)
-      // This is the primary optimization criterion
-      const colorThemeScore = calculateColorThemeScore(costume.colors, themePreferences)
-      const toneThemeScore = calculateToneThemeScore(costume.tone, themePreferences)
-      const patternThemeScore = calculatePatternThemeScore(costume.pattern, themePreferences)
-      const themeScore = (colorThemeScore + toneThemeScore + patternThemeScore) / 3
-      score += themeScore * 0.5
+      // PRIORITY 1: Event Theme Preferences (56%)
+      const themeScore = calculateCombinedThemeScore(costume, themePreferences)
+      score += themeScore * 0.56
 
-      // PRIORITY 2: Participant Preference (25%)
+      // PRIORITY 2: Participant Preference (28%)
       const prefScore = calculatePreferenceScore(costume.id, participant.preferences)
-      score += prefScore * 0.25
+      score += prefScore * 0.28
 
-      // PRIORITY 3: Usage history penalty (15%)
-      const excludeDays = themePreferences?.recentUsageExcludeDays || 30
-      const usagePenalty = calculateUsagePenalty(costume.id, usageHistory, excludeDays)
-      score += usagePenalty * 0.15
-
-      // PRIORITY 4: Compatibility + 色味統一方針 (10%)
+      // PRIORITY 3: Compatibility + 色味統一方針 (16%)
       let compatibilityScore = 1
       for (const result of results) {
-        const avoidSimilar = themePreferences?.avoidSimilarColors || false
+        const avoidSimilar = effectiveAvoidSimilarColors(themePreferences)
         const colorCompat = calculateColorCompatibility(
           enrichCostumeColors(costume.colors),
           enrichCostumeColors(result.costume.colors),
@@ -158,8 +224,17 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
         results.map((r) => r.costume),
         themePreferences,
       )
-      compatibilityScore *= unificationScore
-      score += compatibilityScore * 0.1
+      const silhouetteUnificationScore = calculateSilhouetteUnificationScore(
+        costume,
+        results.map((r) => r.costume),
+        themePreferences,
+      )
+      compatibilityScore *= unificationScore * silhouetteUnificationScore * calculateSuitUnificationScore(
+        costume,
+        results.map((r) => r.costume),
+        themePreferences,
+      )
+      score += compatibilityScore * 0.16
 
       if (score > bestScore) {
         bestScore = score
@@ -171,10 +246,17 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
       assignedCostumes.add(bestCostume.id)
 
       // Build reason explanation
-      if (themePreferences?.colorUnification === 'unified') {
+      const colorPolicy = migrateColorUnificationPolicy(
+        themePreferences?.colorUnification,
+        themePreferences?.avoidSimilarColors,
+      )
+      if (colorPolicy === 'unified') {
         reasons.push('色味統一（同系色）')
-      } else if (themePreferences?.colorUnification === 'varied') {
+      } else {
         reasons.push('色味バラけ')
+        if (colorPolicy === 'varied_distinct') {
+          reasons.push('似た色を回避')
+        }
       }
 
       if (themePreferences) {
@@ -190,6 +272,24 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
         const patternMatch = calculatePatternThemeScore(bestCostume.pattern, themePreferences)
         if (patternMatch >= 0.9) reasons.push('テーマ柄第1希望')
         else if (patternMatch >= 0.7) reasons.push('テーマ柄第2希望')
+
+        const silhouetteMatch = calculateSilhouetteThemeScore(bestCostume, themePreferences)
+        if (silhouetteMatch !== null) {
+          if (silhouetteMatch >= 0.9) reasons.push('テーマシルエット第1希望')
+          else if (silhouetteMatch >= 0.7) reasons.push('テーマシルエット第2希望')
+        }
+
+        const suitStyleMatch = calculateSuitStyleThemeScore(bestCostume, themePreferences)
+        if (suitStyleMatch !== null) {
+          if (suitStyleMatch >= 0.9) reasons.push('スーツ形式第1希望')
+          else if (suitStyleMatch >= 0.7) reasons.push('スーツ形式第2希望')
+        }
+
+        const suitBreastingMatch = calculateSuitBreastingThemeScore(bestCostume, themePreferences)
+        if (suitBreastingMatch !== null) {
+          if (suitBreastingMatch >= 0.9) reasons.push('前釦第1希望')
+          else if (suitBreastingMatch >= 0.7) reasons.push('前釦第2希望')
+        }
       }
 
       const prefIndex = participant.preferences.indexOf(bestCostume.id)
@@ -197,13 +297,8 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
         reasons.push(`希望順位: ${prefIndex + 1}位`)
       }
 
-      const excludeDays = themePreferences?.recentUsageExcludeDays || 30
-      const recentUsages = usageHistory.filter(h => {
-        const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-        return daysSinceUse <= excludeDays && h.costumeId === bestCostume!.id
-      })
-      if (recentUsages.length === 0) {
-        reasons.push(`直近${excludeDays}日間未使用`)
+      if (recentUsageExcludeDays > 0) {
+        reasons.push(`直近${recentUsageExcludeDays}日間未使用`)
       }
 
       reasons.push(`スコア: ${(bestScore * 100).toFixed(1)}`)

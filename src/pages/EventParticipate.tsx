@@ -27,6 +27,7 @@ import {
 } from '../../shared/upload-limits'
 import { useAppUi } from '../contexts/AppUiContext'
 import { getDisplayName } from '../utils/user-profile'
+import { getRecentUsageExcludeDays } from '../utils/app-settings'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import './EventParticipate.css'
@@ -59,6 +60,9 @@ async function submitPickedCostumes(
       pattern: normalizePattern(costume.pattern),
       season: costume.season ?? [],
       type: costume.type,
+      ...(costume.type === 'dress' && costume.silhouette ? { silhouette: costume.silhouette } : {}),
+      ...(costume.type === 'suit' && costume.suitStyle ? { suitStyle: costume.suitStyle } : {}),
+      ...(costume.type === 'suit' && costume.suitBreasting ? { suitBreasting: costume.suitBreasting } : {}),
       preferences: index === 0 ? preferenceOrder : [],
     })
 
@@ -166,11 +170,14 @@ export default function EventParticipate() {
     setSubmitPhase('picking')
     setError('')
 
+    const recentUsageExcludeDays = getRecentUsageExcludeDays()
     const picked = autoPickCostumesForEventTheme(
       costumes,
       eventInfo?.themePreferences,
       usageHistory,
       limits.maxCostumesPerParticipant,
+      undefined,
+      recentUsageExcludeDays,
     )
 
     setPickedMatches(picked)
@@ -187,7 +194,10 @@ export default function EventParticipate() {
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
       const names = picked.map((entry) => entry.costume.name).join('、')
-      toast(`${count} 件の衣装を自動選出して提出しました（${names}）`, 'success')
+      toast(
+        `候補 ${count} 件を提出しました（${names}）。全員提出後にシステムが組み合わせを自動決定します。`,
+        'success',
+      )
     } catch (e) {
       autoSubmitStarted.current = false
       setSubmitPhase('error')
@@ -208,11 +218,14 @@ export default function EventParticipate() {
   useEffect(() => {
     if (!joined || !wardrobeReady) return
     if (pickedMatches.length > 0) return
+    const recentUsageExcludeDays = getRecentUsageExcludeDays()
     const picked = autoPickCostumesForEventTheme(
       costumes,
       eventInfo?.themePreferences,
       usageHistory,
       limits.maxCostumesPerParticipant,
+      undefined,
+      recentUsageExcludeDays,
     )
     setPickedMatches(picked)
   }, [
@@ -310,7 +323,7 @@ export default function EventParticipate() {
         <section className="participate-section">
           <h3>1. 参加者名</h3>
           <p className="participate-name-hint">
-            参加後、登録済みの衣装からイベントに合うものを自動で選出し、代表者へ提出します。
+            参加後、登録済みの衣装からテーマに合う候補を複数自動選出し、代表者へ提出します（組み合わせは全員提出後にシステムが決定）。
           </p>
           <div className="participate-name-row">
             <input
@@ -374,7 +387,9 @@ export default function EventParticipate() {
           )}
 
           {submitPhase === 'done' && (
-            <p className="participate-success">提出が完了しました。代表者が取り込むまでお待ちください。</p>
+            <p className="participate-success">
+              候補衣装の提出が完了しました。全員の提出が揃ったあと、システムが最適な組み合わせを自動で決定します。
+            </p>
           )}
 
           {wardrobeReady && costumes.length === 0 && (

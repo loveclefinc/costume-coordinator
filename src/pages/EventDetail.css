@@ -131,7 +131,7 @@
 }
 
 .add-button:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
 }
 
 .participants-list {
@@ -281,6 +281,83 @@
   font-size: 1.3rem;
 }
 
+.system-decided-badge {
+  display: inline-block;
+  margin-left: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: rgba(52, 199, 89, 0.15);
+  color: #1b7a36;
+}
+
+.system-optimization-lead {
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.server-awaiting-submissions {
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: rgba(255, 149, 0, 0.1);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.result-card--selected {
+  border-color: var(--primary);
+}
+
+.alternative-proposals-panel {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e5e5ea);
+  background: var(--surface-secondary, #f9f9fb);
+}
+
+.alternative-proposals-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.alternative-proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.alternative-proposal-card {
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color, #e5e5ea);
+}
+
+.alternative-proposal-card h4 {
+  margin: 0 0 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.alternative-proposal-score {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.alternative-proposal-assignments {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.6;
+}
+
 .confirm-button {
   background-color: #34c759;
   color: white;
@@ -338,7 +415,7 @@
 }
 
 .back-to-events-button:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
 }
 
 .optimization-results {
@@ -502,7 +579,7 @@
 }
 
 .share-button:hover {
-  background-color: #0056b3;
+  background-color: var(--primary-hover);
   transform: translateY(-2px);
 }
 
@@ -512,7 +589,7 @@
 }
 
 .export-button:hover {
-  background-color: #4ab8f8;
+  background-color: var(--secondary);
   transform: translateY(-2px);
 }
 
@@ -740,7 +817,7 @@
   padding: 1.25rem;
   border: 1px solid var(--border, #e0e0e0);
   border-radius: 12px;
-  background: var(--surface-alt, rgba(0, 0, 0, 0.03));
+  background: var(--surface-alt);
 }
 
 .collaboration-section h2 {
@@ -776,7 +853,7 @@
 }
 
 .server-hub .action-button.primary {
-  background: var(--primary, #6366f1);
+  background: var(--primary);
   color: #fff;
   font-weight: 600;
 }
@@ -802,16 +879,16 @@
   font-size: 0.8rem;
   font-weight: 600;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--primary, #6366f1);
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
 }
 
 .server-primary-card {
   margin-bottom: 1rem;
-  border: 2px solid var(--primary, #6366f1);
+  border: 2px solid var(--primary);
   background: linear-gradient(
     180deg,
-    rgba(99, 102, 241, 0.06) 0%,
+    rgba(var(--primary-rgb), 0.06) 0%,
     var(--surface) 48%
   );
 }
@@ -869,7 +946,7 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: #fff;
-  background: #0d7a4a;
+  background: var(--success);
   cursor: pointer;
 }
 
@@ -881,7 +958,7 @@
 .server-retention-ok {
   margin: -0.5rem 0 0.75rem;
   font-size: 0.88rem;
-  color: #0d7a4a;
+  color: var(--success);
   font-weight: 600;
 }
 
@@ -909,20 +986,20 @@
 }
 
 .server-action-btn.primary {
-  border-color: var(--primary, #6366f1);
-  background: var(--primary, #6366f1);
+  border-color: var(--primary);
+  background: var(--primary);
   color: #fff;
 }
 
 .server-action-btn.host-photo-link {
   text-decoration: none;
   color: inherit;
-  border-color: #0d7a4a;
+  border-color: var(--success);
   background: rgba(13, 122, 74, 0.08);
 }
 
 .server-action-btn.host-register-btn {
-  border-color: #0d7a4a;
+  border-color: var(--success);
   background: rgba(13, 122, 74, 0.12);
 }
 

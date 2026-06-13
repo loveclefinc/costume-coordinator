@@ -14,13 +14,27 @@ const themeFromEventForm: EventThemePreferences = {
   patterns1stChoice: ['plain'],
   patterns2ndChoice: ['floral'],
   patterns3rdChoice: [],
-  avoidSimilarColors: true,
-  recentUsageExcludeDays: 30,
+  silhouettes1stChoice: [],
+  silhouettes2ndChoice: [],
+  silhouettes3rdChoice: [],
+  suitStyles1stChoice: [],
+  suitStyles2ndChoice: [],
+  suitStyles3rdChoice: [],
+  suitBreasting1stChoice: [],
+  suitBreasting2ndChoice: [],
+  suitBreasting3rdChoice: [],
+  avoidSimilarColors: false,
 }
 
 const themeVaried: EventThemePreferences = {
   ...themeFromEventForm,
   colorUnification: 'varied',
+}
+
+const themeVariedDistinct: EventThemePreferences = {
+  ...themeFromEventForm,
+  colorUnification: 'varied_distinct',
+  avoidSimilarColors: true,
 }
 
 /** 衣装追加画面相当（HEX + solid） */
@@ -164,8 +178,8 @@ describe('架空イベント参加者 — 衣装マッチング', () => {
     expect(reasonJoined).toMatch(/テーマ色第1希望/)
     expect(reasonJoined).toMatch(/テーマ柄第1希望/)
 
-    const diana = result.assignments.find((a) => a.participantName === '田中 一郎')!
-    expect(['c-diana-pink', 'c-alice-red']).toContain(diana.costumeId)
+    const tanaka = result.assignments.find((a) => a.participantName === '田中 一郎')!
+    expect(tanaka.costumeId).toBe('c-charlie-yellow')
   })
 
   it('参加者希望を反映する', () => {
@@ -206,5 +220,19 @@ describe('架空イベント参加者 — 衣装マッチング', () => {
 
     const text = result.assignments.map((a) => a.reason.join(' ')).join(' ')
     expect(text).toMatch(/色味バラけ/)
+    expect(text).not.toMatch(/似た色を回避/)
+  })
+
+  it('colorUnification varied_distinct は似た色回避を理由に含む', () => {
+    const result = optimizeCostumeAssignments({
+      participants: fictionalParticipants.slice(0, 2),
+      costumes: costumesWithNamedColors(),
+      usageHistory: [],
+      themePreferences: themeVariedDistinct,
+    })
+
+    const text = result.assignments.map((a) => a.reason.join(' ')).join(' ')
+    expect(text).toMatch(/色味バラけ/)
+    expect(text).toMatch(/似た色を回避/)
   })
 })

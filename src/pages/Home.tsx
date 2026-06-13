@@ -54,33 +54,36 @@ export default function Home() {
         <p className="hero-app-name-en">{APP_DISPLAY_NAME}</p>
         <p className="hero-app-subtitle">グループイベントの衣装選択を最適化</p>
         <div className="hero-description">
-          <p>複数人が参加するイベントで、全体の統一感を保ちながら、各自の手持ち衣装から最適な組み合わせを自動提案します。色味の統一、トーン、柄などのテーマ設定で、理想的なコーディネートを実現します。</p>
+          <p>
+            複数人が参加するイベントで、各自の手持ち衣装の範囲内から、テーマに沿った組み合わせを自動提案します。
+            色味を揃える・意図的にバラける、トーンや柄、ドレスのシルエット、スーツの形式（タキシード・燕尾など）や前釦（シングル・ダブル）など、イベント方針に合わせてグループとしてまとまりのあるコーディネートを目指します。
+          </p>
         </div>
       </div>
 
       <div className="features">
         <div className="feature-card no-hover">
           <div className="feature-icon">🎨</div>
-          <h3>イベントテーマに合わせた提案</h3>
-          <p>色味を統一するか、パステル系で揃えるかなど、イベントのテーマに合わせた衣装を自動提案</p>
+          <h3>テーマに合う候補を自動選出</h3>
+          <p>参加者ごとに、登録済み衣装の中から色・トーン・柄がイベントテーマに合う候補を自動で選びます（提出前の第1段階）</p>
         </div>
 
         <div className="feature-card no-hover">
           <div className="feature-icon">👗</div>
-          <h3>手持ち衣装から最適な組み合わせ</h3>
-          <p>参加者の手持ち衣装の中から、イベントテーマに最も合った組み合わせを提案</p>
+          <h3>グループ全体の組み合わせ決定</h3>
+          <p>全員の候補を集め、色味方針や相互の調和を考慮して、参加者1人につき1着の組み合わせを自動決定します（第2段階）</p>
         </div>
 
         <div className="feature-card no-hover">
           <div className="feature-icon">📅</div>
           <h3>使用履歴管理</h3>
-          <p>直近の使用履歴を記録し、同じ衣装の重複使用を回避</p>
+          <p>使用履歴を記録。設定の「直近使用除外日数」以内の衣装は、クリーニング中の想定で候補から除外します</p>
         </div>
 
         <div className="feature-card no-hover">
           <div className="feature-icon">👥</div>
           <h3>イベント管理</h3>
-          <p>複数のイベントを管理し、参加者と衣装情報を共有</p>
+          <p>複数のイベントを管理。オンライン提出では参加者が候補衣装をサーバーへ提出し、全員提出後にシステムが組み合わせを自動決定します</p>
         </div>
       </div>
 
@@ -123,7 +126,7 @@ export default function Home() {
         <ol>
           <li>代表者: イベント作成で<strong>「オンライン提出」</strong>をオン → 招待 URL を参加者へ送る</li>
           <li>参加者: URL を開く → 名前登録 → <strong>登録済み衣装からテーマに合うものを自動選出して提出</strong>（イベント日まで / 最大14日保持）</li>
-          <li>代表者: イベント詳細 → <strong>サーバーから取り込む</strong> → 最適化</li>
+          <li>代表者: 全員提出後、イベント詳細 → <strong>サーバーから提出を取り込む</strong> → システムが<strong>自動で</strong>組み合わせを決定</li>
         </ol>
         <p className="collab-alt">
           <Link to="/guide">使い方ガイド（全文）</Link>

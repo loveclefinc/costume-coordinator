@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
 import { resetOnboarding } from '../utils/onboarding'
 import { getDisplayName, setDisplayName } from '../utils/user-profile'
+import {
+  DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+  getRecentUsageExcludeDays,
+  setRecentUsageExcludeDays,
+} from '../utils/app-settings'
 import { useAppUi } from '../contexts/AppUiContext'
 import './Settings.css'
 
@@ -10,6 +15,7 @@ export default function Settings() {
   const navigate = useNavigate()
   const { toast } = useAppUi()
   const [displayName, setDisplayNameState] = useState(getDisplayName)
+  const [recentUsageExcludeDays, setRecentUsageExcludeDaysState] = useState(getRecentUsageExcludeDays)
   const {
     status,
     message,
@@ -63,6 +69,40 @@ export default function Settings() {
               maxLength={100}
               autoComplete="name"
             />
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h2>衣装・使用履歴</h2>
+          <p className="settings-description">
+            直近使用した衣装はクリーニング中などで使えない想定のため、候補選出・組み合わせ決定から除外します。
+            この端末の設定が使われます（イベントごとの設定ではありません）。
+          </p>
+          <div className="settings-item">
+            <label htmlFor="recentUsageExcludeDays">直近使用除外日数</label>
+            <input
+              id="recentUsageExcludeDays"
+              type="number"
+              min="0"
+              max="365"
+              className="settings-input"
+              value={recentUsageExcludeDays}
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10)
+                setRecentUsageExcludeDaysState(Number.isFinite(parsed) ? parsed : 0)
+              }}
+              onBlur={() => {
+                const normalized = Number.isFinite(recentUsageExcludeDays)
+                  ? Math.max(0, Math.min(365, recentUsageExcludeDays))
+                  : DEFAULT_RECENT_USAGE_EXCLUDE_DAYS
+                setRecentUsageExcludeDays(normalized)
+                setRecentUsageExcludeDaysState(normalized)
+                toast('直近使用除外日数を保存しました', 'success')
+              }}
+            />
+            <p className="settings-description">
+              0 にすると除外しません。既定は {DEFAULT_RECENT_USAGE_EXCLUDE_DAYS} 日です。
+            </p>
           </div>
         </section>
 

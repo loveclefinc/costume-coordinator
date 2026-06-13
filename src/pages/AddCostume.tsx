@@ -8,6 +8,15 @@ import ImageColorEyedropper, { type EyedropperTarget } from '../components/Image
 import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
+import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS, type DressSilhouette } from '../utils/silhouette'
+import {
+  SUIT_BREASTING_LABELS,
+  SUIT_BREASTING_OPTIONS,
+  SUIT_STYLE_LABELS,
+  SUIT_STYLE_OPTIONS,
+  type SuitBreasting,
+  type SuitStyle,
+} from '../utils/suit-attributes'
 
 const COLOR_CATEGORY_LABELS: Record<string, string> = {
   warm: '暖色',
@@ -71,6 +80,9 @@ export default function AddCostume() {
   const [tone, setTone] = useState<'pastel' | 'vivid' | 'dark' | 'neutral'>('neutral')
   const [pattern, setPattern] = useState('solid')
   const [costumeType, setCostumeType] = useState('dress')
+  const [silhouette, setSilhouette] = useState<DressSilhouette>('a_line')
+  const [suitStyle, setSuitStyle] = useState<SuitStyle>('tuxedo')
+  const [suitBreasting, setSuitBreasting] = useState<SuitBreasting>('single')
   const [tags, setTags] = useState('')
   const [season, setSeason] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -111,6 +123,9 @@ export default function AddCostume() {
         setTone((costume.tone as 'pastel' | 'vivid' | 'dark' | 'neutral') || 'neutral')
         setPattern(patternForForm(costume.pattern))
         if (costume.type) setCostumeType(costume.type)
+        if (costume.silhouette) setSilhouette(costume.silhouette)
+        if (costume.suitStyle) setSuitStyle(costume.suitStyle)
+        if (costume.suitBreasting) setSuitBreasting(costume.suitBreasting)
         setSeason(Array.isArray(costume.season) ? costume.season : [])
       } catch (err) {
         if (!cancelled) {
@@ -226,6 +241,8 @@ export default function AddCostume() {
         pattern: normalizePattern(pattern),
         season,
         type: costumeType,
+        ...(costumeType === 'dress' ? { silhouette } : {}),
+        ...(costumeType === 'suit' ? { suitStyle, suitBreasting } : {}),
       }
 
       if (isEditMode && id) {
@@ -483,6 +500,65 @@ export default function AddCostume() {
             ))}
           </select>
         </div>
+
+        {costumeType === 'dress' && (
+          <div className="form-group">
+            <label htmlFor="silhouette-select">ドレスのシルエット</label>
+            <select
+              id="silhouette-select"
+              value={silhouette}
+              onChange={(e) => setSilhouette(e.target.value as DressSilhouette)}
+              disabled={loading}
+            >
+              {DRESS_SILHOUETTE_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {SILHOUETTE_LABELS[value]}
+                </option>
+              ))}
+            </select>
+            <p className="add-costume-field-hint">
+              色味をバラけさせるイベントでも、ラインを揃えて統一感を出せます。
+            </p>
+          </div>
+        )}
+
+        {costumeType === 'suit' && (
+          <>
+            <div className="form-group">
+              <label htmlFor="suit-style-select">スーツの形式</label>
+              <select
+                id="suit-style-select"
+                value={suitStyle}
+                onChange={(e) => setSuitStyle(e.target.value as SuitStyle)}
+                disabled={loading}
+              >
+                {SUIT_STYLE_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {SUIT_STYLE_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="suit-breasting-select">前釦</label>
+              <select
+                id="suit-breasting-select"
+                value={suitBreasting}
+                onChange={(e) => setSuitBreasting(e.target.value as SuitBreasting)}
+                disabled={loading}
+              >
+                {SUIT_BREASTING_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {SUIT_BREASTING_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              <p className="add-costume-field-hint">
+                タキシード/燕尾の統一や、シングル/ダブルの揃えにも使えます。
+              </p>
+            </div>
+          </>
+        )}
       </section>
 
       {/* Pattern Section */}

@@ -3,7 +3,10 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
-import { optimizeCostumeAssignments, calculateHarmonyScore } from '../utils/optimizer'
+import {
+  runSystemOptimization,
+  type SystemOptimizationAlternative,
+} from '../utils/system-optimizer'
 import { recordCostumeUsage } from '../utils/usage-tracker'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
@@ -34,9 +37,20 @@ import {
 import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
+import {
+  COLOR_UNIFICATION_HINTS,
+  COLOR_UNIFICATION_LABELS,
+  migrateColorUnificationPolicy,
+} from '../utils/theme-color-policy'
 import UsageGuideTip from '../components/UsageGuideTip'
 import { useAppUi } from '../contexts/AppUiContext'
 import { getDisplayName } from '../utils/user-profile'
+import {
+  DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+  getRecentUsageExcludeDays,
+} from '../utils/app-settings'
+import { SILHOUETTE_LABELS } from '../utils/silhouette'
+import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -51,6 +65,18 @@ const translateTones = (tones: string[]): string => {
   return tones.map(tone => TONE_LABELS[tone] || tone).join(', ')
 }
 
+const translateSilhouettes = (silhouettes: string[]): string => {
+  return silhouettes.map((value) => SILHOUETTE_LABELS[value as keyof typeof SILHOUETTE_LABELS] || value).join(', ')
+}
+
+const translateSuitStyles = (styles: string[]): string => {
+  return styles.map((value) => SUIT_STYLE_LABELS[value as keyof typeof SUIT_STYLE_LABELS] || value).join(', ')
+}
+
+const translateSuitBreasting = (values: string[]): string => {
+  return values.map((value) => SUIT_BREASTING_LABELS[value as keyof typeof SUIT_BREASTING_LABELS] || value).join(', ')
+}
+
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -63,7 +89,9 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [optimizationResults, setOptimizationResults] = useState<any[]>([])
+  const [alternativeProposals, setAlternativeProposals] = useState<SystemOptimizationAlternative[]>([])
   const [harmonyScore, setHarmonyScore] = useState(0)
+  const [awaitingAllSubmissions, setAwaitingAllSubmissions] = useState(false)
   const [newParticipant, setNewParticipant] = useState(() => getDisplayName())
   const [participantPreferences, setParticipantPreferences] = useState<{ [key: string]: string[] }>({})
   const [isSaving, setIsSaving] = useState(false)
@@ -231,59 +259,95 @@ export default function EventDetail() {
     )
   }
 
+  const persistOptimizationResults = async (
+    assignments: typeof optimizationResults,
+    eventSnapshot: typeof event,
+  ) => {
+    if (!eventSnapshot || assignments.length === 0) return
+
+    const costumesMap: { [key: string]: string } = {}
+    assignments.forEach((result) => {
+      costumesMap[result.participantName] = result.costume.id
+    })
+
+    const updatedEvent = {
+      ...eventSnapshot,
+      costumes: costumesMap,
+      confirmed: true,
+    }
+
+    await updateEvent(eventSnapshot.id, updatedEvent)
+
+    for (const result of assignments) {
+      await recordCostumeUsage(result.costume.id, eventSnapshot.id)
+    }
+
+    setEvent(updatedEvent)
+    setIsConfirmed(true)
+  }
+
+  const runSystemOptimizationForEvent = async (
+    eventSnapshot: typeof event,
+    prefs: { [key: string]: string[] },
+    costumeList: typeof costumes,
+    options?: { autoPersist?: boolean },
+  ) => {
+    if (!eventSnapshot) return null
+
+    await storage.init()
+    const recentUsageExcludeDays = getRecentUsageExcludeDays()
+    const usageHistory = await storage.getRecentUsageHistory(
+      recentUsageExcludeDays > 0 ? recentUsageExcludeDays : DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+    )
+    const participants = eventSnapshot.participants.map((p: string) => ({
+      id: p,
+      name: p,
+      preferences: prefs[p] || [],
+    }))
+
+    const outcome = runSystemOptimization({
+      participants,
+      costumes: costumeList,
+      usageHistory,
+      themePreferences: eventSnapshot.themePreferences,
+      recentUsageExcludeDays,
+    })
+
+    setOptimizationResults(outcome.selected)
+    setAlternativeProposals(outcome.alternatives)
+    setHarmonyScore(outcome.harmonyScore)
+    setAwaitingAllSubmissions(false)
+
+    if (options?.autoPersist && outcome.selected.length > 0) {
+      setIsSaving(true)
+      try {
+        await persistOptimizationResults(outcome.selected, eventSnapshot)
+      } finally {
+        setIsSaving(false)
+      }
+    }
+
+    return outcome
+  }
+
   const handleOptimize = async () => {
     if (!event) return
 
     try {
-      const usageHistory = await storage.getRecentUsageHistory(30)
-
-      const participants = event.participants.map((p: string) => ({
-        id: p,
-        name: p,
-        preferences: participantPreferences[p] || [],
-      }))
-
-      const results = optimizeCostumeAssignments({
-        participants,
+      setError('')
+      const outcome = await runSystemOptimizationForEvent(
+        event,
+        participantPreferences,
         costumes,
-        usageHistory,
-        themePreferences: event.themePreferences,
-      })
-
-      setOptimizationResults(results.assignments)
-      setHarmonyScore(results.harmonyScore)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to optimize')
-    }
-  }
-
-  const handleConfirmAssignments = async () => {
-    if (!event || optimizationResults.length === 0) return
-
-    setIsSaving(true)
-    try {
-      const costumesMap: { [key: string]: string } = {}
-      optimizationResults.forEach(result => {
-        costumesMap[result.participantName] = result.costume.id
-      })
-
-      const updatedEvent = {
-        ...event,
-        costumes: costumesMap,
-        confirmed: true,
+        { autoPersist: true },
+      )
+      if (!outcome || outcome.selected.length === 0) {
+        setError('組み合わせを生成できませんでした（衣装または参加者が不足しています）')
+        return
       }
-
-      await updateEvent(event.id, updatedEvent)
-
-      for (const result of optimizationResults) {
-        await recordCostumeUsage(result.costume.id, event.id)
-      }
-
-      setIsConfirmed(true)
+      toast('システムが最適な組み合わせを決定しました', 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to confirm assignments')
-    } finally {
-      setIsSaving(false)
+      setError(err instanceof Error ? err.message : '組み合わせの自動決定に失敗しました')
     }
   }
 
@@ -565,11 +629,44 @@ export default function EventDetail() {
       const snapshot = await fetchAdminSnapshot(event.id, adminToken)
       const result = await importAdminSnapshotToLocal(snapshot, event.id)
       await reloadCostumes()
-      await reloadEventAndCostumes()
+      await storage.init()
+      const freshEvent = await getEvent(event.id)
+      const freshCostumes = await storage.getAllCostumes()
+      const freshPrefs = freshEvent?.participantPreferences ?? {}
+      if (freshEvent) {
+        setEvent(freshEvent)
+        setParticipantPreferences(freshPrefs)
+      }
+
+      const submittedCount = snapshot.participants.filter((p) => p.costumeCount > 0).length
+      const totalCount = snapshot.participants.length
+      const allSubmitted = totalCount > 0 && submittedCount === totalCount
+
       toast(
-        `サーバーから取り込みました。参加者 +${result.participantsAdded} / 衣装 新規 ${result.costumesAdded}・更新 ${result.costumesUpdated} / 提出 ${snapshot.participants.filter((p) => p.costumeCount > 0).length}/${snapshot.participants.length} 名`,
+        `サーバーから取り込みました。参加者 +${result.participantsAdded} / 衣装 新規 ${result.costumesAdded}・更新 ${result.costumesUpdated} / 提出 ${submittedCount}/${totalCount} 名`,
         'success',
       )
+
+      if (allSubmitted && freshEvent) {
+        const outcome = await runSystemOptimizationForEvent(
+          freshEvent,
+          freshPrefs,
+          freshCostumes,
+          { autoPersist: true },
+        )
+        if (outcome && outcome.selected.length > 0) {
+          toast(
+            `全員提出済みのため、システムが組み合わせを自動決定しました（調和スコア ${(outcome.harmonyScore * 100).toFixed(1)}%）`,
+            'success',
+          )
+        }
+      } else {
+        setAwaitingAllSubmissions(true)
+        setOptimizationResults([])
+        setAlternativeProposals([])
+        setHarmonyScore(0)
+        setIsConfirmed(false)
+      }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'サーバーからの取り込みに失敗しました')
     } finally {
@@ -640,13 +737,13 @@ export default function EventDetail() {
         <section className="section server-primary-card" aria-labelledby="server-primary-heading">
           <h2 id="server-primary-heading">代表者の操作</h2>
           <p className="server-primary-lead">
-            参加者に招待 URL を送り、提出後にサーバーから取り込んで最適化します。
+            参加者に招待 URL を送り、全員提出後に取り込むとシステムが組み合わせを自動決定します。
           </p>
           <UsageGuideTip title="ℹ️ 代表者・参加者の手順">
             <ol>
               <li>招待 URL をコピーして参加者へ送付</li>
               <li>代表者は「写真提出」または下のボタンから衣装写真をアップロード</li>
-              <li>全員提出後「サーバーから提出を取り込む」→ 最適化</li>
+              <li>全員提出後「サーバーから提出を取り込む」→ システムが自動で最適な組み合わせを決定（参考案も表示）</li>
             </ol>
             <p>
               <Link to="/guide">使い方ガイド（全文）</Link>
@@ -814,6 +911,21 @@ export default function EventDetail() {
           <section className="section theme-preferences-section">
             <h2>🎨 イベントテーマ設定</h2>
             <div className="theme-preferences-display">
+              <div className="preference-display">
+                <h4>色味の統一方針</h4>
+                <p className="theme-unification-summary">
+                  {COLOR_UNIFICATION_LABELS[migrateColorUnificationPolicy(
+                    event.themePreferences.colorUnification,
+                    event.themePreferences.avoidSimilarColors,
+                  )]}
+                </p>
+                <p className="theme-unification-hint">
+                  {COLOR_UNIFICATION_HINTS[migrateColorUnificationPolicy(
+                    event.themePreferences.colorUnification,
+                    event.themePreferences.avoidSimilarColors,
+                  )]}
+                </p>
+              </div>
               {event.themePreferences.colors1stChoice.length > 0 && (
                 <div className="preference-display">
                   <h4>色の好み</h4>
@@ -901,18 +1013,80 @@ export default function EventDetail() {
                   </div>
                 </div>
               )}
-              {(event.themePreferences.avoidSimilarColors || event.themePreferences.recentUsageExcludeDays > 0) && (
+              {(event.themePreferences.silhouettes1stChoice?.length ?? 0) > 0 && (
                 <div className="preference-display">
-                  <h4>追加設定</h4>
+                  <h4>シルエット（ドレス）</h4>
                   <div className="preference-items">
-                    {event.themePreferences.avoidSimilarColors && (
+                    {(event.themePreferences.silhouettes1stChoice?.length ?? 0) > 0 && (
                       <div className="preference-item">
-                        <span className="setting-tag">✓ 似た色を避ける</span>
+                        <span className="preference-rank">第1希望:</span>
+                        <span className="pattern-tags">{translateSilhouettes(event.themePreferences.silhouettes1stChoice)}</span>
                       </div>
                     )}
-                    {event.themePreferences.recentUsageExcludeDays > 0 && (
+                    {(event.themePreferences.silhouettes2ndChoice?.length ?? 0) > 0 && (
                       <div className="preference-item">
-                        <span className="setting-tag">直近{event.themePreferences.recentUsageExcludeDays}日間除外</span>
+                        <span className="preference-rank">第2希望:</span>
+                        <span className="pattern-tags">{translateSilhouettes(event.themePreferences.silhouettes2ndChoice)}</span>
+                      </div>
+                    )}
+                    {(event.themePreferences.silhouettes3rdChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <span className="pattern-tags">{translateSilhouettes(event.themePreferences.silhouettes3rdChoice)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {((event.themePreferences.suitStyles1stChoice?.length ?? 0) > 0 ||
+                (event.themePreferences.suitStyles2ndChoice?.length ?? 0) > 0 ||
+                (event.themePreferences.suitStyles3rdChoice?.length ?? 0) > 0) && (
+                <div className="preference-display">
+                  <h4>スーツ形式</h4>
+                  <div className="preference-items">
+                    {(event.themePreferences.suitStyles1stChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第1希望:</span>
+                        <span className="pattern-tags">{translateSuitStyles(event.themePreferences.suitStyles1stChoice)}</span>
+                      </div>
+                    )}
+                    {(event.themePreferences.suitStyles2ndChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第2希望:</span>
+                        <span className="pattern-tags">{translateSuitStyles(event.themePreferences.suitStyles2ndChoice)}</span>
+                      </div>
+                    )}
+                    {(event.themePreferences.suitStyles3rdChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <span className="pattern-tags">{translateSuitStyles(event.themePreferences.suitStyles3rdChoice)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {((event.themePreferences.suitBreasting1stChoice?.length ?? 0) > 0 ||
+                (event.themePreferences.suitBreasting2ndChoice?.length ?? 0) > 0 ||
+                (event.themePreferences.suitBreasting3rdChoice?.length ?? 0) > 0) && (
+                <div className="preference-display">
+                  <h4>前釦（スーツ）</h4>
+                  <div className="preference-items">
+                    {(event.themePreferences.suitBreasting1stChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第1希望:</span>
+                        <span className="pattern-tags">{translateSuitBreasting(event.themePreferences.suitBreasting1stChoice)}</span>
+                      </div>
+                    )}
+                    {(event.themePreferences.suitBreasting2ndChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第2希望:</span>
+                        <span className="pattern-tags">{translateSuitBreasting(event.themePreferences.suitBreasting2ndChoice)}</span>
+                      </div>
+                    )}
+                    {(event.themePreferences.suitBreasting3rdChoice?.length ?? 0) > 0 && (
+                      <div className="preference-item">
+                        <span className="preference-rank">第3希望:</span>
+                        <span className="pattern-tags">{translateSuitBreasting(event.themePreferences.suitBreasting3rdChoice)}</span>
                       </div>
                     )}
                   </div>
@@ -1010,71 +1184,57 @@ export default function EventDetail() {
           </section>
         )}
 
-        {/* Optimization Section */}
+        {/* System optimization */}
         {event.participants.length > 0 && costumes.length > 0 && (
           <section className="section">
             <div className="optimization-header">
-              <h2>⚡ 最適化</h2>
-              <button onClick={handleOptimize} className="optimize-button">
-                最適な組み合わせを生成
+              <h2>⚡ システムによる組み合わせ</h2>
+              <button onClick={() => void handleOptimize()} className="optimize-button">
+                組み合わせを再計算
               </button>
             </div>
+
+            {awaitingAllSubmissions && (
+              <p className="server-awaiting-submissions">
+                まだ提出待ちの参加者がいます。全員提出後に取り込むと、システムが自動で組み合わせを決定します。
+              </p>
+            )}
 
             {optimizationResults.length > 0 && (
               <>
                 <div className="harmony-score">
-                  <p>調和スコア: <strong>{(harmonyScore * 100).toFixed(1)}%</strong></p>
+                  <p>
+                    採用案の調和スコア: <strong>{(harmonyScore * 100).toFixed(1)}%</strong>
+                    {isConfirmed && <span className="system-decided-badge">システム決定済み</span>}
+                  </p>
                 </div>
 
-                {!isConfirmed && (
-                  <div className="confirmation-actions">
-                    <button
-                      onClick={handleConfirmAssignments}
-                      disabled={isSaving}
-                      className="confirm-button"
-                    >
-                      {isSaving ? '保存中...' : 'この組み合わせを確定'}
-                    </button>
-                    <button onClick={handleExportCSV} className="action-button export-button">
-                      📊 結果をCSVで出力
-                    </button>
-                    <button
-                      onClick={() => void handleExportClientPdf()}
-                      disabled={isExportingPdf}
-                      className="action-button export-button client-pdf-button"
-                    >
-                      {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
-                    </button>
-                  </div>
-                )}
+                <p className="system-optimization-lead">
+                  テーマ・希望順位・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
+                </p>
+
+                <div className="confirmation-actions">
+                  <button onClick={handleExportCSV} className="action-button export-button">
+                    📊 結果をCSVで出力
+                  </button>
+                  <button
+                    onClick={() => void handleExportClientPdf()}
+                    disabled={isExportingPdf}
+                    className="action-button export-button client-pdf-button"
+                  >
+                    {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
+                  </button>
+                </div>
 
                 {isConfirmed && (
                   <div className="confirmation-message">
-                    <p>✅ 組み合わせが確定されました。使用履歴に記録されました。</p>
-                    <button
-                      onClick={() => void handleExportClientPdf()}
-                      disabled={isExportingPdf}
-                      className="action-button export-button client-pdf-button"
-                    >
-                      {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsConfirmed(false)
-                        setOptimizationResults([])
-                        navigate('/events')
-                      }}
-                      className="back-to-events-button"
-                    >
-                      イベント一覧に戻る
-                    </button>
+                    <p>✅ システムが組み合わせを決定し、使用履歴に記録しました。</p>
                   </div>
                 )}
 
-                {!isConfirmed && (
                 <div className="optimization-results">
                   {optimizationResults.map((result) => (
-                    <div key={result.participantId} className="result-card">
+                    <div key={result.participantId} className="result-card result-card--selected">
                       <div className="result-header">
                         <h4>{result.participantName}</h4>
                         <span className="score">{(result.score * 100).toFixed(0)}点</span>
@@ -1108,6 +1268,32 @@ export default function EventDetail() {
                     </div>
                   ))}
                 </div>
+
+                {alternativeProposals.length > 0 && (
+                  <details className="alternative-proposals-panel">
+                    <summary>参考案を見る（{alternativeProposals.length} 件）</summary>
+                    <div className="alternative-proposals-list">
+                      {alternativeProposals.map((proposal) => (
+                        <div key={proposal.id} className="alternative-proposal-card">
+                          <h4>
+                            {proposal.label}
+                            <span className="alternative-proposal-score">
+                              調和 {(proposal.harmonyScore * 100).toFixed(1)}%
+                            </span>
+                          </h4>
+                          <ul className="alternative-proposal-assignments">
+                            {proposal.assignments.map((row) => (
+                              <li key={`${proposal.id}-${row.participantId}`}>
+                                <strong>{row.participantName}</strong>
+                                {' → '}
+                                {row.costume.name}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 )}
               </>
             )}

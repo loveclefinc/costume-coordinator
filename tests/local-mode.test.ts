@@ -119,7 +119,6 @@ describe("Local Mode - Event Management", () => {
         tonePreferences: ["vivid", "pastel"],
         patternPreferences: ["solid", "floral"],
         avoidSimilarColors: true,
-        recentUsageExcludeDays: 30,
       },
       status: "active",
       participants: [],

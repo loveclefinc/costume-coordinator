@@ -1,4 +1,6 @@
 import { Costume, EventThemePreferences, UsageHistory } from './storage'
+import { isCostumeRecentlyUsed } from './costume-theme-match'
+import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
 
 export interface OptimizationResult {
   participantId: string
@@ -22,6 +24,7 @@ export interface OptimizationInput {
   costumes: Costume[]
   usageHistory: UsageHistory[]
   themePreferences?: EventThemePreferences
+  recentUsageExcludeDays?: number
 }
 
 /**
@@ -81,52 +84,28 @@ function calculatePreferenceScore(costumeId: string, preferences: string[]): num
   return 1 - index * 0.1 // First choice: 1.0, second: 0.9, etc.
 }
 
-/**
- * Calculate recent usage score (prefer unused costumes)
- */
-function calculateRecentUsageScore(
-  costumeId: string,
-  usageHistory: UsageHistory[],
-  excludeDays: number
-): number {
-  const recentUsages = usageHistory.filter(h => {
-    const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-    return daysSinceUse <= excludeDays && h.costumeId === costumeId
-  })
-  return recentUsages.length === 0 ? 1.0 : 0.3
-}
-
-/**
- * Calculate overall score for a costume assignment
- */
 function calculateAssignmentScore(
   costume: Costume,
   participantPreferences: string[],
-  usageHistory: UsageHistory[],
-  themePreferences?: EventThemePreferences
+  themePreferences?: EventThemePreferences,
 ): number {
   const colorScore = calculateColorThemeScore(costume.colors, themePreferences)
   const toneScore = calculateToneThemeScore(costume.tone, themePreferences)
   const patternScore = calculatePatternThemeScore(costume.pattern, themePreferences)
   const preferenceScore = calculatePreferenceScore(costume.id, participantPreferences)
-  const excludeDays = themePreferences?.recentUsageExcludeDays || 30
-  const usageScore = calculateRecentUsageScore(costume.id, usageHistory, excludeDays)
 
-  // Weighted scoring
   const weights = {
-    color: 0.25,
-    tone: 0.2,
-    pattern: 0.15,
-    preference: 0.2,
-    usage: 0.2,
+    color: 0.3125,
+    tone: 0.25,
+    pattern: 0.1875,
+    preference: 0.25,
   }
 
   return (
     colorScore * weights.color +
     toneScore * weights.tone +
     patternScore * weights.pattern +
-    preferenceScore * weights.preference +
-    usageScore * weights.usage
+    preferenceScore * weights.preference
   )
 }
 
@@ -134,7 +113,13 @@ function calculateAssignmentScore(
  * Generate multiple costume assignment proposals
  */
 export function generateMultipleProposals(input: OptimizationInput, proposalCount: number = 3): OptimizationProposal[] {
-  const { participants, costumes, usageHistory, themePreferences } = input
+  const {
+    participants,
+    costumes,
+    usageHistory,
+    themePreferences,
+    recentUsageExcludeDays = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
+  } = input
   const proposals: OptimizationProposal[] = []
   const usedCostumesByProposal: Set<string>[] = []
 
@@ -153,11 +138,12 @@ export function generateMultipleProposals(input: OptimizationInput, proposalCoun
         // Skip if already assigned to another participant in this proposal
         if (assignments.some(a => a.costumeId === costume.id)) continue
 
+        if (isCostumeRecentlyUsed(costume.id, usageHistory, recentUsageExcludeDays)) continue
+
         const score = calculateAssignmentScore(
           costume,
           participant.preferences,
-          usageHistory,
-          themePreferences
+          themePreferences,
         )
 
         if (score > bestScore) {
@@ -191,13 +177,8 @@ export function generateMultipleProposals(input: OptimizationInput, proposalCoun
           reasons.push(`希望順位: ${prefIndex + 1}位`)
         }
 
-        const excludeDays = themePreferences?.recentUsageExcludeDays || 30
-        const recentUsages = usageHistory.filter(h => {
-          const daysSinceUse = (Date.now() - h.usedAt) / (1000 * 60 * 60 * 24)
-          return daysSinceUse <= excludeDays && h.costumeId === bestCostume!.id
-        })
-        if (recentUsages.length === 0) {
-          reasons.push(`直近${excludeDays}日間未使用`)
+        if (recentUsageExcludeDays > 0) {
+          reasons.push(`直近${recentUsageExcludeDays}日間未使用`)
         }
 
         reasons.push(`スコア: ${(bestScore * 100).toFixed(1)}`)

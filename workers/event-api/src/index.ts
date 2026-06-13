@@ -362,8 +362,8 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const preferences = JSON.stringify(Array.isArray(body.preferences) ? body.preferences : [])
 
   await env.DB.prepare(
-    `INSERT INTO costumes (id, event_id, participant_id, name, colors_json, tone, pattern, season_json, type, preferences_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO costumes (id, event_id, participant_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, preferences_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       costumeId,
@@ -375,6 +375,9 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
       body.pattern ?? 'plain',
       season,
       body.type ?? null,
+      body.silhouette ?? null,
+      body.suitStyle ?? null,
+      body.suitBreasting ?? null,
       preferences,
       now,
       now,
@@ -592,6 +595,9 @@ async function buildAdminSnapshot(
       pattern: c.pattern,
       season: JSON.parse(c.season_json) as string[],
       type: c.type ?? undefined,
+      silhouette: c.silhouette ?? undefined,
+      suitStyle: c.suit_style ?? undefined,
+      suitBreasting: c.suit_breasting ?? undefined,
       preferences: JSON.parse(c.preferences_json) as string[],
       photos,
       createdAt: c.created_at,
@@ -711,6 +717,9 @@ type CostumeRow = {
   pattern: string
   season_json: string
   type: string | null
+  silhouette: string | null
+  suit_style: string | null
+  suit_breasting: string | null
   preferences_json: string
   created_at: number
   updated_at: number

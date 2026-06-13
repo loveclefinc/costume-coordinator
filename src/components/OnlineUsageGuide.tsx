@@ -7,7 +7,7 @@ export default function OnlineUsageGuide() {
       <header className="online-usage-guide-header">
         <h1>オンライン提出の使い方</h1>
         <p>
-          代表者がイベントを作り、参加者が URL から写真を提出し、代表者が取り込んで最適化する流れです。
+          参加者が候補衣装をサーバーへ提出し、全員提出後に代表者が取り込むと、システムが組み合わせを自動決定する流れです。
         </p>
       </header>
 
@@ -30,8 +30,7 @@ export default function OnlineUsageGuide() {
           <li>
             <strong>代表者として写真を提出</strong>から、衣装写真をアップロード
           </li>
-          <li>参加者の提出後、イベント詳細 → <strong>サーバーから提出を取り込む</strong></li>
-          <li><strong>最適化</strong>で衣装の組み合わせを決める</li>
+          <li>参加者の提出後、イベント詳細 → <strong>サーバーから提出を取り込む</strong>（全員提出済みならシステムが自動で組み合わせを決定）</li>
         </ol>
       </section>
 

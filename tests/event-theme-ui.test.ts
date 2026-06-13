@@ -18,8 +18,16 @@ const sampleTheme: EventThemePreferencesPayload = {
   patterns1stChoice: ['floral'],
   patterns2ndChoice: ['plain'],
   patterns3rdChoice: [],
+  silhouettes1stChoice: [],
+  silhouettes2ndChoice: [],
+  silhouettes3rdChoice: [],
+  suitStyles1stChoice: [],
+  suitStyles2ndChoice: [],
+  suitStyles3rdChoice: [],
+  suitBreasting1stChoice: [],
+  suitBreasting2ndChoice: [],
+  suitBreasting3rdChoice: [],
   avoidSimilarColors: true,
-  recentUsageExcludeDays: 30,
 }
 
 describe('event-theme-ui', () => {
@@ -55,5 +63,14 @@ describe('event-theme-ui', () => {
     const lines = formatThemeSummary(sampleTheme)
     expect(lines.some((line) => line.includes('統一'))).toBe(true)
     expect(lines.some((line) => line.includes('第1希望'))).toBe(true)
+  })
+
+  it('formatThemeSummary describes varied_distinct as third color policy option', () => {
+    const lines = formatThemeSummary({
+      ...sampleTheme,
+      colorUnification: 'varied_distinct',
+      avoidSimilarColors: true,
+    })
+    expect(lines[0]).toContain('似た色')
   })
 })

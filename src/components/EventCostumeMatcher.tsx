@@ -48,10 +48,10 @@ export default function EventCostumeMatcher({
 
       <p className="event-costume-matcher-lead">
         {status === 'done'
-          ? '以下の衣装が自動選出され、代表者へ提出されました。'
+          ? `テーマに合う候補 ${picked.length} 件を提出しました。全員提出後、システムが最適な組み合わせを自動決定します。`
           : status === 'submitting'
-            ? '選出した衣装を提出しています…'
-            : '登録衣装の中から、イベントのテーマに合う衣装を自動選出しました。'}
+            ? `候補 ${picked.length} 件を提出しています…`
+            : `登録衣装の中から、テーマに合う候補を ${picked.length} 件自動選出しました（組み合わせの決定はシステムが行います）。`}
       </p>
 
       <div className="event-costume-matcher-grid">
@@ -65,7 +65,7 @@ export default function EventCostumeMatcher({
           return (
             <article key={costume.id} className="event-costume-card event-costume-card--readonly">
               <div className="event-costume-card-rank">
-                {index === 0 ? '自動選出' : `候補 ${index + 1}`}
+                {`候補 ${index + 1}`}
                 <span className="event-costume-card-score">{scorePercent}%</span>
               </div>
               {costume.image ? (

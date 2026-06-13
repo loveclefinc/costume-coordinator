@@ -1,5 +1,8 @@
 // IndexedDB storage utility for PWA local persistence
 
+import type { DressSilhouette } from './silhouette'
+import type { SuitBreasting, SuitStyle } from './suit-attributes'
+
 const DB_NAME = 'CostumeCoordinator'
 const DB_VERSION = 2
 
@@ -12,13 +15,19 @@ export interface Costume {
   pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'
   season: string[] // ['spring', 'summer', 'autumn', 'winter']
   type?: string // 'dress' | 'suit' | 'shirt' | 'necktie' | 'bowtie' | 'accessory' | 'other'
+  /** ドレスのシルエット（type === 'dress' のとき） */
+  silhouette?: DressSilhouette
+  /** スーツの形式（type === 'suit' のとき） */
+  suitStyle?: SuitStyle
+  /** スーツの前釦（type === 'suit' のとき） */
+  suitBreasting?: SuitBreasting
   createdAt: number
   updatedAt: number
 }
 
 export interface EventThemePreferences {
   // Color unification strategy
-  colorUnification: 'unified' | 'varied'
+  colorUnification: 'unified' | 'varied' | 'varied_distinct'
   
   // Color preferences (1st/2nd/3rd choice)
   colors1stChoice: string[]
@@ -34,10 +43,19 @@ export interface EventThemePreferences {
   patterns1stChoice: string[]
   patterns2ndChoice: string[]
   patterns3rdChoice: string[]
+
+  silhouettes1stChoice: string[]
+  silhouettes2ndChoice: string[]
+  silhouettes3rdChoice: string[]
+
+  suitStyles1stChoice: string[]
+  suitStyles2ndChoice: string[]
+  suitStyles3rdChoice: string[]
+  suitBreasting1stChoice: string[]
+  suitBreasting2ndChoice: string[]
+  suitBreasting3rdChoice: string[]
   
-  // Additional settings
   avoidSimilarColors: boolean
-  recentUsageExcludeDays: number
 }
 
 export interface Event {

@@ -4,7 +4,7 @@ import type { Costume, Event } from '../utils/storage'
 import { storage } from '../utils/storage'
 
 /**
- * 代表者: サーバー上の全提出を IndexedDB に取り込み（最適化用）。
+ * 代表者: サーバー上の全提出を IndexedDB に取り込み。全員提出済みなら最適化も自動実行。
  * 画像は API の viewUrl（HTTPS）をそのまま image に設定。
  */
 export async function importAdminSnapshotToLocal(
@@ -41,6 +41,9 @@ export async function importAdminSnapshotToLocal(
       pattern: sc.pattern,
       season: sc.season,
       type: sc.type,
+      silhouette: sc.silhouette,
+      suitStyle: sc.suitStyle,
+      suitBreasting: sc.suitBreasting,
       createdAt: sc.createdAt,
       updatedAt: sc.updatedAt,
     })

@@ -3,7 +3,7 @@ import {
   autoPickCostumesForEventTheme,
   rankCostumesForEventTheme,
 } from '../src/utils/costume-theme-match'
-import type { Costume, EventThemePreferences } from '../src/utils/storage'
+import type { Costume, EventThemePreferences, UsageHistory } from '../src/utils/storage'
 
 const theme: EventThemePreferences = {
   colorUnification: 'unified',
@@ -16,8 +16,16 @@ const theme: EventThemePreferences = {
   patterns1stChoice: ['floral'],
   patterns2ndChoice: ['plain'],
   patterns3rdChoice: [],
+  silhouettes1stChoice: [],
+  silhouettes2ndChoice: [],
+  silhouettes3rdChoice: [],
+  suitStyles1stChoice: [],
+  suitStyles2ndChoice: [],
+  suitStyles3rdChoice: [],
+  suitBreasting1stChoice: [],
+  suitBreasting2ndChoice: [],
+  suitBreasting3rdChoice: [],
   avoidSimilarColors: false,
-  recentUsageExcludeDays: 30,
 }
 
 function costume(id: string, overrides: Partial<Costume>): Costume {
@@ -30,6 +38,7 @@ function costume(id: string, overrides: Partial<Costume>): Costume {
     tone: 'neutral',
     pattern: 'plain',
     season: [],
+    type: 'dress',
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -64,5 +73,78 @@ describe('costume-theme-match', () => {
 
     expect(picked.every((entry) => entry.costume.id !== 'off-theme')).toBe(true)
     expect(picked[0].costume.id).toBe('blue-dress')
+    expect(picked.length).toBe(2)
+    expect(picked.map((entry) => entry.costume.id)).toContain('navy')
+  })
+
+  it('autoPickCostumesForEventTheme returns multiple candidates up to maxCount', () => {
+    const picked = autoPickCostumesForEventTheme(
+      [
+        costume('c1', { colors: ['blue'], tone: 'vivid', pattern: 'floral' }),
+        costume('c2', { colors: ['white'], tone: 'vivid', pattern: 'plain' }),
+        costume('c3', { colors: ['gray'], tone: 'neutral', pattern: 'plain' }),
+      ],
+      theme,
+      [],
+      3,
+    )
+
+    expect(picked.length).toBe(3)
+  })
+
+  it('excludes recently used costumes before ranking', () => {
+    const usageHistory: UsageHistory[] = [
+      {
+        id: 'usage1',
+        costumeId: 'blue-dress',
+        eventId: 'event1',
+        participantName: 'Alice',
+        usedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      },
+    ]
+
+    const ranked = rankCostumesForEventTheme(
+      [
+        costume('beige', { colors: ['#D1B68B'], tone: 'neutral', pattern: 'plain' }),
+        costume('blue-dress', { colors: ['blue', 'white'], tone: 'vivid', pattern: 'floral' }),
+      ],
+      theme,
+      usageHistory,
+      30,
+    )
+
+    expect(ranked).toHaveLength(1)
+    expect(ranked[0].costume.id).toBe('beige')
+  })
+
+  it('prefers matching dress silhouette when theme specifies it', () => {
+    const ranked = rankCostumesForEventTheme(
+      [
+        costume('mermaid-dress', { colors: ['blue'], tone: 'vivid', pattern: 'floral', type: 'dress', silhouette: 'mermaid' }),
+        costume('a-line-dress', { colors: ['blue'], tone: 'vivid', pattern: 'floral', type: 'dress', silhouette: 'a_line' }),
+      ],
+      {
+        ...theme,
+        silhouettes1stChoice: ['a_line'],
+      },
+    )
+
+    expect(ranked[0].costume.id).toBe('a-line-dress')
+  })
+
+  it('prefers matching suit style and pieces when theme specifies them', () => {
+    const ranked = rankCostumesForEventTheme(
+      [
+        costume('tux-single', { colors: ['black'], tone: 'dark', pattern: 'plain', type: 'suit', suitStyle: 'tuxedo', suitBreasting: 'single' }),
+        costume('tail-double', { colors: ['black'], tone: 'dark', pattern: 'plain', type: 'suit', suitStyle: 'tailcoat', suitBreasting: 'double' }),
+      ],
+      {
+        ...theme,
+        suitStyles1stChoice: ['tailcoat'],
+        suitBreasting1stChoice: ['double'],
+      },
+    )
+
+    expect(ranked[0].costume.id).toBe('tail-double')
   })
 })
