@@ -6,6 +6,17 @@ export type RetentionDays = 7 | 14
 
 export type ColorUnificationPolicy = 'unified' | 'varied' | 'varied_distinct'
 
+export type ColorCoordinationMode = 'avoid' | 'match'
+
+export interface ColorCoordinationAnchorPayload {
+  id: string
+  label: string
+  colors: string[]
+  mode: ColorCoordinationMode
+  /** 参考写真（Base64 data URL、任意・ローカル保存向け） */
+  image?: string
+}
+
 export interface EventThemePreferencesPayload {
   colorUnification: ColorUnificationPolicy
   colors1stChoice: string[]
@@ -27,6 +38,7 @@ export interface EventThemePreferencesPayload {
   suitBreasting2ndChoice: string[]
   suitBreasting3rdChoice: string[]
   avoidSimilarColors: boolean
+  colorCoordinationAnchors?: ColorCoordinationAnchorPayload[]
 }
 
 export interface CreateEventRequest {

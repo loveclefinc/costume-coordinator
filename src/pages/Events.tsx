@@ -22,6 +22,7 @@ import {
   migrateColorUnificationPolicy,
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
+import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
 import {
   SUIT_BREASTING_LABELS,
@@ -85,6 +86,7 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
   suitBreasting2ndChoice: [],
   suitBreasting3rdChoice: [],
   avoidSimilarColors: false,
+  colorCoordinationAnchors: [],
 }
 
 export default function Events() {
@@ -752,6 +754,16 @@ export default function Events() {
                   </label>
                   <p className="form-hint color-policy-hint">{COLOR_UNIFICATION_HINTS.varied_distinct}</p>
                 </div>
+              </div>
+
+              <div className="theme-subsection">
+                <h4>基準衣装の色（ゲスト・ソリスト等）</h4>
+                <ColorCoordinationAnchorsEditor
+                  anchors={themePrefs.colorCoordinationAnchors ?? []}
+                  onChange={(colorCoordinationAnchors) =>
+                    setThemePrefs((prev) => ({ ...prev, colorCoordinationAnchors }))
+                  }
+                />
               </div>
 
               {/* 希望順ウィザード: 第1希望（色・トーン・柄）→ 第2希望 → 第3希望 */}

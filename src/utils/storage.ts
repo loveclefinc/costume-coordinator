@@ -27,6 +27,19 @@ export interface Costume {
   updatedAt: number
 }
 
+/** ゲスト・ソリスト等の基準衣装色（重ねない / 合わせる） */
+export interface ColorCoordinationAnchor {
+  id: string
+  /** 例: ゲスト衣装、ソリスト */
+  label: string
+  /** 基準となる色（色名または HEX） */
+  colors: string[]
+  /** avoid = 似た色を避ける / match = 似た色に合わせる */
+  mode: 'avoid' | 'match'
+  /** 参考写真（Base64 data URL、任意） */
+  image?: string
+}
+
 export interface EventThemePreferences {
   // Color unification strategy
   colorUnification: 'unified' | 'varied' | 'varied_distinct'
@@ -58,6 +71,8 @@ export interface EventThemePreferences {
   suitBreasting3rdChoice: string[]
   
   avoidSimilarColors: boolean
+  /** 決まっている他出演者の衣装色（重ねない・合わせる） */
+  colorCoordinationAnchors?: ColorCoordinationAnchor[]
 }
 
 export interface Event {

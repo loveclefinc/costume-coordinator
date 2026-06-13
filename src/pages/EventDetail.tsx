@@ -7,7 +7,7 @@ import {
   runSystemOptimization,
   type SystemOptimizationAlternative,
 } from '../utils/system-optimizer'
-import { recordCostumeUsage } from '../utils/usage-tracker'
+import { recordCostumeUsage, recordSingleCostumeUsage } from '../utils/usage-tracker'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
 import {
@@ -41,8 +41,10 @@ import {
   COLOR_UNIFICATION_HINTS,
   COLOR_UNIFICATION_LABELS,
   migrateColorUnificationPolicy,
+  normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
 import UsageGuideTip from '../components/UsageGuideTip'
+import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { useAppUi } from '../contexts/AppUiContext'
 import { getDisplayName } from '../utils/user-profile'
 import {
@@ -109,6 +111,11 @@ export default function EventDetail() {
     adminToken?: string
     hostParticipateUrl?: string
   } | null>(null)
+  const [manualUsageParticipant, setManualUsageParticipant] = useState('')
+  const [manualUsageCostumeId, setManualUsageCostumeId] = useState('')
+  const [eventUsageHistory, setEventUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
+  const [savingColorAnchors, setSavingColorAnchors] = useState(false)
+  const [recordingUsage, setRecordingUsage] = useState(false)
   const serverApiEnabled = isEventServerEnabled()
 
   useEffect(() => {
@@ -144,6 +151,26 @@ export default function EventDetail() {
 
     loadEvent()
   }, [id, getEvent, updateEvent])
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    void storage.init().then(async () => {
+      const all = await storage.getAllUsageHistory()
+      if (!cancelled) {
+        setEventUsageHistory(all.filter((entry) => entry.eventId === id))
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [id, isConfirmed])
+
+  useEffect(() => {
+    if (event?.participants?.length && !manualUsageParticipant) {
+      setManualUsageParticipant(event.participants[0])
+    }
+  }, [event?.participants, manualUsageParticipant])
 
   const handleAddParticipant = async () => {
     if (!newParticipant.trim() || !event) return
@@ -193,6 +220,47 @@ export default function EventDetail() {
       setEvent(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : '希望の保存に失敗しました')
+    }
+  }
+
+  const handleSaveColorAnchors = async (anchors: NonNullable<typeof event.themePreferences>['colorCoordinationAnchors']) => {
+    if (!event?.themePreferences) return
+    setSavingColorAnchors(true)
+    setError('')
+    try {
+      const themePreferences = normalizeThemeColorPolicy({
+        ...event.themePreferences,
+        colorCoordinationAnchors: anchors ?? [],
+      })
+      const updated = await updateEvent(event.id, { themePreferences })
+      setEvent(updated)
+      toast('基準衣装の色設定を保存しました', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '基準色の保存に失敗しました')
+    } finally {
+      setSavingColorAnchors(false)
+    }
+  }
+
+  const handleRecordManualUsage = async () => {
+    if (!event || !manualUsageParticipant.trim() || !manualUsageCostumeId) return
+    setRecordingUsage(true)
+    setError('')
+    try {
+      await storage.init()
+      await recordSingleCostumeUsage(
+        event.id,
+        manualUsageParticipant.trim(),
+        manualUsageCostumeId,
+      )
+      const all = await storage.getAllUsageHistory()
+      setEventUsageHistory(all.filter((entry) => entry.eventId === event.id))
+      const costumeName = costumes.find((c) => c.id === manualUsageCostumeId)?.name ?? '衣装'
+      toast(`${manualUsageParticipant} さんの「${costumeName}」を使用履歴に記録しました`, 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '使用履歴の記録に失敗しました')
+    } finally {
+      setRecordingUsage(false)
     }
   }
 
@@ -278,9 +346,7 @@ export default function EventDetail() {
 
     await updateEvent(eventSnapshot.id, updatedEvent)
 
-    for (const result of assignments) {
-      await recordCostumeUsage(result.costume.id, eventSnapshot.id)
-    }
+    await recordCostumeUsage(eventSnapshot.id, costumesMap)
 
     setEvent(updatedEvent)
     setIsConfirmed(true)
@@ -1150,6 +1216,102 @@ export default function EventDetail() {
               ))
             )}
           </div>
+        </section>
+
+        {/* Color coordination anchors */}
+        {event.themePreferences && (
+          <section className="section">
+            <h2>🎯 基準衣装の色（ゲスト・ソリスト等）</h2>
+            <p className="participant-name-hint">
+              すでに衣装が決まっている出演者の色を基準に、他の参加者の候補選出・組み合わせに反映します。
+            </p>
+            <ColorCoordinationAnchorsEditor
+              anchors={event.themePreferences.colorCoordinationAnchors ?? []}
+              onChange={(colorCoordinationAnchors) => {
+                setEvent({
+                  ...event,
+                  themePreferences: {
+                    ...event.themePreferences,
+                    colorCoordinationAnchors,
+                  },
+                })
+              }}
+            />
+            <button
+              type="button"
+              className="action-button"
+              disabled={savingColorAnchors}
+              onClick={() =>
+                void handleSaveColorAnchors(event.themePreferences?.colorCoordinationAnchors)
+              }
+            >
+              {savingColorAnchors ? '保存中…' : '基準色設定を保存'}
+            </button>
+          </section>
+        )}
+
+        {/* Manual usage history */}
+        <section className="section">
+          <h2>📅 使用履歴の手動登録</h2>
+          <p className="participant-name-hint">
+            組み合わせ自動決定を使わないイベントや、実際に着用した衣装を後から記録する場合に使います。
+            記録した衣装は設定の「直近使用除外日数」以内、候補から除外されます。
+          </p>
+          <div className="manual-usage-form">
+            <label>
+              参加者
+              <select
+                value={manualUsageParticipant}
+                onChange={(e) => setManualUsageParticipant(e.target.value)}
+              >
+                {(event.participants.length > 0 ? event.participants : [getDisplayName() || '自分'])
+                  .filter(Boolean)
+                  .map((name: string) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              着用した衣装
+              <select
+                value={manualUsageCostumeId}
+                onChange={(e) => setManualUsageCostumeId(e.target.value)}
+              >
+                <option value="">選択してください</option>
+                {costumes.map((costume) => (
+                  <option key={costume.id} value={costume.id}>
+                    {costume.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="action-button"
+              disabled={recordingUsage || !manualUsageCostumeId || !manualUsageParticipant.trim()}
+              onClick={() => void handleRecordManualUsage()}
+            >
+              {recordingUsage ? '記録中…' : '使用履歴に記録'}
+            </button>
+          </div>
+          {eventUsageHistory.length > 0 && (
+            <ul className="manual-usage-list">
+              {eventUsageHistory
+                .slice()
+                .sort((a, b) => b.usedAt - a.usedAt)
+                .map((entry) => {
+                  const costumeName =
+                    costumes.find((c) => c.id === entry.costumeId)?.name ?? entry.costumeId
+                  return (
+                    <li key={entry.id}>
+                      {new Date(entry.usedAt).toLocaleString('ja-JP')} — {entry.participantName}: {costumeName}
+                    </li>
+                  )
+                })}
+            </ul>
+          )}
         </section>
 
         {/* Preferences Section */}

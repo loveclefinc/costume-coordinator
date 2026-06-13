@@ -1110,3 +1110,36 @@
 .theme-collapsible .theme-preferences-display {
   padding-top: 0.5rem;
 }
+
+.manual-usage-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.manual-usage-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.manual-usage-form select {
+  min-width: 180px;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #ccc);
+}
+
+.manual-usage-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted, #555);
+}
+
+.manual-usage-list li {
+  margin-bottom: 0.35rem;
+}

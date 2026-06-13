@@ -1,40 +1,52 @@
 import { useState, useEffect, useCallback } from 'react'
 import { storage, Event } from '../utils/storage'
+import { EVENTS_CHANGED_EVENT } from '../utils/ensure-local-participant-event'
+
+async function loadAllEvents(): Promise<Event[]> {
+  await storage.init()
+  const allEvents = await storage.getAllEvents()
+  const migrated: Event[] = []
+  for (const ev of allEvents) {
+    if (ev.participants.length === 0) {
+      const fixed: Event = {
+        ...ev,
+        participants: ['代表者'],
+        updatedAt: Date.now(),
+      }
+      await storage.updateEvent(fixed)
+      migrated.push(fixed)
+    } else {
+      migrated.push(ev)
+    }
+  }
+  return migrated
+}
 
 export function useEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const initStorage = async () => {
-      try {
-        await storage.init()
-        const allEvents = await storage.getAllEvents()
-        const migrated: Event[] = []
-        for (const ev of allEvents) {
-          if (ev.participants.length === 0) {
-            const fixed: Event = {
-              ...ev,
-              participants: ['代表者'],
-              updatedAt: Date.now(),
-            }
-            await storage.updateEvent(fixed)
-            migrated.push(fixed)
-          } else {
-            migrated.push(ev)
-          }
-        }
-        setEvents(migrated)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load events')
-      } finally {
-        setLoading(false)
-      }
+  const reloadEvents = useCallback(async () => {
+    try {
+      const migrated = await loadAllEvents()
+      setEvents(migrated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load events')
     }
-
-    initStorage()
   }, [])
+
+  useEffect(() => {
+    void reloadEvents().finally(() => setLoading(false))
+  }, [reloadEvents])
+
+  useEffect(() => {
+    const onChanged = () => {
+      void reloadEvents()
+    }
+    window.addEventListener(EVENTS_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(EVENTS_CHANGED_EVENT, onChanged)
+  }, [reloadEvents])
 
   const addEvent = useCallback(async (
     event: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>,
@@ -108,5 +120,6 @@ export function useEvents() {
     updateEvent,
     deleteEvent,
     getEvent,
+    reloadEvents,
   }
 }

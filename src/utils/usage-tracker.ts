@@ -1,7 +1,7 @@
 import { storage, UsageHistory } from './storage'
 
 /**
- * Record costume usage for an event
+ * Record costume usage for an event (all participants at once)
  */
 export async function recordCostumeUsage(
   eventId: string,
@@ -10,19 +10,32 @@ export async function recordCostumeUsage(
   const now = Date.now()
 
   for (const [participantName, costumeId] of Object.entries(assignments)) {
-    const history: UsageHistory = {
-      id: `usage_${eventId}_${participantName}_${now}`,
-      costumeId,
-      eventId,
-      participantName,
-      usedAt: now,
-    }
+    await recordSingleCostumeUsage(eventId, participantName, costumeId, now)
+  }
+}
 
-    try {
-      await storage.addUsageHistory(history)
-    } catch (err) {
-      console.error('Failed to record usage history:', err)
-    }
+/**
+ * Record a single costume usage entry (manual or partial)
+ */
+export async function recordSingleCostumeUsage(
+  eventId: string,
+  participantName: string,
+  costumeId: string,
+  usedAt: number = Date.now(),
+): Promise<void> {
+  const history: UsageHistory = {
+    id: `usage_${eventId}_${participantName}_${usedAt}_${Math.random().toString(36).slice(2, 6)}`,
+    costumeId,
+    eventId,
+    participantName: participantName.trim(),
+    usedAt,
+  }
+
+  try {
+    await storage.addUsageHistory(history)
+  } catch (err) {
+    console.error('Failed to record usage history:', err)
+    throw err
   }
 }
 

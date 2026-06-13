@@ -1,6 +1,7 @@
 import type { Costume, EventThemePreferences, UsageHistory } from './storage'
 import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
 import { enrichCostumeColors, normalizePattern } from './theme-colors'
+import { buildColorAnchorReasons, calculateColorAnchorScore } from './color-coordination'
 import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
 import { hasThemeSilhouetteChoices } from './silhouette'
 import { hasThemeSuitBreastingChoices, hasThemeSuitStyleChoices } from './suit-attributes'
@@ -145,6 +146,10 @@ export function calculateCombinedThemeScore(
   if (suitStyleScore !== null) scores.push(suitStyleScore)
   const suitBreastingScore = calculateSuitBreastingThemeScore(costume, themePrefs)
   if (suitBreastingScore !== null) scores.push(suitBreastingScore)
+
+  const anchorScore = calculateColorAnchorScore(costume.colors, themePrefs.colorCoordinationAnchors)
+  scores.push(anchorScore)
+
   return scores.reduce((sum, value) => sum + value, 0) / scores.length
 }
 
@@ -192,6 +197,8 @@ function buildMatchReasons(
       else if (suitBreastingScore >= 0.75) reasons.push('前釦: 第2希望')
       else if (suitBreastingScore >= 0.55) reasons.push('前釦: 第3希望')
     }
+
+    reasons.push(...buildColorAnchorReasons(costume.colors, themePrefs.colorCoordinationAnchors))
   }
 
   if (excludeDays > 0) {

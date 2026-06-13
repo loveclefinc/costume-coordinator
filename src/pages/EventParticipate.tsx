@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { enrichCostumeColors, normalizePattern } from '../utils/theme-colors'
 import {
   autoPickCostumesForEventTheme,
@@ -30,6 +30,8 @@ import { getDisplayName } from '../utils/user-profile'
 import { getRecentUsageExcludeDays } from '../utils/app-settings'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
+import { ensureLocalParticipantEvent } from '../utils/ensure-local-participant-event'
+import { recordSingleCostumeUsage } from '../utils/usage-tracker'
 import './EventParticipate.css'
 
 type SubmitPhase = 'idle' | 'picking' | 'submitting' | 'done' | 'error'
@@ -85,7 +87,6 @@ async function submitPickedCostumes(
 export default function EventParticipate() {
   const { id: eventId } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const inviteFromUrl = searchParams.get('t') ?? ''
 
   const [eventInfo, setEventInfo] = useState<EventPublicInfo | null>(null)
@@ -124,6 +125,7 @@ export default function EventParticipate() {
     try {
       const info = await fetchEventPublic(eventId, inviteToken)
       setEventInfo(info)
+      await ensureLocalParticipantEvent(info, session?.displayName)
       if (session?.displayName) {
         setDisplayNameInput(session.displayName)
         setJoined(!!session.participantToken)
@@ -194,6 +196,19 @@ export default function EventParticipate() {
       const count = await submitPickedCostumes(eventId, participantToken, picked, limits)
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
+      const primary = picked[0]
+      if (primary) {
+        const participantName = session?.displayName ?? displayName
+        try {
+          await recordSingleCostumeUsage(
+            eventId,
+            participantName.trim(),
+            primary.costume.id,
+          )
+        } catch {
+          /* 使用履歴は任意 */
+        }
+      }
       const names = picked.map((entry) => entry.costume.name).join('、')
       toast(
         `候補 ${count} 件を提出しました（${names}）。全員提出後にシステムが組み合わせを自動決定します。`,
@@ -261,6 +276,9 @@ export default function EventParticipate() {
         expiresAt: eventInfo?.expiresAt,
         costumesSubmitted: false,
       })
+      if (eventInfo) {
+        await ensureLocalParticipantEvent(eventInfo, res.displayName)
+      }
       setJoined(true)
       autoSubmitStarted.current = false
       toast(`${res.displayName} さんとして参加しました。衣装を自動選出して提出します。`, 'success')
@@ -408,9 +426,9 @@ export default function EventParticipate() {
         {eventId && (
           <>
             {' · '}
-            <button type="button" className="participate-link-btn" onClick={() => navigate('/')}>
-              閉じる
-            </button>
+            <Link to={`/events/${eventId}`}>イベント詳細</Link>
+            {' · '}
+            <Link to="/events">イベント一覧</Link>
           </>
         )}
       </p>
