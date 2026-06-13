@@ -299,6 +299,16 @@ async function handleParticipantStatus(
     .bind(eventId, participant.id, eventId, participant.id)
     .first<{ costume_count: number; photo_count: number }>()
 
+  const costumeRows = await env.DB.prepare(
+    `SELECT c.id, c.name,
+      (SELECT COUNT(*) FROM photos ph WHERE ph.costume_id = c.id) as photo_count
+     FROM costumes c
+     WHERE c.event_id = ? AND c.participant_id = ?
+     ORDER BY c.created_at ASC`,
+  )
+    .bind(eventId, participant.id)
+    .all<{ id: string; name: string; photo_count: number }>()
+
   const costumeCount = counts?.costume_count ?? 0
   const photoCount = counts?.photo_count ?? 0
 
@@ -307,6 +317,11 @@ async function handleParticipantStatus(
     displayName: participant.display_name,
     costumeCount,
     photoCount,
+    costumes: (costumeRows.results ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      photoCount: row.photo_count,
+    })),
     submitted: costumeCount > 0 && photoCount > 0,
   }
   return json(res)

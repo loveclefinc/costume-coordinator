@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { enrichCostumeColors, normalizePattern } from '../utils/theme-colors'
 import {
   autoPickCostumesForEventTheme,
   type CostumeThemeMatch,
@@ -15,7 +14,6 @@ import {
   uploadServerPhoto,
   EventApiError,
 } from '../event-server/client'
-import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import {
   clearEventParticipantSession,
   getEventSession,
@@ -24,7 +22,6 @@ import {
 import type { EventPublicInfo } from '../../shared/event-api-types'
 import {
   DEFAULT_UPLOAD_LIMITS,
-  formatBytes,
 } from '../../shared/upload-limits'
 import { useAppUi } from '../contexts/AppUiContext'
 import { getDisplayName } from '../utils/user-profile'
@@ -38,64 +35,11 @@ import {
   shouldStartAutoSubmit,
   type ParticipateSubmitPhase,
 } from '../utils/participate-auto-submit'
+import { submitPickedCostumesIdempotent } from '../utils/submit-participant-costumes'
+import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import './EventParticipate.css'
 
 type SubmitPhase = ParticipateSubmitPhase
-
-async function submitPickedCostumes(
-  eventId: string,
-  participantToken: string,
-  picked: CostumeThemeMatch[],
-  limits: typeof DEFAULT_UPLOAD_LIMITS,
-): Promise<number> {
-  let submitted = 0
-
-  for (const match of picked) {
-    const costume = match.costume
-    if (!costume.image) {
-      throw new EventApiError(
-        `「${costume.name}」に写真がありません。衣装管理から画像を登録してください。`,
-        400,
-      )
-    }
-
-    const enriched = enrichCostumeColors(costume.colors)
-    const { costumeId } = await createServerCostume(eventId, participantToken, {
-      name: costume.name.trim(),
-      colors: enriched,
-      tone: costume.tone,
-      pattern: normalizePattern(costume.pattern),
-      season: costume.season ?? [],
-      type: costume.type,
-      ...(costume.type === 'dress' && costume.silhouette ? { silhouette: costume.silhouette } : {}),
-      ...(costume.type === 'suit' && costume.suitStyle ? { suitStyle: costume.suitStyle } : {}),
-      ...(costume.type === 'suit' && costume.suitStyle === 'standard' && costume.suitBreasting ? { suitBreasting: costume.suitBreasting } : {}),
-      ...(costume.type === 'suit' && costume.suitStyle === 'tuxedo' && costume.suitLapel ? { suitLapel: costume.suitLapel } : {}),
-      preferences: [],
-    })
-
-    const { blob, contentType } = await dataUrlToBlob(costume.image)
-    if (blob.size > limits.maxPhotoBytes) {
-      throw new EventApiError(
-        `「${costume.name}」の写真が大きすぎます（${formatBytes(blob.size)}）。${formatBytes(limits.maxPhotoBytes)} 以下にしてください。`,
-        400,
-      )
-    }
-
-    await uploadServerPhoto(eventId, costumeId, participantToken, blob, contentType)
-    submitted++
-  }
-
-  const status = await fetchParticipantSubmissionStatus(eventId, participantToken)
-  if (!status.submitted) {
-    throw new EventApiError(
-      'サーバーへの写真アップロードが完了していません。通信環境を確認して再試行してください。',
-      500,
-    )
-  }
-
-  return submitted
-}
 
 export default function EventParticipate() {
   const { id: eventId } = useParams<{ id: string }>()
@@ -112,6 +56,7 @@ export default function EventParticipate() {
   const [pickedMatches, setPickedMatches] = useState<CostumeThemeMatch[]>([])
   const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
   const autoSubmitStarted = useRef(false)
+  const submitInFlightRef = useRef(false)
 
   const { costumes, loading: costumesLoading } = useCostumes()
   const { toast } = useAppUi()
@@ -212,40 +157,53 @@ export default function EventParticipate() {
 
   const runAutoPickAndSubmit = useCallback(async () => {
     if (!eventId || !participantToken || !wardrobeReady) return
+    if (submitInFlightRef.current) return
     if (autoSubmitStarted.current) return
 
+    submitInFlightRef.current = true
     autoSubmitStarted.current = true
     setSubmitPhase('picking')
     setError('')
 
-    const recentUsageExcludeDays = getRecentUsageExcludeDays()
-    const picked = autoPickCostumesForEventTheme(
-      costumes,
-      eventInfo?.themePreferences,
-      usageHistory,
-      limits.maxCostumesPerParticipant,
-      undefined,
-      recentUsageExcludeDays,
-    )
-
-    setPickedMatches(picked)
-
-    if (picked.length === 0) {
-      setSubmitPhase('error')
-      autoSubmitStarted.current = false
-      if (costumes.length === 0) {
-        setError('')
-      } else {
-        setError(
-          'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
-        )
-      }
-      return
-    }
-
-    setSubmitPhase('submitting')
     try {
-      const count = await submitPickedCostumes(eventId, participantToken, picked, limits)
+      const recentUsageExcludeDays = getRecentUsageExcludeDays()
+      const picked = autoPickCostumesForEventTheme(
+        costumes,
+        eventInfo?.themePreferences,
+        usageHistory,
+        limits.maxCostumesPerParticipant,
+        undefined,
+        recentUsageExcludeDays,
+      )
+
+      setPickedMatches(picked)
+
+      if (picked.length === 0) {
+        setSubmitPhase('error')
+        autoSubmitStarted.current = false
+        if (costumes.length === 0) {
+          setError('')
+        } else {
+          setError(
+            'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
+          )
+        }
+        return
+      }
+
+      setSubmitPhase('submitting')
+      const count = await submitPickedCostumesIdempotent(
+        eventId,
+        participantToken,
+        picked,
+        limits,
+        {
+          fetchStatus: fetchParticipantSubmissionStatus,
+          createCostume: createServerCostume,
+          uploadPhoto: uploadServerPhoto,
+          dataUrlToBlob,
+        },
+      )
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
       const participantName = getEventSession(eventId)?.displayName ?? displayName
@@ -270,6 +228,8 @@ export default function EventParticipate() {
       autoSubmitStarted.current = false
       setSubmitPhase('error')
       setError(e instanceof EventApiError ? e.message : '提出に失敗しました')
+    } finally {
+      submitInFlightRef.current = false
     }
   }, [
     eventId,

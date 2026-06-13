@@ -163,11 +163,18 @@ export interface UploadPhotoResponse {
   viewUrl: string
 }
 
+export interface ParticipantSubmissionCostume {
+  id: string
+  name: string
+  photoCount: number
+}
+
 export interface ParticipantSubmissionStatus {
   participantId: string
   displayName: string
   costumeCount: number
   photoCount: number
+  costumes: ParticipantSubmissionCostume[]
   /** 写真付き衣装が1件以上ある */
   submitted: boolean
 }
