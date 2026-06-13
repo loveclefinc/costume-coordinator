@@ -40,6 +40,16 @@ export async function ensureLocalParticipantEvent(
   }
 
   if (existing) {
+    const sameCore =
+      existing.name === event.name &&
+      existing.date === event.date &&
+      existing.description === event.description &&
+      existing.serverExpiresAt === event.serverExpiresAt &&
+      JSON.stringify(existing.themePreferences) === JSON.stringify(event.themePreferences) &&
+      JSON.stringify([...existing.participants].sort()) === JSON.stringify([...event.participants].sort())
+    if (sameCore) {
+      return existing
+    }
     await storage.updateEvent(event)
   } else {
     await storage.addEvent(event)

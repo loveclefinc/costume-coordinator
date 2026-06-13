@@ -18,7 +18,11 @@ export default function EventCostumeMatcher({
   costumesLoading = false,
   status = 'idle',
 }: EventCostumeMatcherProps) {
-  if (costumesLoading || status === 'picking') {
+  if (costumesLoading && picked.length === 0) {
+    return <p className="event-costume-matcher-loading">登録衣装からイベントに合う衣装を選出しています…</p>
+  }
+
+  if (status === 'picking' && picked.length === 0) {
     return <p className="event-costume-matcher-loading">登録衣装からイベントに合う衣装を選出しています…</p>
   }
 

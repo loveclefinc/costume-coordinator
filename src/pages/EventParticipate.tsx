@@ -33,9 +33,14 @@ import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { ensureLocalParticipantEvent } from '../utils/ensure-local-participant-event'
 import { recordSingleCostumeUsage } from '../utils/usage-tracker'
+import {
+  resolveSubmitPhaseAfterStatusCheck,
+  shouldStartAutoSubmit,
+  type ParticipateSubmitPhase,
+} from '../utils/participate-auto-submit'
 import './EventParticipate.css'
 
-type SubmitPhase = 'idle' | 'picking' | 'submitting' | 'done' | 'error'
+type SubmitPhase = ParticipateSubmitPhase
 
 async function submitPickedCostumes(
   eventId: string,
@@ -130,6 +135,9 @@ export default function EventParticipate() {
       setLoading(false)
       return
     }
+
+    const session = getEventSession(eventId)
+
     try {
       const info = await fetchEventPublic(eventId, inviteToken)
       setEventInfo(info)
@@ -143,42 +151,41 @@ export default function EventParticipate() {
             costumesSubmitted: status.submitted,
             displayName: status.displayName,
           })
-          setDisplayNameInput(status.displayName)
+          setDisplayNameInput((prev) => status.displayName || prev)
           setJoined(true)
-          setSubmitPhase(status.submitted ? 'done' : 'idle')
-          if (!status.submitted) {
-            autoSubmitStarted.current = false
+          setSubmitPhase((phase) => resolveSubmitPhaseAfterStatusCheck(phase, status.submitted))
+          if (status.submitted) {
+            autoSubmitStarted.current = true
           }
         } catch (e) {
           if (e instanceof EventApiError && e.status === 404) {
-            setDisplayNameInput(session.displayName ?? displayName)
+            setDisplayNameInput((prev) => session.displayName ?? prev)
             setJoined(true)
             if (session.costumesSubmitted) {
               setSubmitPhase('done')
+              autoSubmitStarted.current = true
             }
           } else if (e instanceof EventApiError && (e.status === 401 || e.status === 403)) {
             clearEventParticipantSession(eventId)
             setJoined(false)
             setSubmitPhase('idle')
             autoSubmitStarted.current = false
-            if (!displayName && getDisplayName()) {
-              setDisplayNameInput(getDisplayName())
-            }
+            setDisplayNameInput((prev) => prev || getDisplayName())
           } else {
             throw e
           }
         }
       } else if (session?.displayName) {
         setDisplayNameInput(session.displayName)
-      } else if (!displayName && getDisplayName()) {
-        setDisplayNameInput(getDisplayName())
+      } else {
+        setDisplayNameInput((prev) => prev || getDisplayName())
       }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
-  }, [eventId, inviteToken, session?.displayName, session?.participantToken, displayName])
+  }, [eventId, inviteToken])
 
   useEffect(() => {
     if (!isEventServerEnabled()) {
@@ -234,9 +241,9 @@ export default function EventParticipate() {
       const count = await submitPickedCostumes(eventId, participantToken, picked, limits)
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
+      const participantName = getEventSession(eventId)?.displayName ?? displayName
       const primary = picked[0]
-      if (primary) {
-        const participantName = session?.displayName ?? displayName
+      if (primary && participantName.trim()) {
         try {
           await recordSingleCostumeUsage(
             eventId,
@@ -265,14 +272,12 @@ export default function EventParticipate() {
     eventInfo?.themePreferences,
     usageHistory,
     limits,
-    session?.displayName,
     displayName,
     toast,
   ])
 
   useEffect(() => {
-    if (!joined || !wardrobeReady) return
-    if (pickedMatches.length > 0) return
+    if (submitPhase !== 'done' || pickedMatches.length > 0 || !wardrobeReady) return
     const recentUsageExcludeDays = getRecentUsageExcludeDays()
     const picked = autoPickCostumesForEventTheme(
       costumes,
@@ -284,9 +289,9 @@ export default function EventParticipate() {
     )
     setPickedMatches(picked)
   }, [
-    joined,
-    wardrobeReady,
+    submitPhase,
     pickedMatches.length,
+    wardrobeReady,
     costumes,
     eventInfo?.themePreferences,
     usageHistory,
@@ -294,10 +299,20 @@ export default function EventParticipate() {
   ])
 
   useEffect(() => {
-    if (!joined || !participantToken) return
-    if (submitPhase === 'done') return
+    if (
+      !shouldStartAutoSubmit({
+        joined,
+        participantToken,
+        wardrobeReady,
+        submitPhase,
+        autoSubmitStarted: autoSubmitStarted.current,
+      })
+    ) {
+      return
+    }
+    autoSubmitStarted.current = true
     void runAutoPickAndSubmit()
-  }, [joined, participantToken, submitPhase, runAutoPickAndSubmit])
+  }, [joined, participantToken, wardrobeReady, submitPhase, runAutoPickAndSubmit])
 
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
