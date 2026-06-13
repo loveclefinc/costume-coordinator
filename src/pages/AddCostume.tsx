@@ -45,6 +45,13 @@ const TONE_LABELS: Record<string, string> = {
 }
 import './AddCostume.css'
 
+const SEASON_OPTIONS = [
+  { value: 'spring', label: '春' },
+  { value: 'summer', label: '夏' },
+  { value: 'autumn', label: '秋' },
+  { value: 'winter', label: '冬' },
+]
+
 const PATTERN_OPTIONS = [
   { value: 'solid', label: '無地' },
   { value: 'floral', label: '花柄' },
@@ -72,6 +79,12 @@ function pickHexColors(colors: string[]): string[] {
 
 function patternForForm(pattern: string): string {
   return pattern === 'plain' ? 'solid' : pattern
+}
+
+function toggleListValue(values: string[], value: string): string[] {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value]
 }
 
 const DRESS_SILHOUETTE_HELP: Record<DressSilhouette, string> = {
@@ -785,6 +798,33 @@ export default function AddCostume() {
               </option>
             ))}
           </select>
+        </div>
+      </section>
+
+      {/* Season Section */}
+      <section className="section">
+        <h2>🌸 季節</h2>
+        <div className="form-group">
+          <label>使いやすい季節</label>
+          <div className="season-choice-grid" aria-label="使いやすい季節">
+            {SEASON_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`season-choice${season.includes(option.value) ? ' season-choice--selected' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={season.includes(option.value)}
+                  onChange={() => setSeason((current) => toggleListValue(current, option.value))}
+                  disabled={loading}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </div>
+          <p className="add-costume-field-hint">
+            未選択の場合は、季節を限定しない衣装として扱います。
+          </p>
         </div>
       </section>
 

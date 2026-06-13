@@ -5,6 +5,40 @@ import { useAppUi } from '../contexts/AppUiContext'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import './Costumes.css'
 
+const TONE_LABELS: Record<string, string> = {
+  pastel: 'パステル',
+  vivid: '鮮やか',
+  dark: '濃い',
+  neutral: '落ち着いた',
+  warm: '暖色',
+  cool: '寒色',
+}
+
+const PATTERN_LABELS: Record<string, string> = {
+  plain: '無地',
+  solid: '無地',
+  floral: '花柄',
+  stripe: 'ストライプ',
+  striped: 'ストライプ',
+  dot: 'ドット',
+  check: 'チェック',
+  geometric: '幾何学模様',
+  animal: 'アニマル柄',
+  other: 'その他',
+}
+
+const SEASON_LABELS: Record<string, string> = {
+  spring: '春',
+  summer: '夏',
+  autumn: '秋',
+  fall: '秋',
+  winter: '冬',
+}
+
+function labelFor(labels: Record<string, string>, value: string): string {
+  return labels[value.toLowerCase()] ?? value
+}
+
 export default function Costumes() {
   const { confirm } = useAppUi()
   const { costumes, loading, error, deleteCostume } = useCostumes()
@@ -97,17 +131,22 @@ export default function Costumes() {
                   </div>
                   <div className="detail-item">
                     <span className="label">トーン:</span>
-                    <span className="tone-tag">{costume.tone}</span>
+                    <span className="tone-tag">{labelFor(TONE_LABELS, costume.tone)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">柄:</span>
-                    <span className="pattern-tag">{costume.pattern}</span>
+                    <span className="pattern-tag">{labelFor(PATTERN_LABELS, costume.pattern)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">季節:</span>
                     <div className="seasons">
-                      {(Array.isArray(costume.season) ? costume.season : []).map((s) => (
-                        <span key={s} className="season-tag">{s}</span>
+                      {(Array.isArray(costume.season) && costume.season.length > 0
+                        ? costume.season
+                        : ['none']
+                      ).map((s) => (
+                        <span key={s} className="season-tag">
+                          {s === 'none' ? '指定なし' : labelFor(SEASON_LABELS, s)}
+                        </span>
                       ))}
                     </div>
                   </div>
