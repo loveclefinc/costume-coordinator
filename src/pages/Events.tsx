@@ -5,7 +5,7 @@ import UsageGuideTip from '../components/UsageGuideTip'
 import { useEvents } from '../hooks/useEvents'
 import { ConcertLink } from '../components/ConcertLink'
 import { EventThemePreferences, storage } from '../utils/storage'
-import { checkEventApiHealth, createServerEvent, EventApiError } from '../event-server/client'
+import { checkEventApiHealth, createServerEvent, deleteServerEvent, EventApiError } from '../event-server/client'
 import {
   getEventApiBaseUrl,
   isEventServerEnabled,
@@ -13,7 +13,6 @@ import {
   absoluteAppUrl,
 } from '../event-server/config'
 import { setEventSession, getEventSession, clearEventSession } from '../event-server/session'
-import { deleteServerEvent, EventApiError } from '../event-server/client'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'

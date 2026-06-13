@@ -71,6 +71,7 @@ export interface ServerCostume {
   silhouette?: string
   suitStyle?: string
   suitBreasting?: string
+  suitLapel?: string
   preferences: string[]
   photos: ServerPhoto[]
   createdAt: number
@@ -137,6 +138,7 @@ export interface CreateCostumeRequest {
   silhouette?: string
   suitStyle?: string
   suitBreasting?: string
+  suitLapel?: string
   preferences?: string[]
 }
 

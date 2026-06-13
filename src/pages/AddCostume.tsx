@@ -9,12 +9,25 @@ import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS, type DressSilhouette } from '../utils/silhouette'
+import dressSilhouetteALineIcon from '../generated/costume-icons/dress-silhouette-a-line.png'
+import dressSilhouetteMermaidIcon from '../generated/costume-icons/dress-silhouette-mermaid.png'
+import dressSilhouettePrincessIcon from '../generated/costume-icons/dress-silhouette-princess.png'
+import dressSilhouetteSlenderIcon from '../generated/costume-icons/dress-silhouette-slender.png'
+import suitLapelNotchIcon from '../generated/costume-icons/suit-lapel-notch.png'
+import suitLapelPeakIcon from '../generated/costume-icons/suit-lapel-peak.png'
+import suitLapelShawlIcon from '../generated/costume-icons/suit-lapel-shawl.png'
+import suitStyleStandardIcon from '../generated/costume-icons/suit-style-standard.png'
+import suitStyleTailcoatIcon from '../generated/costume-icons/suit-style-tailcoat.png'
+import suitStyleTuxedoIcon from '../generated/costume-icons/suit-style-tuxedo.png'
 import {
   SUIT_BREASTING_LABELS,
   SUIT_BREASTING_OPTIONS,
+  SUIT_LAPEL_LABELS,
+  SUIT_LAPEL_OPTIONS,
   SUIT_STYLE_LABELS,
   SUIT_STYLE_OPTIONS,
   type SuitBreasting,
+  type SuitLapel,
   type SuitStyle,
 } from '../utils/suit-attributes'
 
@@ -61,6 +74,96 @@ function patternForForm(pattern: string): string {
   return pattern === 'plain' ? 'solid' : pattern
 }
 
+const DRESS_SILHOUETTE_HELP: Record<DressSilhouette, string> = {
+  a_line: '肩から裾へ自然に広がる形',
+  princess: 'ウエストから大きく広がる華やかな形',
+  slender: '体のラインに沿う細身の形',
+  mermaid: '膝下から裾が広がる形',
+}
+
+const SUIT_STYLE_HELP: Record<SuitStyle, string> = {
+  tuxedo: '拝絹のあるフォーマルな上着',
+  tailcoat: '後ろ裾が長い燕尾服',
+  standard: '一般的なジャケット型',
+}
+
+const SUIT_BREASTING_HELP: Record<SuitBreasting, string> = {
+  single: '前の釦が1列',
+  double: '前の釦が2列',
+}
+
+const SUIT_LAPEL_HELP: Record<SuitLapel, string> = {
+  notch: '切れ込みのある標準的な襟',
+  peak: '先端が上向きの格式ある襟',
+  shawl: '丸くつながる柔らかな襟',
+}
+
+const DRESS_SILHOUETTE_ICON_SRC: Record<DressSilhouette, string> = {
+  a_line: dressSilhouetteALineIcon,
+  princess: dressSilhouettePrincessIcon,
+  slender: dressSilhouetteSlenderIcon,
+  mermaid: dressSilhouetteMermaidIcon,
+}
+
+const SUIT_STYLE_ICON_SRC: Record<SuitStyle, string> = {
+  tuxedo: suitStyleTuxedoIcon,
+  tailcoat: suitStyleTailcoatIcon,
+  standard: suitStyleStandardIcon,
+}
+
+const SUIT_LAPEL_ICON_SRC: Record<SuitLapel, string> = {
+  notch: suitLapelNotchIcon,
+  peak: suitLapelPeakIcon,
+  shawl: suitLapelShawlIcon,
+}
+
+function DressSilhouetteIcon({ value }: { value: DressSilhouette }) {
+  return (
+    <img
+      className="guide-icon-image"
+      src={DRESS_SILHOUETTE_ICON_SRC[value]}
+      alt={`${SILHOUETTE_LABELS[value]}の図解`}
+    />
+  )
+}
+
+function SuitStyleIcon({ value }: { value: SuitStyle }) {
+  return (
+    <img
+      className="guide-icon-image"
+      src={SUIT_STYLE_ICON_SRC[value]}
+      alt={`${SUIT_STYLE_LABELS[value]}の図解`}
+    />
+  )
+}
+
+function SuitBreastingIcon({ value }: { value: SuitBreasting }) {
+  const buttons = value === 'single'
+    ? [[60, 58], [60, 73], [60, 88]]
+    : [[52, 58], [68, 58], [52, 74], [68, 74], [52, 90], [68, 90]]
+
+  return (
+    <svg viewBox="0 0 120 120" role="img" aria-label={`${SUIT_BREASTING_LABELS[value]}の図解`}>
+      <path className="guide-icon-body" d="M35 21 H85 L97 104 H23 Z" />
+      <path className="guide-icon-panel" d="M43 24 L58 52 L60 42 L62 52 L77 24" />
+      <path className="guide-icon-line" d={value === 'single' ? 'M60 43 V103' : 'M54 45 L50 103 M66 45 L70 103'} />
+      {buttons.map(([cx, cy]) => (
+        <circle key={`${cx}-${cy}`} className="guide-icon-accent" cx={cx} cy={cy} r="3.5" />
+      ))}
+    </svg>
+  )
+}
+
+function SuitLapelIcon({ value }: { value: SuitLapel }) {
+  return (
+    <img
+      className="guide-icon-image"
+      src={SUIT_LAPEL_ICON_SRC[value]}
+      alt={`${SUIT_LAPEL_LABELS[value]}の図解`}
+    />
+  )
+}
+
 export default function AddCostume() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -83,6 +186,7 @@ export default function AddCostume() {
   const [silhouette, setSilhouette] = useState<DressSilhouette>('a_line')
   const [suitStyle, setSuitStyle] = useState<SuitStyle>('tuxedo')
   const [suitBreasting, setSuitBreasting] = useState<SuitBreasting>('single')
+  const [suitLapel, setSuitLapel] = useState<SuitLapel>('shawl')
   const [tags, setTags] = useState('')
   const [season, setSeason] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -126,6 +230,7 @@ export default function AddCostume() {
         if (costume.silhouette) setSilhouette(costume.silhouette)
         if (costume.suitStyle) setSuitStyle(costume.suitStyle)
         if (costume.suitBreasting) setSuitBreasting(costume.suitBreasting)
+        if (costume.suitLapel) setSuitLapel(costume.suitLapel)
         setSeason(Array.isArray(costume.season) ? costume.season : [])
       } catch (err) {
         if (!cancelled) {
@@ -242,7 +347,9 @@ export default function AddCostume() {
         season,
         type: costumeType,
         ...(costumeType === 'dress' ? { silhouette } : {}),
-        ...(costumeType === 'suit' ? { suitStyle, suitBreasting } : {}),
+        ...(costumeType === 'suit' ? { suitStyle } : {}),
+        ...(costumeType === 'suit' && suitStyle === 'standard' ? { suitBreasting } : {}),
+        ...(costumeType === 'suit' && suitStyle === 'tuxedo' ? { suitLapel } : {}),
       }
 
       if (isEditMode && id) {
@@ -502,20 +609,38 @@ export default function AddCostume() {
         </div>
 
         {costumeType === 'dress' && (
-          <div className="form-group">
-            <label htmlFor="silhouette-select">ドレスのシルエット</label>
-            <select
-              id="silhouette-select"
-              value={silhouette}
-              onChange={(e) => setSilhouette(e.target.value as DressSilhouette)}
-              disabled={loading}
-            >
+          <div className="form-group add-costume-attribute-group">
+            <div>
+              <label htmlFor="silhouette-select">ドレスのシルエット</label>
+              <select
+                id="silhouette-select"
+                value={silhouette}
+                onChange={(e) => setSilhouette(e.target.value as DressSilhouette)}
+                disabled={loading}
+              >
+                {DRESS_SILHOUETTE_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {SILHOUETTE_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="attribute-guide-grid attribute-guide-grid--dress" aria-label="ドレスシルエットの図解">
               {DRESS_SILHOUETTE_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {SILHOUETTE_LABELS[value]}
-                </option>
+                <button
+                  key={value}
+                  type="button"
+                  className={`attribute-guide-card${silhouette === value ? ' attribute-guide-card--active' : ''}`}
+                  onClick={() => setSilhouette(value)}
+                  disabled={loading}
+                  aria-pressed={silhouette === value}
+                >
+                  <DressSilhouetteIcon value={value} />
+                  <span>{SILHOUETTE_LABELS[value]}</span>
+                  <small>{DRESS_SILHOUETTE_HELP[value]}</small>
+                </button>
               ))}
-            </select>
+            </div>
             <p className="add-costume-field-hint">
               色味をバラけさせるイベントでも、ラインを揃えて統一感を出せます。
             </p>
@@ -524,39 +649,122 @@ export default function AddCostume() {
 
         {costumeType === 'suit' && (
           <>
-            <div className="form-group">
-              <label htmlFor="suit-style-select">スーツの形式</label>
-              <select
-                id="suit-style-select"
-                value={suitStyle}
-                onChange={(e) => setSuitStyle(e.target.value as SuitStyle)}
-                disabled={loading}
-              >
+            <div className="form-group add-costume-attribute-group">
+              <div>
+                <label htmlFor="suit-style-select">スーツの形式</label>
+                <select
+                  id="suit-style-select"
+                  value={suitStyle}
+                  onChange={(e) => setSuitStyle(e.target.value as SuitStyle)}
+                  disabled={loading}
+                >
+                  {SUIT_STYLE_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {SUIT_STYLE_LABELS[value]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="attribute-guide-grid attribute-guide-grid--suit" aria-label="スーツ形式の図解">
                 {SUIT_STYLE_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {SUIT_STYLE_LABELS[value]}
-                  </option>
+                  <button
+                    key={value}
+                    type="button"
+                    className={`attribute-guide-card${suitStyle === value ? ' attribute-guide-card--active' : ''}`}
+                    onClick={() => setSuitStyle(value)}
+                    disabled={loading}
+                    aria-pressed={suitStyle === value}
+                  >
+                    <SuitStyleIcon value={value} />
+                    <span>{SUIT_STYLE_LABELS[value]}</span>
+                    <small>{SUIT_STYLE_HELP[value]}</small>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
-            <div className="form-group">
-              <label htmlFor="suit-breasting-select">前釦</label>
-              <select
-                id="suit-breasting-select"
-                value={suitBreasting}
-                onChange={(e) => setSuitBreasting(e.target.value as SuitBreasting)}
-                disabled={loading}
-              >
-                {SUIT_BREASTING_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {SUIT_BREASTING_LABELS[value]}
-                  </option>
-                ))}
-              </select>
+            {suitStyle === 'tuxedo' && (
+              <div className="form-group add-costume-attribute-group">
+                <div>
+                  <label htmlFor="suit-lapel-select">ラペル</label>
+                  <select
+                    id="suit-lapel-select"
+                    value={suitLapel}
+                    onChange={(e) => setSuitLapel(e.target.value as SuitLapel)}
+                    disabled={loading}
+                  >
+                    {SUIT_LAPEL_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {SUIT_LAPEL_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="attribute-guide-grid attribute-guide-grid--suit" aria-label="タキシードラペルの図解">
+                  {SUIT_LAPEL_OPTIONS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`attribute-guide-card${suitLapel === value ? ' attribute-guide-card--active' : ''}`}
+                      onClick={() => setSuitLapel(value)}
+                      disabled={loading}
+                      aria-pressed={suitLapel === value}
+                    >
+                      <SuitLapelIcon value={value} />
+                      <span>{SUIT_LAPEL_LABELS[value]}</span>
+                      <small>{SUIT_LAPEL_HELP[value]}</small>
+                    </button>
+                  ))}
+                </div>
+                <p className="add-costume-field-hint">
+                  タキシードは前釦よりも、ラペルの種類を揃えると見た目の統一感を出しやすくなります。
+                </p>
+              </div>
+            )}
+
+            {suitStyle === 'standard' && (
+              <div className="form-group add-costume-attribute-group">
+                <div>
+                  <label htmlFor="suit-breasting-select">前釦</label>
+                  <select
+                    id="suit-breasting-select"
+                    value={suitBreasting}
+                    onChange={(e) => setSuitBreasting(e.target.value as SuitBreasting)}
+                    disabled={loading}
+                  >
+                    {SUIT_BREASTING_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {SUIT_BREASTING_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="attribute-guide-grid attribute-guide-grid--breasting" aria-label="一般スーツ前釦の図解">
+                  {SUIT_BREASTING_OPTIONS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`attribute-guide-card${suitBreasting === value ? ' attribute-guide-card--active' : ''}`}
+                      onClick={() => setSuitBreasting(value)}
+                      disabled={loading}
+                      aria-pressed={suitBreasting === value}
+                    >
+                      <SuitBreastingIcon value={value} />
+                      <span>{SUIT_BREASTING_LABELS[value]}</span>
+                      <small>{SUIT_BREASTING_HELP[value]}</small>
+                    </button>
+                  ))}
+                </div>
+                <p className="add-costume-field-hint">
+                  一般スーツ同士で、シングル/ダブルの揃えにも使えます。
+                </p>
+              </div>
+            )}
+
+            {suitStyle === 'tailcoat' && (
               <p className="add-costume-field-hint">
-                タキシード/燕尾の統一や、シングル/ダブルの揃えにも使えます。
+                燕尾は形式そのものが特徴になるため、追加の前釦指定は不要です。
               </p>
-            </div>
+            )}
           </>
         )}
       </section>

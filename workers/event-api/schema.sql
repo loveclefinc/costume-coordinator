@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS costumes (
   silhouette TEXT,
   suit_style TEXT,
   suit_breasting TEXT,
+  suit_lapel TEXT,
   preferences_json TEXT NOT NULL DEFAULT '[]',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,

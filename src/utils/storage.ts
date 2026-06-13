@@ -1,7 +1,7 @@
 // IndexedDB storage utility for PWA local persistence
 
 import type { DressSilhouette } from './silhouette'
-import type { SuitBreasting, SuitStyle } from './suit-attributes'
+import type { SuitBreasting, SuitLapel, SuitStyle } from './suit-attributes'
 
 const DB_NAME = 'CostumeCoordinator'
 const DB_VERSION = 2
@@ -21,6 +21,8 @@ export interface Costume {
   suitStyle?: SuitStyle
   /** スーツの前釦（type === 'suit' のとき） */
   suitBreasting?: SuitBreasting
+  /** タキシードのラペル（type === 'suit' && suitStyle === 'tuxedo' のとき） */
+  suitLapel?: SuitLapel
   createdAt: number
   updatedAt: number
 }

@@ -64,6 +64,7 @@ describe('costume-normalize', () => {
       tone: 'dark',
       pattern: 'plain',
       type: 'suit',
+      suitStyle: 'standard',
       suitBreasting: 'double',
       createdAt: 1,
       updatedAt: 2,

@@ -1,7 +1,7 @@
 import type { Costume } from './storage'
 import type { DressSilhouette } from './silhouette'
 import { normalizeSilhouette } from './silhouette'
-import { normalizeSuitBreasting, normalizeSuitStyle } from './suit-attributes'
+import { normalizeSuitBreasting, normalizeSuitLapel, normalizeSuitStyle } from './suit-attributes'
 import { enrichCostumeColors, normalizePattern } from './theme-colors'
 
 /**
@@ -52,6 +52,8 @@ export function normalizeCostume(raw: Costume | Record<string, unknown>): Costum
 
   const costumeType = typeof r.type === 'string' ? r.type : undefined
 
+  const suitStyle = normalizeSuitStyle(r.suitStyle, costumeType)
+
   return {
     id: r.id,
     name: r.name ?? '',
@@ -62,8 +64,9 @@ export function normalizeCostume(raw: Costume | Record<string, unknown>): Costum
     season: normalizeSeason(r.season),
     type: costumeType,
     silhouette: normalizeSilhouette(r.silhouette, costumeType),
-    suitStyle: normalizeSuitStyle(r.suitStyle, costumeType),
-    suitBreasting: normalizeSuitBreasting(r.suitBreasting ?? (r as { suitPieces?: unknown }).suitPieces, costumeType),
+    suitStyle,
+    suitBreasting: normalizeSuitBreasting(r.suitBreasting ?? (r as { suitPieces?: unknown }).suitPieces, costumeType, suitStyle),
+    suitLapel: normalizeSuitLapel(r.suitLapel, costumeType, suitStyle),
     createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
     updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : Date.now(),
   }

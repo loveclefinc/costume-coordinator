@@ -362,8 +362,8 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const preferences = JSON.stringify(Array.isArray(body.preferences) ? body.preferences : [])
 
   await env.DB.prepare(
-    `INSERT INTO costumes (id, event_id, participant_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, preferences_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO costumes (id, event_id, participant_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, suit_lapel, preferences_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       costumeId,
@@ -378,6 +378,7 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
       body.silhouette ?? null,
       body.suitStyle ?? null,
       body.suitBreasting ?? null,
+      body.suitLapel ?? null,
       preferences,
       now,
       now,
@@ -598,6 +599,7 @@ async function buildAdminSnapshot(
       silhouette: c.silhouette ?? undefined,
       suitStyle: c.suit_style ?? undefined,
       suitBreasting: c.suit_breasting ?? undefined,
+      suitLapel: c.suit_lapel ?? undefined,
       preferences: JSON.parse(c.preferences_json) as string[],
       photos,
       createdAt: c.created_at,

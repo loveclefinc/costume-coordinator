@@ -62,7 +62,8 @@ async function submitPickedCostumes(
       type: costume.type,
       ...(costume.type === 'dress' && costume.silhouette ? { silhouette: costume.silhouette } : {}),
       ...(costume.type === 'suit' && costume.suitStyle ? { suitStyle: costume.suitStyle } : {}),
-      ...(costume.type === 'suit' && costume.suitBreasting ? { suitBreasting: costume.suitBreasting } : {}),
+      ...(costume.type === 'suit' && costume.suitStyle === 'standard' && costume.suitBreasting ? { suitBreasting: costume.suitBreasting } : {}),
+      ...(costume.type === 'suit' && costume.suitStyle === 'tuxedo' && costume.suitLapel ? { suitLapel: costume.suitLapel } : {}),
       preferences: index === 0 ? preferenceOrder : [],
     })
 

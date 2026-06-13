@@ -172,6 +172,126 @@
   color: var(--text-secondary);
 }
 
+.add-costume-attribute-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.attribute-guide-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.attribute-guide-grid--dress {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.attribute-guide-grid--suit {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.attribute-guide-grid--breasting {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.attribute-guide-card {
+  display: grid;
+  grid-template-rows: 136px auto 1fr;
+  gap: 0.35rem;
+  align-items: start;
+  min-height: 208px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.attribute-guide-card:hover:not(:disabled),
+.attribute-guide-card:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  outline: none;
+}
+
+.attribute-guide-card--active {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+.attribute-guide-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.attribute-guide-card svg,
+.attribute-guide-card .guide-icon-image {
+  width: 100%;
+  height: 136px;
+}
+
+.attribute-guide-card .guide-icon-image {
+  object-fit: contain;
+  display: block;
+  border-radius: 6px;
+}
+
+.attribute-guide-card span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.attribute-guide-card small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.guide-icon-body {
+  fill: rgba(var(--primary-rgb), 0.08);
+  stroke: var(--primary);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+
+.guide-icon-panel {
+  fill: rgba(255, 255, 255, 0.82);
+  stroke: rgba(var(--primary-rgb), 0.72);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.guide-icon-line {
+  fill: none;
+  stroke: var(--primary-hover);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.guide-icon-lapel-fill {
+  fill: rgba(var(--primary-rgb), 0.16);
+  stroke: var(--primary-hover);
+  stroke-width: 3.25;
+  stroke-linejoin: round;
+}
+
+.guide-icon-pocket {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.guide-icon-accent,
+.guide-icon-accent-fill {
+  fill: var(--primary);
+}
+
 .add-costume-eyedropper-intro {
   margin: 0 0 1rem;
 }
@@ -217,6 +337,23 @@
 @media (max-width: 520px) {
   .add-costume-swatch-row {
     grid-template-columns: 1fr;
+  }
+
+  .attribute-guide-grid--dress,
+  .attribute-guide-grid--suit,
+  .attribute-guide-grid--breasting {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attribute-guide-card {
+    grid-template-rows: 116px auto 1fr;
+    min-height: 188px;
+    padding: 0.65rem;
+  }
+
+  .attribute-guide-card svg,
+  .attribute-guide-card .guide-icon-image {
+    height: 116px;
   }
 }
 
