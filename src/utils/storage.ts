@@ -23,6 +23,10 @@ export interface Costume {
   suitBreasting?: SuitBreasting
   /** タキシードのラペル（type === 'suit' && suitStyle === 'tuxedo' のとき） */
   suitLapel?: SuitLapel
+  /** イベント提出・サーバー取り込み分の場合のみ（個人ワードローブには表示しない） */
+  sourceEventId?: string
+  /** 提出者名（イベント提出分の場合） */
+  sourceParticipantName?: string
   createdAt: number
   updatedAt: number
 }
@@ -193,6 +197,16 @@ class CostumeStorage {
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve(request.result)
     })
+  }
+
+  async getPersonalCostumes(): Promise<Costume[]> {
+    const all = await this.getAllCostumes()
+    return all.filter((costume) => !costume.sourceEventId)
+  }
+
+  async getEventCostumes(eventId: string): Promise<Costume[]> {
+    const all = await this.getAllCostumes()
+    return all.filter((costume) => costume.sourceEventId === eventId)
   }
 
   async updateCostume(costume: Costume): Promise<void> {

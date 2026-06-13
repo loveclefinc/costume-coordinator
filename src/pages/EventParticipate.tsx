@@ -10,6 +10,7 @@ import EventCostumeMatcher from '../components/EventCostumeMatcher'
 import {
   createServerCostume,
   fetchEventPublic,
+  fetchParticipantSubmissionStatus,
   joinServerEvent,
   uploadServerPhoto,
   EventApiError,
@@ -42,10 +43,9 @@ async function submitPickedCostumes(
   picked: CostumeThemeMatch[],
   limits: typeof DEFAULT_UPLOAD_LIMITS,
 ): Promise<number> {
-  const preferenceOrder = picked.map((entry) => entry.costume.id)
   let submitted = 0
 
-  for (const [index, match] of picked.entries()) {
+  for (const match of picked) {
     const costume = match.costume
     if (!costume.image) {
       throw new EventApiError(
@@ -66,7 +66,7 @@ async function submitPickedCostumes(
       ...(costume.type === 'suit' && costume.suitStyle ? { suitStyle: costume.suitStyle } : {}),
       ...(costume.type === 'suit' && costume.suitStyle === 'standard' && costume.suitBreasting ? { suitBreasting: costume.suitBreasting } : {}),
       ...(costume.type === 'suit' && costume.suitStyle === 'tuxedo' && costume.suitLapel ? { suitLapel: costume.suitLapel } : {}),
-      preferences: index === 0 ? preferenceOrder : [],
+      preferences: [],
     })
 
     const { blob, contentType } = await dataUrlToBlob(costume.image)
@@ -79,6 +79,14 @@ async function submitPickedCostumes(
 
     await uploadServerPhoto(eventId, costumeId, participantToken, blob, contentType)
     submitted++
+  }
+
+  const status = await fetchParticipantSubmissionStatus(eventId, participantToken)
+  if (!status.submitted) {
+    throw new EventApiError(
+      'サーバーへの写真アップロードが完了していません。通信環境を確認して再試行してください。',
+      500,
+    )
   }
 
   return submitted
@@ -126,21 +134,51 @@ export default function EventParticipate() {
       const info = await fetchEventPublic(eventId, inviteToken)
       setEventInfo(info)
       await ensureLocalParticipantEvent(info, session?.displayName)
-      if (session?.displayName) {
+
+      const token = session?.participantToken
+      if (token) {
+        try {
+          const status = await fetchParticipantSubmissionStatus(eventId, token)
+          setEventSession(eventId, {
+            costumesSubmitted: status.submitted,
+            displayName: status.displayName,
+          })
+          setDisplayNameInput(status.displayName)
+          setJoined(true)
+          setSubmitPhase(status.submitted ? 'done' : 'idle')
+          if (!status.submitted) {
+            autoSubmitStarted.current = false
+          }
+        } catch (e) {
+          if (e instanceof EventApiError && e.status === 404) {
+            setDisplayNameInput(session.displayName ?? displayName)
+            setJoined(true)
+            if (session.costumesSubmitted) {
+              setSubmitPhase('done')
+            }
+          } else if (e instanceof EventApiError && (e.status === 401 || e.status === 403)) {
+            clearEventParticipantSession(eventId)
+            setJoined(false)
+            setSubmitPhase('idle')
+            autoSubmitStarted.current = false
+            if (!displayName && getDisplayName()) {
+              setDisplayNameInput(getDisplayName())
+            }
+          } else {
+            throw e
+          }
+        }
+      } else if (session?.displayName) {
         setDisplayNameInput(session.displayName)
-        setJoined(!!session.participantToken)
       } else if (!displayName && getDisplayName()) {
         setDisplayNameInput(getDisplayName())
-      }
-      if (session?.costumesSubmitted) {
-        setSubmitPhase('done')
       }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
-  }, [eventId, inviteToken, session?.displayName, session?.participantToken, session?.costumesSubmitted, displayName])
+  }, [eventId, inviteToken, session?.displayName, session?.participantToken, displayName])
 
   useEffect(() => {
     if (!isEventServerEnabled()) {
@@ -167,7 +205,7 @@ export default function EventParticipate() {
 
   const runAutoPickAndSubmit = useCallback(async () => {
     if (!eventId || !participantToken || !wardrobeReady) return
-    if (autoSubmitStarted.current || session?.costumesSubmitted) return
+    if (autoSubmitStarted.current) return
 
     autoSubmitStarted.current = true
     setSubmitPhase('picking')
@@ -223,11 +261,12 @@ export default function EventParticipate() {
     eventId,
     participantToken,
     wardrobeReady,
-    session?.costumesSubmitted,
     costumes,
     eventInfo?.themePreferences,
     usageHistory,
     limits,
+    session?.displayName,
+    displayName,
     toast,
   ])
 
@@ -256,9 +295,9 @@ export default function EventParticipate() {
 
   useEffect(() => {
     if (!joined || !participantToken) return
-    if (submitPhase === 'done' || session?.costumesSubmitted) return
+    if (submitPhase === 'done') return
     void runAutoPickAndSubmit()
-  }, [joined, participantToken, submitPhase, session?.costumesSubmitted, runAutoPickAndSubmit])
+  }, [joined, participantToken, submitPhase, runAutoPickAndSubmit])
 
   const handleJoin = async () => {
     if (!eventId || !inviteToken || !displayName.trim()) return
@@ -302,6 +341,8 @@ export default function EventParticipate() {
   }
 
   const handleRetrySubmit = () => {
+    if (!eventId) return
+    setEventSession(eventId, { costumesSubmitted: false })
     autoSubmitStarted.current = false
     setSubmitPhase('idle')
     setError('')

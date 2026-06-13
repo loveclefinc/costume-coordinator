@@ -158,12 +158,18 @@ export async function importParticipantSubmission(
   const normalized = normalizeCostumeList(bundle.costumes)
 
   for (const costume of normalized) {
-    const existing = await deps.getCostume(costume.id)
+    const tagged = normalizeCostume({
+      ...costume,
+      sourceEventId: bundle.eventId,
+      sourceParticipantName: bundle.participantName,
+      updatedAt: Date.now(),
+    })
+    const existing = await deps.getCostume(tagged.id)
     if (existing) {
-      await deps.updateCostume({ ...costume, updatedAt: Date.now() })
+      await deps.updateCostume(tagged)
       costumesUpdated++
     } else {
-      await deps.addCostume(costume)
+      await deps.addCostume(tagged)
       costumesAdded++
     }
   }

@@ -45,6 +45,8 @@ export async function importAdminSnapshotToLocal(
       suitStyle: sc.suitStyle,
       suitBreasting: sc.suitBreasting,
       suitLapel: sc.suitLapel,
+      sourceEventId: localEventId,
+      sourceParticipantName: sc.participantName,
       createdAt: sc.createdAt,
       updatedAt: sc.updatedAt,
     })

@@ -12,7 +12,7 @@ export function useCostumes() {
     const initStorage = async () => {
       try {
         await storage.init()
-        const allCostumes = await storage.getAllCostumes()
+        const allCostumes = await storage.getPersonalCostumes()
         setCostumes(normalizeCostumeList(allCostumes))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load costumes')
@@ -87,7 +87,7 @@ export function useCostumes() {
 
   const reloadCostumes = useCallback(async () => {
     await storage.init()
-    const allCostumes = await storage.getAllCostumes()
+    const allCostumes = await storage.getPersonalCostumes()
     setCostumes(normalizeCostumeList(allCostumes))
   }, [])
 

@@ -67,6 +67,8 @@ export function normalizeCostume(raw: Costume | Record<string, unknown>): Costum
     suitStyle,
     suitBreasting: normalizeSuitBreasting(r.suitBreasting ?? (r as { suitPieces?: unknown }).suitPieces, costumeType, suitStyle),
     suitLapel: normalizeSuitLapel(r.suitLapel, costumeType, suitStyle),
+    sourceEventId: typeof r.sourceEventId === 'string' ? r.sourceEventId : undefined,
+    sourceParticipantName: typeof r.sourceParticipantName === 'string' ? r.sourceParticipantName : undefined,
     createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
     updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : Date.now(),
   }

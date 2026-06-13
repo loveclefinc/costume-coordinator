@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
-import { storage } from '../utils/storage'
+import { storage, type Costume } from '../utils/storage'
+import { normalizeCostumeList } from '../utils/costume-normalize'
+import { findCostumeById, resolveEventCostumeCatalog } from '../utils/costume-scope'
 import {
   runSystemOptimization,
   type SystemOptimizationAlternative,
@@ -91,7 +93,21 @@ export default function EventDetail() {
   const location = useLocation()
   const { toast, confirm, prompt } = useAppUi()
   const { getEvent, updateEvent } = useEvents()
-  const { costumes, reloadCostumes } = useCostumes()
+  const { costumes: personalCostumes, reloadCostumes } = useCostumes()
+  const [eventCostumes, setEventCostumes] = useState<Costume[]>([])
+
+  const reloadEventCostumes = useCallback(async () => {
+    if (!id) return
+    await storage.init()
+    const scoped = await storage.getEventCostumes(id)
+    setEventCostumes(normalizeCostumeList(scoped))
+  }, [id])
+
+  const costumesForEvent = resolveEventCostumeCatalog(personalCostumes, eventCostumes)
+  const findCostume = useCallback(
+    (costumeId: string) => findCostumeById(costumeId, personalCostumes, eventCostumes),
+    [personalCostumes, eventCostumes],
+  )
 
   const [event, setEvent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -157,6 +173,10 @@ export default function EventDetail() {
 
     loadEvent()
   }, [id, getEvent, updateEvent])
+
+  useEffect(() => {
+    void reloadEventCostumes()
+  }, [reloadEventCostumes])
 
   useEffect(() => {
     if (!id) return
@@ -261,7 +281,7 @@ export default function EventDetail() {
       )
       const all = await storage.getAllUsageHistory()
       setEventUsageHistory(all.filter((entry) => entry.eventId === event.id))
-      const costumeName = costumes.find((c) => c.id === manualUsageCostumeId)?.name ?? '衣装'
+      const costumeName = findCostume(manualUsageCostumeId)?.name ?? '衣装'
       toast(`${manualUsageParticipant} さんの「${costumeName}」を使用履歴に記録しました`, 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '使用履歴の記録に失敗しました')
@@ -309,6 +329,7 @@ export default function EventDetail() {
       'success',
     )
     await reloadCostumes()
+    await reloadEventCostumes()
     await reloadEventAndCostumes()
   }
 
@@ -326,7 +347,7 @@ export default function EventDetail() {
       createParticipantSubmissionBundle({
         event,
         participantName: name,
-        costumes,
+        costumes: personalCostumes,
         preferences: participantPreferences[name] ?? [],
       }),
       `submission-${name}-${event.id}.json`,
@@ -361,7 +382,7 @@ export default function EventDetail() {
   const runSystemOptimizationForEvent = async (
     eventSnapshot: typeof event,
     prefs: { [key: string]: string[] },
-    costumeList: typeof costumes,
+    costumeList: Costume[],
     options?: { autoPersist?: boolean },
   ) => {
     if (!eventSnapshot) return null
@@ -410,7 +431,7 @@ export default function EventDetail() {
       const outcome = await runSystemOptimizationForEvent(
         event,
         participantPreferences,
-        costumes,
+        costumesForEvent,
         { autoPersist: true },
       )
       if (!outcome || outcome.selected.length === 0) {
@@ -433,7 +454,7 @@ export default function EventDetail() {
         participants: event.participants.map((name: string) => ({
           id: name,
           name,
-          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+          selectedCostumeName: event.costumes[name] ? findCostume(event.costumes[name])?.name : undefined,
         })),
         costumes: [],
       }
@@ -453,7 +474,7 @@ export default function EventDetail() {
         participants: event.participants.map((name: string) => ({
           id: name,
           name,
-          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+          selectedCostumeName: event.costumes[name] ? findCostume(event.costumes[name])?.name : undefined,
         })),
         costumes: optimizationResults.map(r => ({
           participantId: r.participantId,
@@ -479,7 +500,7 @@ export default function EventDetail() {
         participants: event.participants.map((name: string) => ({
           id: name,
           name,
-          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+          selectedCostumeName: event.costumes[name] ? findCostume(event.costumes[name])?.name : undefined,
         })),
         costumes: optimizationResults.map(r => ({
           participantId: r.participantId,
@@ -513,7 +534,7 @@ export default function EventDetail() {
       .map((name: string) => {
         const costumeId = event.costumes?.[name]
         if (!costumeId) return null
-        const costume = costumes.find((c) => c.id === costumeId)
+        const costume = findCostume(costumeId)
         if (!costume) return null
         return {
           participantName: name,
@@ -701,16 +722,17 @@ export default function EventDetail() {
       const snapshot = await fetchAdminSnapshot(event.id, adminToken)
       const result = await importAdminSnapshotToLocal(snapshot, event.id)
       await reloadCostumes()
+      await reloadEventCostumes()
       await storage.init()
       const freshEvent = await getEvent(event.id)
-      const freshCostumes = await storage.getAllCostumes()
+      const freshCostumes = normalizeCostumeList(await storage.getEventCostumes(event.id))
       const freshPrefs = freshEvent?.participantPreferences ?? {}
       if (freshEvent) {
         setEvent(freshEvent)
         setParticipantPreferences(freshPrefs)
       }
 
-      const submittedCount = snapshot.participants.filter((p) => p.costumeCount > 0).length
+      const submittedCount = snapshot.participants.filter((p) => p.submittedAt != null).length
       const totalCount = snapshot.participants.length
       const allSubmitted = totalCount > 0 && submittedCount === totalCount
 
@@ -756,7 +778,7 @@ export default function EventDetail() {
         participants: event.participants.map((name: string) => ({
           id: name,
           name,
-          selectedCostumeName: event.costumes[name] ? costumes.find(c => c.id === event.costumes[name])?.name : undefined,
+          selectedCostumeName: event.costumes[name] ? findCostume(event.costumes[name])?.name : undefined,
         })),
         costumes: [],
       }
@@ -1249,7 +1271,7 @@ export default function EventDetail() {
                     <h3>{participant}</h3>
                     {event.costumes[participant] && (
                       <p className="assigned-costume">
-                        割当: {costumes.find(c => c.id === event.costumes[participant])?.name || 'Unknown'}
+                        割当: {findCostume(event.costumes[participant])?.name || 'Unknown'}
                       </p>
                     )}
                   </div>
@@ -1328,7 +1350,7 @@ export default function EventDetail() {
                 onChange={(e) => setManualUsageCostumeId(e.target.value)}
               >
                 <option value="">選択してください</option>
-                {costumes.map((costume) => (
+                {personalCostumes.map((costume) => (
                   <option key={costume.id} value={costume.id}>
                     {costume.name}
                   </option>
@@ -1351,7 +1373,7 @@ export default function EventDetail() {
                 .sort((a, b) => b.usedAt - a.usedAt)
                 .map((entry) => {
                   const costumeName =
-                    costumes.find((c) => c.id === entry.costumeId)?.name ?? entry.costumeId
+                    findCostume(entry.costumeId)?.name ?? entry.costumeId
                   return (
                     <li key={entry.id}>
                       {new Date(entry.usedAt).toLocaleString('ja-JP')} — {entry.participantName}: {costumeName}
@@ -1363,7 +1385,7 @@ export default function EventDetail() {
         </section>
 
         {/* Preferences Section */}
-        {!isParticipantOnly && event.participants.length > 0 && costumes.length > 0 && (
+        {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (
           <section className="section">
             <h2>🎨 衣装の希望順位</h2>
             <div className="preferences-grid">
@@ -1379,7 +1401,7 @@ export default function EventDetail() {
                           onChange={(e) => handleSetPreference(participant, e.target.value, rank)}
                         >
                           <option value="">選択してください</option>
-                          {costumes.map(costume => (
+                          {costumesForEvent.map(costume => (
                             <option key={costume.id} value={costume.id}>
                               {costume.name}
                             </option>
@@ -1395,7 +1417,7 @@ export default function EventDetail() {
         )}
 
         {/* System optimization */}
-        {!isParticipantOnly && event.participants.length > 0 && costumes.length > 0 && (
+        {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (
           <section className="section">
             <div className="optimization-header">
               <h2>⚡ システムによる組み合わせ</h2>

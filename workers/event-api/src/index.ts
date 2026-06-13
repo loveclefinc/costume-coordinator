@@ -9,6 +9,7 @@ import type {
   ExtendRetentionResponse,
   JoinEventRequest,
   JoinEventResponse,
+  ParticipantSubmissionStatus,
   ServerCostume,
   ServerParticipant,
   ServerPhoto,
@@ -121,6 +122,11 @@ export default {
       const joinMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/join$/)
       if (joinMatch && request.method === 'POST') {
         return cors(await handleJoin(joinMatch[1], url, request, env), request, env)
+      }
+
+      const participantStatusMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/participant\/status$/)
+      if (participantStatusMatch && request.method === 'GET') {
+        return cors(await handleParticipantStatus(participantStatusMatch[1], request, env), request, env)
       }
 
       const costumesMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/costumes$/)
@@ -271,6 +277,38 @@ async function handleExtendRetention(
     .run()
 
   const res: ExtendRetentionResponse = { expiresAt: next }
+  return json(res)
+}
+
+async function handleParticipantStatus(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const participant = await requireParticipant(eventId, request, env)
+  const row = await getEventRow(env, eventId)
+  assertNotExpired(row.expires_at)
+
+  const counts = await env.DB.prepare(
+    `SELECT
+      (SELECT COUNT(*) FROM costumes c WHERE c.event_id = ? AND c.participant_id = ?) as costume_count,
+      (SELECT COUNT(*) FROM photos ph
+        JOIN costumes c ON c.id = ph.costume_id
+        WHERE c.event_id = ? AND c.participant_id = ?) as photo_count`,
+  )
+    .bind(eventId, participant.id, eventId, participant.id)
+    .first<{ costume_count: number; photo_count: number }>()
+
+  const costumeCount = counts?.costume_count ?? 0
+  const photoCount = counts?.photo_count ?? 0
+
+  const res: ParticipantSubmissionStatus = {
+    participantId: participant.id,
+    displayName: participant.display_name,
+    costumeCount,
+    photoCount,
+    submitted: costumeCount > 0 && photoCount > 0,
+  }
   return json(res)
 }
 
@@ -542,6 +580,9 @@ async function buildAdminSnapshot(
   const participantsResult = await env.DB.prepare(
     `SELECT p.id, p.display_name, p.created_at,
       (SELECT COUNT(*) FROM costumes c WHERE c.participant_id = p.id) as costume_count,
+      (SELECT COUNT(*) FROM photos ph
+        JOIN costumes c ON c.id = ph.costume_id
+        WHERE c.participant_id = p.id) as photo_count,
       (SELECT MAX(c.updated_at) FROM costumes c WHERE c.participant_id = p.id) as last_submit
      FROM participants p WHERE p.event_id = ? ORDER BY p.created_at`,
   )
@@ -551,13 +592,14 @@ async function buildAdminSnapshot(
       display_name: string
       created_at: number
       costume_count: number
+      photo_count: number
       last_submit: number | null
     }>()
 
   const participants: ServerParticipant[] = (participantsResult.results ?? []).map((p) => ({
     id: p.id,
     displayName: p.display_name,
-    submittedAt: p.costume_count > 0 ? p.last_submit : null,
+    submittedAt: p.photo_count > 0 ? p.last_submit : null,
     costumeCount: p.costume_count,
   }))
 

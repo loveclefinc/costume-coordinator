@@ -8,6 +8,7 @@ import type {
   ExtendRetentionResponse,
   JoinEventRequest,
   JoinEventResponse,
+  ParticipantSubmissionStatus,
   RegisterHostRequest,
   RegisterHostResponse,
   UploadPhotoResponse,
@@ -135,6 +136,16 @@ export async function joinServerEvent(
   return apiFetch<JoinEventResponse>(
     `/api/events/${encodeURIComponent(eventId)}/join?invite=${encodeURIComponent(inviteToken)}`,
     { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+export async function fetchParticipantSubmissionStatus(
+  eventId: string,
+  participantToken: string,
+): Promise<ParticipantSubmissionStatus> {
+  return apiFetch<ParticipantSubmissionStatus>(
+    `/api/events/${encodeURIComponent(eventId)}/participant/status`,
+    { participantToken },
   )
 }
 
