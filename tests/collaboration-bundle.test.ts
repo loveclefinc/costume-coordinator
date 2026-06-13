@@ -63,26 +63,27 @@ describe('collaboration-bundle', () => {
       preferences: ['c_1'],
     })
 
-    const addCostume = vi.fn()
     const updateEvent = vi.fn()
 
     const result = await importParticipantSubmission(bundle, {
       getEvent: async () => ({ ...baseEvent }),
       updateEvent,
-      getCostume: async () => undefined,
-      addCostume,
-      updateCostume: vi.fn(),
     })
 
     expect(result.participantName).toBe('Bob')
     expect(result.costumesAdded).toBe(1)
     expect(result.participantAdded).toBe(true)
-    expect(addCostume).toHaveBeenCalledOnce()
     expect(updateEvent).toHaveBeenCalledOnce()
 
     const updated = updateEvent.mock.calls[0][0] as Event
     expect(updated.participants).toContain('Bob')
     expect(updated.participantPreferences?.Bob).toEqual(['c_1'])
+    expect(updated.importedCostumes).toEqual([
+      expect.objectContaining({
+        id: 'c_1',
+        sourceParticipantName: 'Bob',
+      }),
+    ])
   })
 
   it('rejects submission when event missing on device', async () => {
@@ -97,9 +98,6 @@ describe('collaboration-bundle', () => {
       importParticipantSubmission(bundle, {
         getEvent: async () => undefined,
         updateEvent: vi.fn(),
-        getCostume: async () => undefined,
-        addCostume: vi.fn(),
-        updateCostume: vi.fn(),
       }),
     ).rejects.toThrow(/参加用ファイル/)
   })

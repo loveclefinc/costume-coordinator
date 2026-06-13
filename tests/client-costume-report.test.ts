@@ -33,4 +33,21 @@ describe('client costume report', () => {
     expect(html).toContain('写真なし')
     expect(html).toContain('花子')
   })
+
+  it('uses HTTPS image URLs as-is in HTML', () => {
+    const html = buildClientReportHtml(
+      { name: 'Test', eventDate: '2024-01-01' },
+      [
+        {
+          participantName: '花子',
+          costumeName: '青スーツ',
+          costumeImage: 'https://cdn.example.com/dress.jpg',
+          colors: [],
+        },
+      ],
+    )
+
+    expect(html).toContain('src="https://cdn.example.com/dress.jpg"')
+    expect(html).not.toContain('data:image/jpeg;base64,https://')
+  })
 })

@@ -1,4 +1,5 @@
 import { storage, type Costume, type Event, type UsageHistory } from '../../utils/storage'
+import { collectEventImportedCostumeIds, isPersonalWardrobeCostume } from '../../utils/costume-scope'
 import type { SyncMeta } from '../types'
 
 export class LocalDataStore {
@@ -14,7 +15,7 @@ export class LocalDataStore {
     await storage.init()
     const [events, costumes, usageHistory] = await Promise.all([
       storage.getAllEvents(),
-      storage.getAllCostumes(),
+      storage.getPersonalCostumes(),
       storage.getAllUsageHistory(),
     ])
     return { events, costumes, usageHistory }
@@ -41,12 +42,15 @@ export class LocalDataStore {
       if (!costumeIds.has(c.id)) await storage.deleteCostume(c.id)
     }
 
+    const importedIds = collectEventImportedCostumeIds(events)
+
     for (const e of events) {
       const existing = await storage.getEvent(e.id)
       if (existing) await storage.updateEvent(e)
       else await storage.addEvent(e)
     }
     for (const c of costumes) {
+      if (!isPersonalWardrobeCostume(c, importedIds)) continue
       const existing = await storage.getCostume(c.id)
       if (existing) await storage.updateCostume(c)
       else await storage.addCostume(c)

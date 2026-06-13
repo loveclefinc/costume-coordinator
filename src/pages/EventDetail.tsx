@@ -35,6 +35,7 @@ import {
   getEventSession,
   setEventSession,
   clearEventSession,
+  clearEventParticipantSession,
   hasEventAdminAccess,
   isParticipantOnlySession,
 } from '../event-server/session'
@@ -99,7 +100,7 @@ export default function EventDetail() {
   const reloadEventCostumes = useCallback(async () => {
     if (!id) return
     await storage.init()
-    const scoped = await storage.getEventCostumes(id)
+    const scoped = await storage.getEventImportedCostumes(id)
     setEventCostumes(normalizeCostumeList(scoped))
   }, [id])
 
@@ -229,26 +230,6 @@ export default function EventDetail() {
     }
   }
 
-  const handleSetPreference = async (participant: string, costumeId: string, rank: number) => {
-    if (!event) return
-    const prefs = participantPreferences[participant] || []
-    const newPrefs = [...prefs]
-    if (newPrefs[rank] === costumeId) {
-      newPrefs.splice(rank, 1)
-    } else {
-      newPrefs[rank] = costumeId
-    }
-    const filtered = newPrefs.filter(Boolean)
-    const nextPrefs = { ...participantPreferences, [participant]: filtered }
-    setParticipantPreferences(nextPrefs)
-    try {
-      const updated = await updateEvent(event.id, { participantPreferences: nextPrefs })
-      setEvent(updated)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '希望の保存に失敗しました')
-    }
-  }
-
   const handleSaveColorAnchors = async (anchors: NonNullable<typeof event.themePreferences>['colorCoordinationAnchors']) => {
     if (!event?.themePreferences) return
     setSavingColorAnchors(true)
@@ -320,15 +301,11 @@ export default function EventDetail() {
     const result = await importParticipantSubmission(bundle, {
       getEvent: (eid) => storage.getEvent(eid),
       updateEvent: (ev) => storage.updateEvent(ev),
-      getCostume: (cid) => storage.getCostume(cid),
-      addCostume: (c) => storage.addCostume(c),
-      updateCostume: (c) => storage.updateCostume(c),
     })
     toast(
       `${result.participantName} さんのデータを取り込みました（衣装 新規${result.costumesAdded} / 更新${result.costumesUpdated}）`,
       'success',
     )
-    await reloadCostumes()
     await reloadEventCostumes()
     await reloadEventAndCostumes()
   }
@@ -571,6 +548,21 @@ export default function EventDetail() {
     }
   }
 
+  const handleCancelParticipation = async () => {
+    if (!event) return
+    const ok = await confirm({
+      title: '参加の取り消し',
+      message:
+        'この端末での参加登録を解除します。イベント自体は削除されず、あとから再度参加できます。',
+      confirmLabel: '参加を取り消す',
+    })
+    if (!ok) return
+
+    clearEventParticipantSession(event.id)
+    toast('参加を取り消しました', 'success')
+    navigate('/events')
+  }
+
   const handleGenerateQR = async () => {
     if (!event) return
     try {
@@ -721,11 +713,14 @@ export default function EventDetail() {
     try {
       const snapshot = await fetchAdminSnapshot(event.id, adminToken)
       const result = await importAdminSnapshotToLocal(snapshot, event.id)
-      await reloadCostumes()
       await reloadEventCostumes()
       await storage.init()
       const freshEvent = await getEvent(event.id)
-      const freshCostumes = normalizeCostumeList(await storage.getEventCostumes(event.id))
+      const freshCostumes = normalizeCostumeList(
+        result.importedCostumes.length > 0
+          ? result.importedCostumes
+          : await storage.getEventImportedCostumes(event.id),
+      )
       const freshPrefs = freshEvent?.participantPreferences ?? {}
       if (freshEvent) {
         setEvent(freshEvent)
@@ -863,6 +858,13 @@ export default function EventDetail() {
                 {eventSession?.costumesSubmitted ? '提出内容を確認' : 'オンライン提出を続ける'}
               </span>
             </Link>
+            <button
+              type="button"
+              className="server-action-btn secondary"
+              onClick={() => void handleCancelParticipation()}
+            >
+              参加を取り消す
+            </button>
           </div>
         </section>
       )}
@@ -1384,38 +1386,6 @@ export default function EventDetail() {
           )}
         </section>
 
-        {/* Preferences Section */}
-        {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (
-          <section className="section">
-            <h2>🎨 衣装の希望順位</h2>
-            <div className="preferences-grid">
-              {event.participants.map((participant: string) => (
-                <div key={participant} className="preference-card">
-                  <h3>{participant}</h3>
-                  <div className="preference-ranks">
-                    {[0, 1, 2, 3, 4].map((rank) => (
-                      <div key={rank} className="rank-group">
-                        <label>第{rank + 1}希望</label>
-                        <select
-                          value={participantPreferences[participant]?.[rank] || ''}
-                          onChange={(e) => handleSetPreference(participant, e.target.value, rank)}
-                        >
-                          <option value="">選択してください</option>
-                          {costumesForEvent.map(costume => (
-                            <option key={costume.id} value={costume.id}>
-                              {costume.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* System optimization */}
         {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (
           <section className="section">
@@ -1442,7 +1412,7 @@ export default function EventDetail() {
                 </div>
 
                 <p className="system-optimization-lead">
-                  テーマ・希望順位・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
+                  テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
                 </p>
 
                 <div className="confirmation-actions">

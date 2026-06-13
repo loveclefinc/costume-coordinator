@@ -51,6 +51,28 @@ function escapeHtml(value: string): string {
 function toImageSrc(image?: string): string | null {
   if (!image) return null
   if (image.startsWith('data:')) return image
+  if (/^https?:\/\//i.test(image) || image.startsWith('blob:')) return image
+  return `data:image/jpeg;base64,${image}`
+}
+
+async function resolveImageForPdfExport(image?: string): Promise<string | undefined> {
+  if (!image) return undefined
+  if (image.startsWith('data:') || image.startsWith('blob:')) return image
+  if (/^https?:\/\//i.test(image)) {
+    try {
+      const response = await fetch(image, { mode: 'cors' })
+      if (!response.ok) return image
+      const blob = await response.blob()
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return image
+    }
+  }
   return `data:image/jpeg;base64,${image}`
 }
 
@@ -271,7 +293,14 @@ export async function exportClientCostumeReportPdf(
     throw new Error('提出用レポートを作成する衣装割り当てがありません')
   }
 
-  const html = buildClientReportHtml(event, assignments)
+  const resolvedAssignments = await Promise.all(
+    assignments.map(async (assignment) => ({
+      ...assignment,
+      costumeImage: await resolveImageForPdfExport(assignment.costumeImage),
+    })),
+  )
+
+  const html = buildClientReportHtml(event, resolvedAssignments)
   const container = document.createElement('div')
   container.style.position = 'fixed'
   container.style.left = '-10000px'

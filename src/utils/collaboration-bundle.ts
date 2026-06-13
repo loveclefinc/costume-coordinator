@@ -4,6 +4,10 @@
  */
 import type { Costume, Event } from './storage'
 import { normalizeCostume, normalizeCostumeList } from './costume-normalize'
+import {
+  countImportCostumeChanges,
+  mergeEventImportedCostumes,
+} from './event-imported-costumes'
 
 export const COLLABORATION_BUNDLE_VERSION = 1
 
@@ -141,9 +145,6 @@ export async function importParticipantSubmission(
   deps: {
     getEvent: (id: string) => Promise<Event | undefined>
     updateEvent: (event: Event) => Promise<unknown>
-    getCostume: (id: string) => Promise<Costume | undefined>
-    addCostume: (costume: Costume) => Promise<unknown>
-    updateCostume: (costume: Costume) => Promise<unknown>
   },
 ): Promise<ImportParticipantSubmissionResult> {
   const event = await deps.getEvent(bundle.eventId)
@@ -153,26 +154,19 @@ export async function importParticipantSubmission(
     )
   }
 
-  let costumesAdded = 0
-  let costumesUpdated = 0
-  const normalized = normalizeCostumeList(bundle.costumes)
-
-  for (const costume of normalized) {
-    const tagged = normalizeCostume({
+  const normalized = normalizeCostumeList(bundle.costumes).map((costume) =>
+    normalizeCostume({
       ...costume,
-      sourceEventId: bundle.eventId,
       sourceParticipantName: bundle.participantName,
       updatedAt: Date.now(),
-    })
-    const existing = await deps.getCostume(tagged.id)
-    if (existing) {
-      await deps.updateCostume(tagged)
-      costumesUpdated++
-    } else {
-      await deps.addCostume(tagged)
-      costumesAdded++
-    }
-  }
+    }),
+  )
+
+  const importedCostumes = mergeEventImportedCostumes(event.importedCostumes, normalized)
+  const { added: costumesAdded, updated: costumesUpdated } = countImportCostumeChanges(
+    event.importedCostumes,
+    normalized,
+  )
 
   const participants = [...event.participants]
   let participantAdded = false
@@ -190,6 +184,7 @@ export async function importParticipantSubmission(
     ...event,
     participants,
     participantPreferences: prefs,
+    importedCostumes,
     updatedAt: Date.now(),
   })
 

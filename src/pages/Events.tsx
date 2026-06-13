@@ -12,7 +12,7 @@ import {
   isMisconfiguredEventApiUrl,
   absoluteAppUrl,
 } from '../event-server/config'
-import { setEventSession, getEventSession, clearEventSession } from '../event-server/session'
+import { setEventSession, getEventSession, clearEventSession, clearEventParticipantSession, isParticipantOnlySession } from '../event-server/session'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
@@ -348,6 +348,23 @@ export default function Events() {
       console.error('create event failed:', err)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleCancelParticipation = async (id: string) => {
+    const ev = events.find((e) => e.id === id)
+    const ok = await confirm({
+      title: '参加の取り消し',
+      message: `「${ev?.name ?? 'このイベント'}」への参加登録をこの端末から解除します。イベント自体は削除されません。`,
+      confirmLabel: '参加を取り消す',
+    })
+    if (!ok) return
+
+    try {
+      clearEventParticipantSession(id)
+      toast('参加を取り消しました', 'success')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '参加の取り消しに失敗しました', 'error')
     }
   }
 
@@ -994,12 +1011,21 @@ export default function Events() {
                 <Link to={`/events/${event.id}`} className="action-button view">
                   詳細を見る
                 </Link>
-                <button
-                  onClick={() => handleDelete(event.id)}
-                  className="action-button delete"
-                >
-                  削除
-                </button>
+                {isParticipantOnlySession(event.id) ? (
+                  <button
+                    onClick={() => void handleCancelParticipation(event.id)}
+                    className="action-button secondary"
+                  >
+                    参加を取り消す
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(event.id)}
+                    className="action-button delete"
+                  >
+                    削除
+                  </button>
+                )}
               </div>
             </div>
           ))}

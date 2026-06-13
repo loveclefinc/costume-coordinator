@@ -5,9 +5,6 @@ import type { EventAdminSnapshot } from '../shared/event-api-types'
 const storageMock = vi.hoisted(() => ({
   init: vi.fn(),
   getEvent: vi.fn(),
-  getCostume: vi.fn(),
-  addCostume: vi.fn(),
-  updateCostume: vi.fn(),
   updateEvent: vi.fn(),
 }))
 
@@ -24,12 +21,10 @@ describe('importAdminSnapshotToLocal', () => {
       participants: ['代表者'],
       costumes: {},
     })
-    storageMock.getCostume.mockResolvedValue(undefined)
-    storageMock.addCostume.mockResolvedValue(undefined)
     storageMock.updateEvent.mockResolvedValue(undefined)
   })
 
-  it('tags imported costumes as event-scoped, not personal wardrobe', async () => {
+  it('stores imported costumes on the event record, not the personal wardrobe', async () => {
     const snapshot: EventAdminSnapshot = {
       event: {
         id: 'evt_1',
@@ -56,21 +51,35 @@ describe('importAdminSnapshotToLocal', () => {
           pattern: 'plain',
           season: [],
           preferences: [],
-          photos: [{ id: 'ph1', costumeId: 'cos_1', contentType: 'image/jpeg', sortOrder: 0, viewUrl: 'https://example.com/a.jpg' }],
+          photos: [
+            {
+              id: 'ph1',
+              costumeId: 'cos_1',
+              contentType: 'image/jpeg',
+              sortOrder: 0,
+              viewUrl: 'https://example.com/a.jpg',
+            },
+          ],
           createdAt: 1,
           updatedAt: 1,
         },
       ],
     }
 
-    await importAdminSnapshotToLocal(snapshot, 'evt_1')
+    const result = await importAdminSnapshotToLocal(snapshot, 'evt_1')
 
-    expect(storageMock.addCostume).toHaveBeenCalledWith(
+    expect(storageMock.updateEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'cos_1',
-        sourceEventId: 'evt_1',
-        sourceParticipantName: '花子',
+        importedCostumes: [
+          expect.objectContaining({
+            id: 'cos_1',
+            sourceParticipantName: '花子',
+            image: 'https://example.com/a.jpg',
+          }),
+        ],
       }),
     )
+    expect(result.importedCostumes).toHaveLength(1)
+    expect(result.importedCostumes[0].sourceEventId).toBeUndefined()
   })
 })

@@ -92,6 +92,8 @@ export interface Event {
   /** Cloudflare イベント API でホストしている場合 */
   hostedOnServer?: boolean
   serverExpiresAt?: number
+  /** サーバー取り込み・オフライン提出の衣装（イベント削除で消える。衣装ワードローブとは別） */
+  importedCostumes?: Costume[]
   createdAt: number
   updatedAt: number
 }
@@ -123,7 +125,7 @@ class CostumeStorage {
       request.onerror = () => reject(request.error)
       request.onsuccess = () => {
         this.db = request.result
-        resolve()
+        void this.purgeLegacyEventScopedCostumesFromWardrobe().finally(() => resolve())
       }
 
       request.onupgradeneeded = (event) => {
@@ -204,9 +206,22 @@ class CostumeStorage {
     return all.filter((costume) => !costume.sourceEventId)
   }
 
-  async getEventCostumes(eventId: string): Promise<Costume[]> {
+  /** 旧実装で衣装ストアに残ったイベント提出分を削除 */
+  async purgeLegacyEventScopedCostumesFromWardrobe(): Promise<number> {
     const all = await this.getAllCostumes()
-    return all.filter((costume) => costume.sourceEventId === eventId)
+    let removed = 0
+    for (const costume of all) {
+      if (costume.sourceEventId) {
+        await this.deleteCostume(costume.id)
+        removed++
+      }
+    }
+    return removed
+  }
+
+  async getEventImportedCostumes(eventId: string): Promise<Costume[]> {
+    const event = await this.getEvent(eventId)
+    return event?.importedCostumes ?? []
   }
 
   async updateCostume(costume: Costume): Promise<void> {
@@ -291,6 +306,8 @@ class CostumeStorage {
   async deleteEvent(id: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized')
 
+    await this.purgeLegacyEventScopedCostumesFromWardrobeForEvent(id)
+
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(['events'], 'readwrite')
       const store = transaction.objectStore('events')
@@ -299,6 +316,15 @@ class CostumeStorage {
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve()
     })
+  }
+
+  private async purgeLegacyEventScopedCostumesFromWardrobeForEvent(eventId: string): Promise<void> {
+    const all = await this.getAllCostumes()
+    for (const costume of all) {
+      if (costume.sourceEventId === eventId) {
+        await this.deleteCostume(costume.id)
+      }
+    }
   }
 
   // Usage History operations

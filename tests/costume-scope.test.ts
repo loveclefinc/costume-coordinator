@@ -42,6 +42,13 @@ describe('costume-scope', () => {
     expect(isPersonalWardrobeCostume(eventCostume)).toBe(false)
   })
 
+  it('excludes event imported costumes from personal wardrobe sync', () => {
+    const imported = { ...personal, id: 'c3', name: '取り込み衣装' }
+    const importedIds = new Set(['c3'])
+    expect(isPersonalWardrobeCostume(imported, importedIds)).toBe(false)
+    expect(isPersonalWardrobeCostume(personal, importedIds)).toBe(true)
+  })
+
   it('prefers event catalog for optimization when present', () => {
     expect(resolveEventCostumeCatalog([personal], [eventCostume])).toEqual([eventCostume])
     expect(resolveEventCostumeCatalog([personal], [])).toEqual([personal])
