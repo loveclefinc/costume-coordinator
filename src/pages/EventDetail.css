@@ -1143,3 +1143,13 @@
 .manual-usage-list li {
   margin-bottom: 0.35rem;
 }
+
+.participant-primary-card {
+  border-color: var(--primary-light, #f5c4bc);
+}
+
+.participant-submitted-note {
+  margin: 0 0 1rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}

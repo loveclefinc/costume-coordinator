@@ -62,3 +62,19 @@ export function clearEventParticipantSession(eventId: string): void {
   store.events[eventId] = rest
   writeStore(store)
 }
+
+/** 管理者トークンを保持している（代表者端末） */
+export function hasEventAdminAccess(eventId: string): boolean {
+  return Boolean(getEventSession(eventId)?.adminToken)
+}
+
+/** 招待 URL 経由で参加登録済み */
+export function hasEventParticipantAccess(eventId: string): boolean {
+  const session = getEventSession(eventId)
+  return Boolean(session?.participantToken && session?.inviteToken)
+}
+
+/** 参加者のみ（代表者権限なし） */
+export function isParticipantOnlySession(eventId: string): boolean {
+  return hasEventParticipantAccess(eventId) && !hasEventAdminAccess(eventId)
+}

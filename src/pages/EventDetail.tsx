@@ -29,7 +29,13 @@ import {
   registerHostOnServer,
   EventApiError,
 } from '../event-server/client'
-import { getEventSession, setEventSession, clearEventSession } from '../event-server/session'
+import {
+  getEventSession,
+  setEventSession,
+  clearEventSession,
+  hasEventAdminAccess,
+  isParticipantOnlySession,
+} from '../event-server/session'
 import {
   canExtendServerRetention,
   formatServerExpiryLabel,
@@ -779,8 +785,16 @@ export default function EventDetail() {
     )
   }
 
-  const showOnlineHub = Boolean(event.hostedOnServer || serverApiEnabled)
+  const eventSession = getEventSession(event.id)
+  const isEventHost = hasEventAdminAccess(event.id)
+  const isParticipantOnly = isParticipantOnlySession(event.id)
+  const showHostHub = Boolean(event.hostedOnServer || serverApiEnabled) && !isParticipantOnly
+  const showParticipantHub = Boolean(event.hostedOnServer && serverApiEnabled && isParticipantOnly)
   const canExtend = canExtendServerRetention(event.serverExpiresAt, event.createdAt)
+  const participateUrl =
+    eventSession?.inviteToken
+      ? `/events/${event.id}/participate?t=${encodeURIComponent(eventSession.inviteToken)}`
+      : null
 
   return (
     <div className="event-detail-page">
@@ -799,7 +813,39 @@ export default function EventDetail() {
         )}
       </header>
 
-      {showOnlineHub && (
+      {showParticipantHub && participateUrl && (
+        <section className="section participant-primary-card" aria-labelledby="participant-primary-heading">
+          <h2 id="participant-primary-heading">オンライン提出</h2>
+          <p className="server-primary-lead">
+            {eventSession?.displayName ? (
+              <>
+                <strong>{eventSession.displayName}</strong> さんとして参加登録済みです。
+              </>
+            ) : (
+              '参加者としてオンライン提出できます。'
+            )}
+          </p>
+          {eventSession?.costumesSubmitted ? (
+            <p className="participant-submitted-note">
+              候補衣装の提出は完了しています。全員の提出が揃うと代表者が取り込み、組み合わせが決定されます。
+            </p>
+          ) : (
+            <p className="participant-submitted-note">
+              登録済みの衣装から候補を自動選出して提出してください。
+            </p>
+          )}
+          <div className="server-action-stack">
+            <Link to={participateUrl} className="server-action-btn primary">
+              <span className="server-action-step">→</span>
+              <span className="server-action-text">
+                {eventSession?.costumesSubmitted ? '提出内容を確認' : 'オンライン提出を続ける'}
+              </span>
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {showHostHub && (
         <section className="section server-primary-card" aria-labelledby="server-primary-heading">
           <h2 id="server-primary-heading">代表者の操作</h2>
           <p className="server-primary-lead">
@@ -850,7 +896,8 @@ export default function EventDetail() {
             </button>
             {event.hostedOnServer &&
               serverApiEnabled &&
-              !getEventSession(event.id)?.participantToken && (
+              isEventHost &&
+              !eventSession?.participantToken && (
                 <button
                   type="button"
                   className="server-action-btn host-register-btn"
@@ -863,11 +910,8 @@ export default function EventDetail() {
                   </span>
                 </button>
               )}
-            {getEventSession(event.id)?.participantToken && (
-              <Link
-                to={`/events/${event.id}/participate?t=${encodeURIComponent(getEventSession(event.id)!.inviteToken!)}`}
-                className="server-action-btn host-photo-link"
-              >
+            {isEventHost && eventSession?.participantToken && participateUrl && (
+              <Link to={participateUrl} className="server-action-btn host-photo-link">
                 <span className="server-action-step">★</span>
                 <span className="server-action-text">代表者として写真を提出</span>
               </Link>
@@ -902,6 +946,7 @@ export default function EventDetail() {
         </section>
       )}
 
+      {!isParticipantOnly && (
       <details className="event-advanced-panel">
         <summary>
           {serverApiEnabled ? 'その他のツール（共有・QR・書き出し）' : 'その他のツール（共有・QR・オフライン JSON）'}
@@ -964,6 +1009,7 @@ export default function EventDetail() {
           )}
         </div>
       </details>
+      )}
 
       {error && (
         <div className="error-message">
@@ -1163,6 +1209,7 @@ export default function EventDetail() {
         )}
 
         {/* Participants Section */}
+        {!isParticipantOnly && (
         <section className="section">
           <h2>👥 参加者</h2>
           <p className="participant-name-hint">
@@ -1217,9 +1264,10 @@ export default function EventDetail() {
             )}
           </div>
         </section>
+        )}
 
         {/* Color coordination anchors */}
-        {event.themePreferences && (
+        {!isParticipantOnly && event.themePreferences && (
           <section className="section">
             <h2>🎯 基準衣装の色（ゲスト・ソリスト等）</h2>
             <p className="participant-name-hint">
@@ -1315,7 +1363,7 @@ export default function EventDetail() {
         </section>
 
         {/* Preferences Section */}
-        {event.participants.length > 0 && costumes.length > 0 && (
+        {!isParticipantOnly && event.participants.length > 0 && costumes.length > 0 && (
           <section className="section">
             <h2>🎨 衣装の希望順位</h2>
             <div className="preferences-grid">
@@ -1347,7 +1395,7 @@ export default function EventDetail() {
         )}
 
         {/* System optimization */}
-        {event.participants.length > 0 && costumes.length > 0 && (
+        {!isParticipantOnly && event.participants.length > 0 && costumes.length > 0 && (
           <section className="section">
             <div className="optimization-header">
               <h2>⚡ システムによる組み合わせ</h2>
