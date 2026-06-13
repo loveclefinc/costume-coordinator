@@ -3,6 +3,7 @@ import {
   getEventSession,
   hasEventAdminAccess,
   hasEventParticipantAccess,
+  isParticipantDeviceEvent,
   isParticipantOnlySession,
   setEventSession,
   clearEventSession,
@@ -50,6 +51,14 @@ describe('event server session access', () => {
     expect(hasEventParticipantAccess('evt_test')).toBe(true)
     expect(hasEventAdminAccess('evt_test')).toBe(false)
     expect(isParticipantOnlySession('evt_test')).toBe(true)
+    expect(isParticipantDeviceEvent('evt_test')).toBe(true)
+  })
+
+  it('keeps participant device flag after participation is cleared', () => {
+    setEventSession('evt_test', { inviteToken: 'invite' })
+    expect(hasEventParticipantAccess('evt_test')).toBe(false)
+    expect(isParticipantOnlySession('evt_test')).toBe(false)
+    expect(isParticipantDeviceEvent('evt_test')).toBe(true)
   })
 
   it('returns false when session is missing', () => {

@@ -35,7 +35,6 @@ import {
   getEventSession,
   setEventSession,
   clearEventSession,
-  clearEventParticipantSession,
   hasEventAdminAccess,
   isParticipantOnlySession,
 } from '../event-server/session'
@@ -45,6 +44,8 @@ import {
 } from '../utils/server-expiry-display'
 import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
+import { cancelLocalParticipation } from '../utils/cancel-participation'
+import { pruneRemovedParticipantEvents } from '../utils/prune-participant-events'
 import InviteUrlModal, { type InviteUrlModalLocationState } from '../components/InviteUrlModal'
 import {
   COLOR_UNIFICATION_HINTS,
@@ -158,6 +159,7 @@ export default function EventDetail() {
     const loadEvent = async () => {
       try {
         if (!id) throw new Error('Event ID not found')
+        await pruneRemovedParticipantEvents()
         let eventData = await getEvent(id)
         if (!eventData) throw new Error('Event not found')
         if (eventData.participants.length === 0) {
@@ -553,12 +555,12 @@ export default function EventDetail() {
     const ok = await confirm({
       title: '参加の取り消し',
       message:
-        'この端末での参加登録を解除します。イベント自体は削除されず、あとから再度参加できます。',
+        'この端末での参加を解除し、一覧から消します。招待URLから再度参加できます。',
       confirmLabel: '参加を取り消す',
     })
     if (!ok) return
 
-    clearEventParticipantSession(event.id)
+    await cancelLocalParticipation(event.id)
     toast('参加を取り消しました', 'success')
     navigate('/events')
   }

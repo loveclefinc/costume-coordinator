@@ -12,7 +12,8 @@ import {
   isMisconfiguredEventApiUrl,
   absoluteAppUrl,
 } from '../event-server/config'
-import { setEventSession, getEventSession, clearEventSession, clearEventParticipantSession, isParticipantOnlySession } from '../event-server/session'
+import { setEventSession, getEventSession, clearEventSession, isParticipantOnlySession, hasEventAdminAccess, isParticipantDeviceEvent } from '../event-server/session'
+import { cancelLocalParticipation } from '../utils/cancel-participation'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
@@ -355,13 +356,13 @@ export default function Events() {
     const ev = events.find((e) => e.id === id)
     const ok = await confirm({
       title: '参加の取り消し',
-      message: `「${ev?.name ?? 'このイベント'}」への参加登録をこの端末から解除します。イベント自体は削除されません。`,
+      message: `「${ev?.name ?? 'このイベント'}」への参加をこの端末から解除します。一覧から消えますが、招待URLから再度参加できます。`,
       confirmLabel: '参加を取り消す',
     })
     if (!ok) return
 
     try {
-      clearEventParticipantSession(id)
+      await cancelLocalParticipation(id)
       toast('参加を取り消しました', 'success')
     } catch (err) {
       toast(err instanceof Error ? err.message : '参加の取り消しに失敗しました', 'error')
@@ -1018,14 +1019,14 @@ export default function Events() {
                   >
                     参加を取り消す
                   </button>
-                ) : (
+                ) : hasEventAdminAccess(event.id) || !isParticipantDeviceEvent(event.id) ? (
                   <button
                     onClick={() => handleDelete(event.id)}
                     className="action-button delete"
                   >
                     削除
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           ))}

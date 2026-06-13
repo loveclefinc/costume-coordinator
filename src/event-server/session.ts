@@ -78,3 +78,9 @@ export function hasEventParticipantAccess(eventId: string): boolean {
 export function isParticipantOnlySession(eventId: string): boolean {
   return hasEventParticipantAccess(eventId) && !hasEventAdminAccess(eventId)
 }
+
+/** 招待経由で関与している参加者端末（代表者ではない） */
+export function isParticipantDeviceEvent(eventId: string): boolean {
+  const session = getEventSession(eventId)
+  return Boolean(session?.inviteToken && !session?.adminToken)
+}

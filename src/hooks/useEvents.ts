@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { storage, Event } from '../utils/storage'
 import { EVENTS_CHANGED_EVENT } from '../utils/ensure-local-participant-event'
+import { pruneRemovedParticipantEvents } from '../utils/prune-participant-events'
 
 async function loadAllEvents(): Promise<Event[]> {
   await storage.init()
+  await pruneRemovedParticipantEvents()
   const allEvents = await storage.getAllEvents()
   const migrated: Event[] = []
   for (const ev of allEvents) {
