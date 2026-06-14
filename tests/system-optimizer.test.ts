@@ -60,27 +60,37 @@ describe('runSystemOptimization', () => {
     expect(outcome.harmonyScore).toBeGreaterThan(0)
   })
 
-  it('includes up to 3 ranked costume candidates per selected participant', () => {
-    const outcome = runSystemOptimization({
-      participants: [
-        { id: 'a', name: 'A', preferences: ['c1', 'c2', 'c3', 'c4'] },
-      ],
-      costumes: [
-        costume('c1', 'Blue 1', ['blue']),
-        costume('c2', 'Blue 2', ['blue']),
-        costume('c3', 'Blue 3', ['blue']),
-        costume('c4', 'Blue 4', ['blue']),
-      ],
-      usageHistory: [],
-      themePreferences: theme,
-    })
+  it('returns up to 3 event-wide outfit image candidates', () => {
+    const outcome = runSystemOptimization(
+      {
+        participants: [
+          { id: 'a', name: 'A', preferences: ['c1', 'c2', 'c3', 'c4'] },
+          { id: 'b', name: 'B', preferences: ['c1', 'c2', 'c3', 'c4'] },
+          { id: 'c', name: 'C', preferences: ['c1', 'c2', 'c3', 'c4'] },
+        ],
+        costumes: [
+          costume('c1', 'Blue 1', ['blue']),
+          costume('c2', 'Blue 2', ['blue']),
+          costume('c3', 'Blue 3', ['blue']),
+          costume('c4', 'Blue 4', ['blue']),
+        ],
+        usageHistory: [],
+        themePreferences: theme,
+      },
+      3,
+    )
 
-    const candidates = outcome.selected[0].candidateProposals ?? []
-    expect(candidates).toHaveLength(3)
-    expect(candidates.map((candidate) => candidate.rank)).toEqual([1, 2, 3])
-    expect(candidates[0].costumeId).toBe(outcome.selected[0].costumeId)
-    expect(candidates[0].score).toBeGreaterThanOrEqual(candidates[1].score)
-    expect(candidates[1].score).toBeGreaterThanOrEqual(candidates[2].score)
+    const eventWideCandidates = [
+      outcome.selected,
+      ...outcome.alternatives.map((proposal) => proposal.assignments),
+    ]
+
+    expect(eventWideCandidates).toHaveLength(3)
+    eventWideCandidates.forEach((assignments) => {
+      expect(assignments).toHaveLength(3)
+      expect(new Set(assignments.map((row) => row.participantId))).toHaveLength(3)
+      expect(new Set(assignments.map((row) => row.costumeId))).toHaveLength(3)
+    })
   })
 
   it('assigns unique costumes for 10 participants from 5 candidates each', () => {

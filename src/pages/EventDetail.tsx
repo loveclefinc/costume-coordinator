@@ -839,6 +839,32 @@ export default function EventDetail() {
     })),
     stageArrangementMode,
   )
+  const displayedAlternativeProposals = alternativeProposals.map((proposal) => ({
+    ...proposal,
+    assignments: arrangeAssignmentsForStage(
+      proposal.assignments.map((result) => ({
+        ...result,
+        colors: normalizeCostumeColors(result.costume.colors),
+      })),
+      stageArrangementMode,
+    ),
+  }))
+  const stageImageCandidates = [
+    {
+      id: 'selected',
+      label: '候補 1（採用案）',
+      harmonyScore,
+      assignments: displayedOptimizationResults,
+      selected: true,
+    },
+    ...displayedAlternativeProposals.map((proposal, index) => ({
+      id: proposal.id,
+      label: `候補 ${index + 2}`,
+      harmonyScore: proposal.harmonyScore,
+      assignments: proposal.assignments,
+      selected: false,
+    })),
+  ].slice(0, 3)
 
   return (
     <div className="event-detail-page">
@@ -1475,7 +1501,7 @@ export default function EventDetail() {
 
                 <p className="system-optimization-lead">
                   テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
-                  調整しやすいように、各参加者の第3候補まで表示します。
+                  調整しやすいように、イベント全体の着用イメージを第3候補まで表示します。
                   ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
                 </p>
 
@@ -1526,31 +1552,6 @@ export default function EventDetail() {
                         </div>
                       </div>
 
-                      {(result.candidateProposals?.length ?? 0) > 1 && (
-                        <div className="candidate-proposals">
-                          <h5>調整用候補</h5>
-                          {result.candidateProposals.slice(1, 3).map((candidate) => (
-                            <div key={`${result.participantId}-${candidate.costumeId}`} className="candidate-proposal-row">
-                              <span className="candidate-rank">第{candidate.rank}候補</span>
-                              <div className="candidate-proposal-main">
-                                <strong>{candidate.costume.name}</strong>
-                                <div className="colors candidate-colors">
-                                  {normalizeCostumeColors(candidate.costume.colors).map((color) => (
-                                    <span
-                                      key={color}
-                                      className="color-dot"
-                                      style={{ backgroundColor: color }}
-                                      title={color}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              <span className="candidate-score">{(candidate.score * 100).toFixed(0)}点</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
                       <div className="reasons">
                         {result.reason.map((r, i) => (
                           <p key={i}>• {r}</p>
@@ -1560,31 +1561,43 @@ export default function EventDetail() {
                   ))}
                 </div>
 
-                {alternativeProposals.length > 0 && (
-                  <details className="alternative-proposals-panel">
-                    <summary>参考案を見る（{alternativeProposals.length} 件）</summary>
-                    <div className="alternative-proposals-list">
-                      {alternativeProposals.map((proposal) => (
-                        <div key={proposal.id} className="alternative-proposal-card">
+                {stageImageCandidates.length > 1 && (
+                  <div className="stage-image-candidates-panel">
+                    <h3>イベント全体の着用イメージ候補</h3>
+                    <p>
+                      1人ずつの予備ではなく、全員分を組み合わせた全体案です。
+                      候補 1 は現在の採用案、候補 2・3 は色味や配置の調整用です。
+                    </p>
+                    <div className="stage-image-candidates-list">
+                      {stageImageCandidates.map((candidate) => (
+                        <article
+                          key={candidate.id}
+                          className={[
+                            'stage-image-candidate-card',
+                            candidate.selected ? 'stage-image-candidate-card--selected' : '',
+                          ].filter(Boolean).join(' ')}
+                        >
                           <h4>
-                            {proposal.label}
-                            <span className="alternative-proposal-score">
-                              調和 {(proposal.harmonyScore * 100).toFixed(1)}%
-                            </span>
+                            {candidate.label}
+                            <span>調和 {(candidate.harmonyScore * 100).toFixed(1)}%</span>
                           </h4>
-                          <ul className="alternative-proposal-assignments">
-                            {proposal.assignments.map((row) => (
-                              <li key={`${proposal.id}-${row.participantId}`}>
-                                <strong>{row.participantName}</strong>
-                                {' → '}
-                                {row.costume.name}
-                              </li>
+                          <div className="stage-image-assignment-grid">
+                            {candidate.assignments.map((row) => (
+                              <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment">
+                                {row.costume.image && (
+                                  <img src={row.costume.image} alt={row.costume.name} />
+                                )}
+                                <div>
+                                  <strong>{row.participantName}</strong>
+                                  <span>{row.costume.name}</span>
+                                </div>
+                              </div>
                             ))}
-                          </ul>
-                        </div>
+                          </div>
+                        </article>
                       ))}
                     </div>
-                  </details>
+                  </div>
                 )}
               </>
             )}

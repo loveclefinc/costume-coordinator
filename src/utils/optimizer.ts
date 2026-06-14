@@ -29,15 +29,6 @@ export interface OptimizationResult {
   costume: Costume
   score: number
   reason: string[]
-  candidateProposals?: OptimizationCandidate[]
-}
-
-export interface OptimizationCandidate {
-  costumeId: string
-  costume: Costume
-  score: number
-  reason: string[]
-  rank: number
 }
 
 export interface OptimizationInput {
@@ -320,28 +311,19 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
     if (bestCandidate) {
       assignedCostumes.add(bestCandidate.costume.id)
 
-      const candidateProposals = evaluatedCandidates.slice(0, 3).map((candidate, index) => ({
-        costumeId: candidate.costume.id,
-        costume: candidate.costume,
-        score: candidate.score,
-        rank: index + 1,
-        reason: buildReasonExplanation(
-          candidate.costume,
-          candidate.score,
-          participant.preferences,
-          themePreferences,
-          recentUsageExcludeDays,
-        ),
-      }))
-
       results.push({
         participantId: participant.id,
         participantName: participant.name,
         costumeId: bestCandidate.costume.id,
         costume: bestCandidate.costume,
         score: bestCandidate.score,
-        reason: candidateProposals[0]?.reason ?? [],
-        candidateProposals,
+        reason: buildReasonExplanation(
+          bestCandidate.costume,
+          bestCandidate.score,
+          participant.preferences,
+          themePreferences,
+          recentUsageExcludeDays,
+        ),
       })
     }
   }
