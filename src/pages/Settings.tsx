@@ -293,6 +293,15 @@ export default function Settings() {
               プライバシーポリシーを表示
             </button>
           </div>
+          <div className="settings-item">
+            <label>特定商取引法に基づく表記</label>
+            <button
+              onClick={() => navigate('/commercial-transactions')}
+              className="settings-link-button"
+            >
+              特定商取引法に基づく表記を表示
+            </button>
+          </div>
         </section>
       </div>
     </div>

@@ -148,6 +148,8 @@ export default function About() {
             <Link to="/terms-of-service">利用規約</Link>
             {' · '}
             <Link to="/privacy-policy">プライバシーポリシー</Link>
+            {' · '}
+            <Link to="/commercial-transactions">特定商取引法に基づく表記</Link>
           </p>
         </section>
       </div>

@@ -15,6 +15,7 @@ export default function PublicLegalFooter({ tone = 'default' }: PublicLegalFoote
       <nav className="public-legal-nav" aria-label="法的情報">
         <Link to="/terms-of-service">利用規約</Link>
         <Link to="/privacy-policy">プライバシーポリシー</Link>
+        <Link to="/commercial-transactions">特定商取引法に基づく表記</Link>
         <Link to="/about">このアプリについて</Link>
       </nav>
     </footer>

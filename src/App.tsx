@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 import About from './pages/About'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
+import CommercialTransactions from './pages/CommercialTransactions'
 import CloudOAuthCallback from './pages/CloudOAuthCallback'
 import Onboarding from './pages/Onboarding'
 import JoinEvent from './pages/JoinEvent'
@@ -26,6 +27,7 @@ const PUBLIC_PATHS = new Set([
   '/about',
   '/privacy-policy',
   '/terms-of-service',
+  '/commercial-transactions',
 ])
 
 function AppShell() {
@@ -65,6 +67,7 @@ function AppShell() {
           <Route path="/about" element={<About />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/commercial-transactions" element={<CommercialTransactions />} />
           <Route
             path="/oauth/google/callback"
             element={<CloudOAuthCallback provider="google-drive" />}
