@@ -9,17 +9,17 @@ const rows = [
 ]
 
 describe('sortAssignmentsForDisplay', () => {
-  it('keeps participant order by default', () => {
+  it('keeps participant order as the default stage order', () => {
     expect(sortAssignmentsForDisplay(rows, 'participant_order').map((row) => row.participantName))
       .toEqual(['A', 'B', 'C', 'D'])
   })
 
-  it('sorts assignments in rainbow order', () => {
+  it('sorts assignments in rainbow stage order', () => {
     expect(sortAssignmentsForDisplay(rows, 'rainbow').map((row) => row.colors[0]))
       .toEqual(['red', 'yellow', 'green', 'blue'])
   })
 
-  it('alternates color positions for contrast order', () => {
+  it('alternates color positions for contrast stage order', () => {
     expect(sortAssignmentsForDisplay(rows, 'contrast').map((row) => row.colors[0]))
       .toEqual(['red', 'blue', 'yellow', 'green'])
   })

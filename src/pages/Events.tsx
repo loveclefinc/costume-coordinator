@@ -780,9 +780,9 @@ export default function Events() {
               </div>
 
               <div className="theme-subsection">
-                <h4>結果の並び順</h4>
+                <h4>ステージの並び順</h4>
                 <p className="form-hint theme-unification-hint">
-                  組み合わせ決定後の見せ方です。衣装の選定はテーマ・候補・使用履歴から行い、ここでは表示順だけを整えます。
+                  客席から見た左から右の並びを整えます。衣装の選定はテーマ・候補・使用履歴から行い、ここでは決定後のステージ配置を指定します。
                 </p>
                 {(['participant_order', 'rainbow', 'contrast'] as AssignmentDisplayOrder[]).map((order) => (
                   <div key={order} className="preference-group color-policy-option">

@@ -1436,7 +1436,7 @@ export default function EventDetail() {
                 <h3>決定済みの衣装</h3>
                 <p>
                   PDFを書き出さなくても、この画面でマッチした衣装を確認できます。
-                  表示順: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
+                  ステージ並び: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
                 </p>
                 <div className="confirmed-assignments-grid">
                   {displayAssignments.map((assignment) => (
@@ -1467,7 +1467,7 @@ export default function EventDetail() {
 
                 <p className="system-optimization-lead">
                   テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
-                  表示順: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
+                  ステージ並び: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
                 </p>
 
                 <div className="confirmation-actions">

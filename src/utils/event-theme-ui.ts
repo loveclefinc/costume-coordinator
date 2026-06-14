@@ -33,14 +33,14 @@ export const THEME_SUIT_BREASTING_OPTIONS = SUIT_BREASTING_OPTIONS
 
 export const ASSIGNMENT_DISPLAY_ORDER_LABELS: Record<AssignmentDisplayOrder, string> = {
   participant_order: '参加者順',
-  rainbow: '虹色順',
-  contrast: 'コントラスト順',
+  rainbow: 'ステージ虹色順',
+  contrast: 'ステージコントラスト順',
 }
 
 export const ASSIGNMENT_DISPLAY_ORDER_HINTS: Record<AssignmentDisplayOrder, string> = {
-  participant_order: '参加者リストの順番で表示します。',
-  rainbow: '赤・橙・黄・緑・青・紫のように、色相が自然につながる順で表示します。',
-  contrast: '隣同士の色差が出やすいように、明暗・色相を交互に並べます。',
+  participant_order: '参加者リストの順番を、そのままステージ上の並びとして扱います。',
+  rainbow: '客席から見て、赤・橙・黄・緑・青・紫のように色相が自然につながるステージ並びにします。',
+  contrast: '客席から見て、隣同士の色差が出やすいように明暗・色相を交互に並べます。',
 }
 
 export const COLOR_LABELS: Record<string, string> = {
@@ -251,7 +251,7 @@ export function formatThemeSummary(theme: EventThemePreferencesPayload): string[
   const policy = migrateColorUnificationPolicy(theme.colorUnification, theme.avoidSimilarColors)
   lines.push(`色味: ${COLOR_UNIFICATION_LABELS[policy]}`)
   if (theme.assignmentDisplayOrder && theme.assignmentDisplayOrder !== 'participant_order') {
-    lines.push(`並び順: ${ASSIGNMENT_DISPLAY_ORDER_LABELS[theme.assignmentDisplayOrder]}`)
+    lines.push(`ステージ並び: ${ASSIGNMENT_DISPLAY_ORDER_LABELS[theme.assignmentDisplayOrder]}`)
   }
 
   const ranks = [
