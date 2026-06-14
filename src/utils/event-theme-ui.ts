@@ -1,4 +1,5 @@
 import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
+import type { AssignmentDisplayOrder } from '../../shared/event-api-types'
 import type { ColorAnalysisResult } from './image-analysis'
 import { hexToThemeColorName, THEME_COLOR_REF_HEX, type ThemeColorName } from './theme-colors'
 import {
@@ -29,6 +30,18 @@ export const THEME_PATTERN_OPTIONS = [
 export const THEME_SILHOUETTE_OPTIONS = DRESS_SILHOUETTE_OPTIONS
 export const THEME_SUIT_STYLE_OPTIONS = SUIT_STYLE_OPTIONS
 export const THEME_SUIT_BREASTING_OPTIONS = SUIT_BREASTING_OPTIONS
+
+export const ASSIGNMENT_DISPLAY_ORDER_LABELS: Record<AssignmentDisplayOrder, string> = {
+  participant_order: '参加者順',
+  rainbow: '虹色順',
+  contrast: 'コントラスト順',
+}
+
+export const ASSIGNMENT_DISPLAY_ORDER_HINTS: Record<AssignmentDisplayOrder, string> = {
+  participant_order: '参加者リストの順番で表示します。',
+  rainbow: '赤・橙・黄・緑・青・紫のように、色相が自然につながる順で表示します。',
+  contrast: '隣同士の色差が出やすいように、明暗・色相を交互に並べます。',
+}
 
 export const COLOR_LABELS: Record<string, string> = {
   red: '赤',
@@ -237,6 +250,9 @@ export function formatThemeSummary(theme: EventThemePreferencesPayload): string[
   const lines: string[] = []
   const policy = migrateColorUnificationPolicy(theme.colorUnification, theme.avoidSimilarColors)
   lines.push(`色味: ${COLOR_UNIFICATION_LABELS[policy]}`)
+  if (theme.assignmentDisplayOrder && theme.assignmentDisplayOrder !== 'participant_order') {
+    lines.push(`並び順: ${ASSIGNMENT_DISPLAY_ORDER_LABELS[theme.assignmentDisplayOrder]}`)
+  }
 
   const ranks = [
     { label: '第1希望', colors: theme.colors1stChoice, tones: theme.tones1stChoice, patterns: theme.patterns1stChoice, silhouettes: theme.silhouettes1stChoice ?? [], suitStyles: theme.suitStyles1stChoice ?? [], suitBreasting: theme.suitBreasting1stChoice ?? [] },

@@ -92,6 +92,32 @@ describe('costume-theme-match', () => {
     expect(picked.length).toBe(3)
   })
 
+  it('keeps submitted candidates more varied when color policy is spread', () => {
+    const spreadTheme: EventThemePreferences = {
+      ...theme,
+      colorUnification: 'varied',
+      colors1stChoice: ['red', 'blue', 'yellow', 'green', 'purple'],
+      tones1stChoice: ['vivid', 'neutral'],
+      patterns1stChoice: ['plain', 'floral'],
+    }
+    const picked = autoPickCostumesForEventTheme(
+      [
+        costume('red-1', { colors: ['red'], tone: 'vivid', pattern: 'plain' }),
+        costume('red-2', { colors: ['red'], tone: 'vivid', pattern: 'plain' }),
+        costume('red-3', { colors: ['red'], tone: 'vivid', pattern: 'plain' }),
+        costume('blue-1', { colors: ['blue'], tone: 'vivid', pattern: 'plain' }),
+        costume('yellow-1', { colors: ['yellow'], tone: 'neutral', pattern: 'floral' }),
+        costume('green-1', { colors: ['green'], tone: 'neutral', pattern: 'plain' }),
+      ],
+      spreadTheme,
+      [],
+      5,
+    )
+
+    expect(new Set(picked.map((entry) => entry.costume.colors[0])).size).toBeGreaterThan(2)
+    expect(picked).toHaveLength(5)
+  })
+
   it('excludes recently used costumes before ranking', () => {
     const usageHistory: UsageHistory[] = [
       {

@@ -53,6 +53,7 @@ import {
   migrateColorUnificationPolicy,
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
+import { ASSIGNMENT_DISPLAY_ORDER_LABELS } from '../utils/event-theme-ui'
 import UsageGuideTip from '../components/UsageGuideTip'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { useAppUi } from '../contexts/AppUiContext'
@@ -61,6 +62,7 @@ import {
   DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
   getRecentUsageExcludeDays,
 } from '../utils/app-settings'
+import { sortAssignmentsForDisplay } from '../utils/assignment-display-order'
 import { SILHOUETTE_LABELS } from '../utils/silhouette'
 import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
 import './EventDetail.css'
@@ -531,7 +533,10 @@ export default function EventDetail() {
     if (!event) return
     setIsExportingPdf(true)
     try {
-      const assignments = buildClientReportAssignments()
+      const assignments = sortAssignmentsForDisplay(
+        buildClientReportAssignments(),
+        event.themePreferences?.assignmentDisplayOrder,
+      )
       await exportClientCostumeReportPdf(
         {
           name: event.name,
@@ -814,7 +819,18 @@ export default function EventDetail() {
     eventSession?.inviteToken
       ? `/events/${event.id}/participate?t=${encodeURIComponent(eventSession.inviteToken)}`
       : null
-  const displayAssignments = buildClientReportAssignments()
+  const assignmentDisplayOrder = event.themePreferences?.assignmentDisplayOrder ?? 'participant_order'
+  const displayAssignments = sortAssignmentsForDisplay(
+    buildClientReportAssignments(),
+    assignmentDisplayOrder,
+  )
+  const displayedOptimizationResults = sortAssignmentsForDisplay(
+    optimizationResults.map((result) => ({
+      ...result,
+      colors: normalizeCostumeColors(result.costume.colors),
+    })),
+    assignmentDisplayOrder,
+  )
 
   return (
     <div className="event-detail-page">
@@ -1420,6 +1436,7 @@ export default function EventDetail() {
                 <h3>決定済みの衣装</h3>
                 <p>
                   PDFを書き出さなくても、この画面でマッチした衣装を確認できます。
+                  表示順: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
                 </p>
                 <div className="confirmed-assignments-grid">
                   {displayAssignments.map((assignment) => (
@@ -1450,6 +1467,7 @@ export default function EventDetail() {
 
                 <p className="system-optimization-lead">
                   テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
+                  表示順: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
                 </p>
 
                 <div className="confirmation-actions">
@@ -1472,7 +1490,7 @@ export default function EventDetail() {
                 )}
 
                 <div className="optimization-results">
-                  {optimizationResults.map((result) => (
+                  {displayedOptimizationResults.map((result) => (
                     <div key={result.participantId} className="result-card result-card--selected">
                       <div className="result-header">
                         <h4>{result.participantName}</h4>

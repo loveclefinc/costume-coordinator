@@ -1,6 +1,7 @@
 // IndexedDB storage utility for PWA local persistence
 
 import type { DressSilhouette } from './silhouette'
+import type { AssignmentDisplayOrder } from '../../shared/event-api-types'
 import type { SuitBreasting, SuitLapel, SuitStyle } from './suit-attributes'
 
 const DB_NAME = 'CostumeCoordinator'
@@ -74,6 +75,7 @@ export interface EventThemePreferences {
   suitBreasting1stChoice: string[]
   suitBreasting2ndChoice: string[]
   suitBreasting3rdChoice: string[]
+  assignmentDisplayOrder?: AssignmentDisplayOrder
   
   avoidSimilarColors: boolean
   /** 決まっている他出演者の衣装色（重ねない・合わせる） */

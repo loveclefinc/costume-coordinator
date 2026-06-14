@@ -1,10 +1,11 @@
 import type { Costume, EventThemePreferences, UsageHistory } from './storage'
 import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
-import { enrichCostumeColors, normalizePattern } from './theme-colors'
+import { enrichCostumeColors, normalizePattern, themeColorNamesFrom } from './theme-colors'
 import { buildColorAnchorReasons, calculateColorAnchorScore } from './color-coordination'
 import { DEFAULT_RECENT_USAGE_EXCLUDE_DAYS } from './app-settings'
 import { hasThemeSilhouetteChoices } from './silhouette'
 import { hasThemeSuitBreastingChoices, hasThemeSuitStyleChoices } from './suit-attributes'
+import { isSpreadColorPolicy, migrateColorUnificationPolicy } from './theme-color-policy'
 
 export type ThemePreferencesInput = EventThemePreferences | EventThemePreferencesPayload
 
@@ -258,6 +259,82 @@ function hasThemeColorChoices(theme: ThemePreferencesInput): boolean {
   )
 }
 
+function overlapCount(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0
+  const bSet = new Set(b)
+  return a.filter((value) => bSet.has(value)).length
+}
+
+function costumeDiversityPenalty(
+  candidate: CostumeThemeMatch,
+  selected: CostumeThemeMatch[],
+  themePreferences?: ThemePreferencesInput,
+): number {
+  if (selected.length === 0) return 0
+
+  const spreadColors = !themePreferences ||
+    isSpreadColorPolicy(migrateColorUnificationPolicy(
+      themePreferences.colorUnification,
+      themePreferences.avoidSimilarColors,
+    ))
+  const candidateColors = themeColorNamesFrom(candidate.costume.colors)
+  const candidatePattern = normalizePattern(candidate.costume.pattern)
+  let penalty = 0
+
+  for (const existing of selected) {
+    const colorOverlap = overlapCount(candidateColors, themeColorNamesFrom(existing.costume.colors))
+    if (colorOverlap > 0) penalty += spreadColors ? 0.18 : 0.05
+    if (candidate.costume.tone === existing.costume.tone) penalty += 0.05
+    if (candidatePattern === normalizePattern(existing.costume.pattern)) penalty += 0.04
+    if (
+      candidate.costume.type === 'dress' &&
+      existing.costume.type === 'dress' &&
+      candidate.costume.silhouette &&
+      candidate.costume.silhouette === existing.costume.silhouette
+    ) {
+      penalty += spreadColors ? 0.04 : 0.02
+    }
+    if (
+      candidate.costume.type === 'suit' &&
+      existing.costume.type === 'suit' &&
+      candidate.costume.suitStyle &&
+      candidate.costume.suitStyle === existing.costume.suitStyle
+    ) {
+      penalty += spreadColors ? 0.04 : 0.02
+    }
+  }
+
+  return penalty
+}
+
+function pickDiverseCostumes(
+  ranked: CostumeThemeMatch[],
+  maxCount: number,
+  themePreferences?: ThemePreferencesInput,
+): CostumeThemeMatch[] {
+  if (ranked.length <= maxCount) return ranked
+
+  const selected: CostumeThemeMatch[] = [ranked[0]]
+  const remaining = ranked.slice(1)
+
+  while (selected.length < maxCount && remaining.length > 0) {
+    let bestIndex = 0
+    let bestAdjustedScore = -Infinity
+
+    remaining.forEach((entry, index) => {
+      const adjustedScore = entry.score - costumeDiversityPenalty(entry, selected, themePreferences)
+      if (adjustedScore > bestAdjustedScore) {
+        bestAdjustedScore = adjustedScore
+        bestIndex = index
+      }
+    })
+
+    selected.push(remaining.splice(bestIndex, 1)[0])
+  }
+
+  return selected
+}
+
 /**
  * 参加者が提出する「候補衣装」を自動選出する。
  * 全員提出後にシステムが最適化で1着を決めるため、テーマに合う候補を複数（最大 maxCount）返す。
@@ -280,7 +357,7 @@ export function autoPickCostumesForEventTheme(
 
   const cap = Math.max(1, maxCount)
   if (!themePreferences) {
-    return ranked.slice(0, cap)
+    return pickDiverseCostumes(ranked, cap)
   }
 
   let pool = ranked
@@ -293,5 +370,5 @@ export function autoPickCostumesForEventTheme(
 
   const qualified = pool.filter((entry) => entry.score >= minScore)
   const picks = qualified.length > 0 ? qualified : pool
-  return picks.slice(0, cap)
+  return pickDiverseCostumes(picks, cap, themePreferences)
 }

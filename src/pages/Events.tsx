@@ -14,7 +14,7 @@ import {
 } from '../event-server/config'
 import { setEventSession, getEventSession, clearEventSession, isParticipantOnlySession, hasEventAdminAccess, isParticipantDeviceEvent } from '../event-server/session'
 import { cancelLocalParticipation } from '../utils/cancel-participation'
-import type { RetentionDays } from '../../shared/event-api-types'
+import type { AssignmentDisplayOrder, RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
 import {
@@ -23,6 +23,10 @@ import {
   migrateColorUnificationPolicy,
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
+import {
+  ASSIGNMENT_DISPLAY_ORDER_HINTS,
+  ASSIGNMENT_DISPLAY_ORDER_LABELS,
+} from '../utils/event-theme-ui'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
 import {
@@ -86,6 +90,7 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
   suitBreasting1stChoice: [],
   suitBreasting2ndChoice: [],
   suitBreasting3rdChoice: [],
+  assignmentDisplayOrder: 'participant_order',
   avoidSimilarColors: false,
   colorCoordinationAnchors: [],
 }
@@ -772,6 +777,33 @@ export default function Events() {
                   </label>
                   <p className="form-hint color-policy-hint">{COLOR_UNIFICATION_HINTS.varied_distinct}</p>
                 </div>
+              </div>
+
+              <div className="theme-subsection">
+                <h4>結果の並び順</h4>
+                <p className="form-hint theme-unification-hint">
+                  組み合わせ決定後の見せ方です。衣装の選定はテーマ・候補・使用履歴から行い、ここでは表示順だけを整えます。
+                </p>
+                {(['participant_order', 'rainbow', 'contrast'] as AssignmentDisplayOrder[]).map((order) => (
+                  <div key={order} className="preference-group color-policy-option">
+                    <label>
+                      <input
+                        type="radio"
+                        name="assignmentDisplayOrder"
+                        value={order}
+                        checked={(themePrefs.assignmentDisplayOrder ?? 'participant_order') === order}
+                        onChange={() => setThemePrefs((prev) => ({
+                          ...prev,
+                          assignmentDisplayOrder: order,
+                        }))}
+                      />
+                      {ASSIGNMENT_DISPLAY_ORDER_LABELS[order]}
+                    </label>
+                    <p className="form-hint color-policy-hint">
+                      {ASSIGNMENT_DISPLAY_ORDER_HINTS[order]}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               <div className="theme-subsection">
