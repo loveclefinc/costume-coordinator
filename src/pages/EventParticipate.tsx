@@ -84,7 +84,6 @@ export default function EventParticipate() {
     try {
       const info = await fetchEventPublic(eventId, inviteToken)
       setEventInfo(info)
-      await ensureLocalParticipantEvent(info, session?.displayName)
 
       const token = session?.participantToken
       if (token) {
@@ -97,6 +96,7 @@ export default function EventParticipate() {
           setDisplayNameInput((prev) => status.displayName || prev)
           setJoined(true)
           setSubmitPhase((phase) => resolveSubmitPhaseAfterStatusCheck(phase, status.submitted))
+          await ensureLocalParticipantEvent(info, status.displayName)
           if (status.submitted) {
             autoSubmitStarted.current = true
           }
@@ -104,6 +104,9 @@ export default function EventParticipate() {
           if (e instanceof EventApiError && e.status === 404) {
             setDisplayNameInput((prev) => session.displayName ?? prev)
             setJoined(true)
+            if (session.displayName) {
+              await ensureLocalParticipantEvent(info, session.displayName)
+            }
             if (session.costumesSubmitted) {
               setSubmitPhase('done')
               autoSubmitStarted.current = true

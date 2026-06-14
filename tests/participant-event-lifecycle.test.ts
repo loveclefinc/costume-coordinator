@@ -65,7 +65,8 @@ describe('participant event lifecycle', () => {
   it('cancelLocalParticipation clears session and removes local event', async () => {
     await cancelLocalParticipation('evt_1')
 
-    expect(sessionMock.clearEventParticipantSession).toHaveBeenCalledWith('evt_1')
+    expect(sessionMock.clearEventSession).toHaveBeenCalledWith('evt_1')
+    expect(sessionMock.clearEventParticipantSession).not.toHaveBeenCalled()
     expect(storageMock.deleteEvent).toHaveBeenCalledWith('evt_1')
     expect(notifyEventsChanged).toHaveBeenCalledOnce()
   })

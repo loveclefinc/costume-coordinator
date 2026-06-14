@@ -1044,12 +1044,12 @@ export default function Events() {
                 <Link to={`/events/${event.id}`} className="action-button view">
                   詳細を見る
                 </Link>
-                {isParticipantOnlySession(event.id) ? (
+                {isParticipantDeviceEvent(event.id) ? (
                   <button
                     onClick={() => void handleCancelParticipation(event.id)}
                     className="action-button secondary"
                   >
-                    参加を取り消す
+                    {isParticipantOnlySession(event.id) ? '参加を取り消す' : 'この端末から削除'}
                   </button>
                 ) : hasEventAdminAccess(event.id) || !isParticipantDeviceEvent(event.id) ? (
                   <button
