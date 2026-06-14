@@ -8,7 +8,7 @@ export type ColorUnificationPolicy = 'unified' | 'varied' | 'varied_distinct'
 
 export type ColorCoordinationMode = 'avoid' | 'match'
 
-export type AssignmentDisplayOrder = 'participant_order' | 'rainbow' | 'contrast'
+export type StageArrangementMode = 'participant_order' | 'balanced'
 
 export interface ColorCoordinationAnchorPayload {
   id: string
@@ -39,7 +39,7 @@ export interface EventThemePreferencesPayload {
   suitBreasting1stChoice: string[]
   suitBreasting2ndChoice: string[]
   suitBreasting3rdChoice: string[]
-  assignmentDisplayOrder?: AssignmentDisplayOrder
+  stageArrangementMode?: StageArrangementMode
   avoidSimilarColors: boolean
   colorCoordinationAnchors?: ColorCoordinationAnchorPayload[]
 }

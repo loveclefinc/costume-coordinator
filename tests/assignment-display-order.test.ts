@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortAssignmentsForDisplay } from '../src/utils/assignment-display-order'
+import { arrangeAssignmentsForStage } from '../src/utils/assignment-display-order'
 
 const rows = [
   { participantName: 'A', colors: ['blue'] },
@@ -8,19 +8,18 @@ const rows = [
   { participantName: 'D', colors: ['green'] },
 ]
 
-describe('sortAssignmentsForDisplay', () => {
+describe('arrangeAssignmentsForStage', () => {
   it('keeps participant order as the default stage order', () => {
-    expect(sortAssignmentsForDisplay(rows, 'participant_order').map((row) => row.participantName))
+    expect(arrangeAssignmentsForStage(rows, 'participant_order').map((row) => row.participantName))
       .toEqual(['A', 'B', 'C', 'D'])
   })
 
-  it('sorts assignments in rainbow stage order', () => {
-    expect(sortAssignmentsForDisplay(rows, 'rainbow').map((row) => row.colors[0]))
+  it('creates a natural stage flow when colors are varied', () => {
+    expect(arrangeAssignmentsForStage(rows, 'balanced').map((row) => row.colors[0]))
       .toEqual(['red', 'yellow', 'green', 'blue'])
   })
 
-  it('alternates color positions for contrast stage order', () => {
-    expect(sortAssignmentsForDisplay(rows, 'contrast').map((row) => row.colors[0]))
-      .toEqual(['red', 'blue', 'yellow', 'green'])
+  it('keeps all assignments when arranging stage balance', () => {
+    expect(arrangeAssignmentsForStage(rows, 'balanced')).toHaveLength(rows.length)
   })
 })

@@ -1,4 +1,4 @@
-import type { AssignmentDisplayOrder } from '../../shared/event-api-types'
+import type { StageArrangementMode } from '../../shared/event-api-types'
 import { THEME_COLOR_REF_HEX, themeColorNamesFrom, type ThemeColorName } from './theme-colors'
 
 export interface AssignmentDisplayItem {
@@ -52,7 +52,7 @@ function assignmentHue(item: AssignmentDisplayItem): number {
   return 362
 }
 
-function contrastOrder<T extends AssignmentDisplayItem>(items: T[]): T[] {
+function alternatingToneOrder<T extends AssignmentDisplayItem>(items: T[]): T[] {
   const sorted = [...items].sort((a, b) => assignmentHue(a) - assignmentHue(b))
   const ordered: T[] = []
   let left = 0
@@ -66,11 +66,19 @@ function contrastOrder<T extends AssignmentDisplayItem>(items: T[]): T[] {
   return ordered
 }
 
-export function sortAssignmentsForDisplay<T extends AssignmentDisplayItem>(
-  items: T[],
-  order: AssignmentDisplayOrder | undefined,
-): T[] {
-  if (!order || order === 'participant_order') return items
-  if (order === 'contrast') return contrastOrder(items)
+function colorFlowOrder<T extends AssignmentDisplayItem>(items: T[]): T[] {
   return [...items].sort((a, b) => assignmentHue(a) - assignmentHue(b))
+}
+
+function hasEnoughColorVariety(items: AssignmentDisplayItem[]): boolean {
+  const hues = new Set(items.map((item) => Math.round(assignmentHue(item) / 30)))
+  return hues.size >= Math.min(4, items.length)
+}
+
+export function arrangeAssignmentsForStage<T extends AssignmentDisplayItem>(
+  items: T[],
+  mode: StageArrangementMode | undefined,
+): T[] {
+  if (!mode || mode === 'participant_order') return items
+  return hasEnoughColorVariety(items) ? colorFlowOrder(items) : alternatingToneOrder(items)
 }

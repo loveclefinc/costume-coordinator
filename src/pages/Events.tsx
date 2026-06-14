@@ -14,7 +14,7 @@ import {
 } from '../event-server/config'
 import { setEventSession, getEventSession, clearEventSession, isParticipantOnlySession, hasEventAdminAccess, isParticipantDeviceEvent } from '../event-server/session'
 import { cancelLocalParticipation } from '../utils/cancel-participation'
-import type { AssignmentDisplayOrder, RetentionDays } from '../../shared/event-api-types'
+import type { RetentionDays, StageArrangementMode } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
 import {
@@ -24,8 +24,8 @@ import {
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
 import {
-  ASSIGNMENT_DISPLAY_ORDER_HINTS,
-  ASSIGNMENT_DISPLAY_ORDER_LABELS,
+  STAGE_ARRANGEMENT_HINTS,
+  STAGE_ARRANGEMENT_LABELS,
 } from '../utils/event-theme-ui'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
@@ -90,7 +90,7 @@ const EMPTY_THEME_PREFS: EventThemePreferences = {
   suitBreasting1stChoice: [],
   suitBreasting2ndChoice: [],
   suitBreasting3rdChoice: [],
-  assignmentDisplayOrder: 'participant_order',
+  stageArrangementMode: 'participant_order',
   avoidSimilarColors: false,
   colorCoordinationAnchors: [],
 }
@@ -780,27 +780,27 @@ export default function Events() {
               </div>
 
               <div className="theme-subsection">
-                <h4>ステージの並び順</h4>
+                <h4>ステージ上の見え方</h4>
                 <p className="form-hint theme-unification-hint">
-                  客席から見た左から右の並びを整えます。衣装の選定はテーマ・候補・使用履歴から行い、ここでは決定後のステージ配置を指定します。
+                  客席から見た左から右の配置です。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
                 </p>
-                {(['participant_order', 'rainbow', 'contrast'] as AssignmentDisplayOrder[]).map((order) => (
-                  <div key={order} className="preference-group color-policy-option">
+                {(['participant_order', 'balanced'] as StageArrangementMode[]).map((mode) => (
+                  <div key={mode} className="preference-group color-policy-option">
                     <label>
                       <input
                         type="radio"
-                        name="assignmentDisplayOrder"
-                        value={order}
-                        checked={(themePrefs.assignmentDisplayOrder ?? 'participant_order') === order}
+                        name="stageArrangementMode"
+                        value={mode}
+                        checked={(themePrefs.stageArrangementMode ?? 'participant_order') === mode}
                         onChange={() => setThemePrefs((prev) => ({
                           ...prev,
-                          assignmentDisplayOrder: order,
+                          stageArrangementMode: mode,
                         }))}
                       />
-                      {ASSIGNMENT_DISPLAY_ORDER_LABELS[order]}
+                      {STAGE_ARRANGEMENT_LABELS[mode]}
                     </label>
                     <p className="form-hint color-policy-hint">
-                      {ASSIGNMENT_DISPLAY_ORDER_HINTS[order]}
+                      {STAGE_ARRANGEMENT_HINTS[mode]}
                     </p>
                   </div>
                 ))}

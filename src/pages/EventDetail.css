@@ -334,8 +334,18 @@
   border: 1px solid var(--border);
 }
 
+.confirmed-assignments-panel--primary {
+  margin-bottom: 1.25rem;
+  border: 2px solid var(--primary);
+  background: rgba(var(--primary-rgb), 0.05);
+}
+
 .confirmed-assignments-panel h3 {
   margin: 0 0 0.35rem;
+}
+
+.confirmed-assignments-panel h2 {
+  margin-top: 0;
 }
 
 .confirmed-assignments-panel p {

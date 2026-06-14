@@ -53,7 +53,8 @@ import {
   migrateColorUnificationPolicy,
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
-import { ASSIGNMENT_DISPLAY_ORDER_LABELS } from '../utils/event-theme-ui'
+import { STAGE_ARRANGEMENT_LABELS } from '../utils/event-theme-ui'
+import type { StageArrangementMode } from '../../shared/event-api-types'
 import UsageGuideTip from '../components/UsageGuideTip'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { useAppUi } from '../contexts/AppUiContext'
@@ -62,7 +63,7 @@ import {
   DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
   getRecentUsageExcludeDays,
 } from '../utils/app-settings'
-import { sortAssignmentsForDisplay } from '../utils/assignment-display-order'
+import { arrangeAssignmentsForStage } from '../utils/assignment-display-order'
 import { SILHOUETTE_LABELS } from '../utils/silhouette'
 import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
 import './EventDetail.css'
@@ -89,6 +90,13 @@ const translateSuitStyles = (styles: string[]): string => {
 
 const translateSuitBreasting = (values: string[]): string => {
   return values.map((value) => SUIT_BREASTING_LABELS[value as keyof typeof SUIT_BREASTING_LABELS] || value).join(', ')
+}
+
+const resolveStageArrangementMode = (themePreferences: any): StageArrangementMode => {
+  if (themePreferences?.stageArrangementMode) return themePreferences.stageArrangementMode
+  return themePreferences?.assignmentDisplayOrder && themePreferences.assignmentDisplayOrder !== 'participant_order'
+    ? 'balanced'
+    : 'participant_order'
 }
 
 export default function EventDetail() {
@@ -533,9 +541,9 @@ export default function EventDetail() {
     if (!event) return
     setIsExportingPdf(true)
     try {
-      const assignments = sortAssignmentsForDisplay(
+      const assignments = arrangeAssignmentsForStage(
         buildClientReportAssignments(),
-        event.themePreferences?.assignmentDisplayOrder,
+        resolveStageArrangementMode(event.themePreferences),
       )
       await exportClientCostumeReportPdf(
         {
@@ -819,17 +827,17 @@ export default function EventDetail() {
     eventSession?.inviteToken
       ? `/events/${event.id}/participate?t=${encodeURIComponent(eventSession.inviteToken)}`
       : null
-  const assignmentDisplayOrder = event.themePreferences?.assignmentDisplayOrder ?? 'participant_order'
-  const displayAssignments = sortAssignmentsForDisplay(
+  const stageArrangementMode = resolveStageArrangementMode(event.themePreferences)
+  const displayAssignments = arrangeAssignmentsForStage(
     buildClientReportAssignments(),
-    assignmentDisplayOrder,
+    stageArrangementMode,
   )
-  const displayedOptimizationResults = sortAssignmentsForDisplay(
+  const displayedOptimizationResults = arrangeAssignmentsForStage(
     optimizationResults.map((result) => ({
       ...result,
       colors: normalizeCostumeColors(result.costume.colors),
     })),
-    assignmentDisplayOrder,
+    stageArrangementMode,
   )
 
   return (
@@ -848,6 +856,31 @@ export default function EventDetail() {
           <span className="event-hosted-pill">☁️ オンライン提出</span>
         )}
       </header>
+
+      {displayAssignments.length > 0 && (
+        <section className="section confirmed-assignments-panel confirmed-assignments-panel--primary">
+          <h2>👗 決定済みの衣装</h2>
+          <p>
+            PDFを書き出さなくても、この画面で参加者ごとの衣装を確認できます。
+            ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
+          </p>
+          <div className="confirmed-assignments-grid">
+            {displayAssignments.map((assignment) => (
+              <article key={assignment.participantName} className="confirmed-assignment-card">
+                {assignment.costumeImage ? (
+                  <img src={assignment.costumeImage} alt={assignment.costumeName} />
+                ) : (
+                  <div className="confirmed-assignment-placeholder">写真なし</div>
+                )}
+                <div>
+                  <strong>{assignment.participantName}</strong>
+                  <span>{assignment.costumeName}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {showParticipantHub && participateUrl && (
         <section className="section participant-primary-card" aria-labelledby="participant-primary-heading">
@@ -1431,31 +1464,6 @@ export default function EventDetail() {
               </p>
             )}
 
-            {displayAssignments.length > 0 && optimizationResults.length === 0 && (
-              <div className="confirmed-assignments-panel">
-                <h3>決定済みの衣装</h3>
-                <p>
-                  PDFを書き出さなくても、この画面でマッチした衣装を確認できます。
-                  ステージ並び: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
-                </p>
-                <div className="confirmed-assignments-grid">
-                  {displayAssignments.map((assignment) => (
-                    <article key={assignment.participantName} className="confirmed-assignment-card">
-                      {assignment.costumeImage ? (
-                        <img src={assignment.costumeImage} alt={assignment.costumeName} />
-                      ) : (
-                        <div className="confirmed-assignment-placeholder">写真なし</div>
-                      )}
-                      <div>
-                        <strong>{assignment.participantName}</strong>
-                        <span>{assignment.costumeName}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {optimizationResults.length > 0 && (
               <>
                 <div className="harmony-score">
@@ -1467,7 +1475,7 @@ export default function EventDetail() {
 
                 <p className="system-optimization-lead">
                   テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
-                  ステージ並び: {ASSIGNMENT_DISPLAY_ORDER_LABELS[assignmentDisplayOrder]}
+                  ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
                 </p>
 
                 <div className="confirmation-actions">

@@ -1,5 +1,4 @@
-import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
-import type { AssignmentDisplayOrder } from '../../shared/event-api-types'
+import type { EventThemePreferencesPayload, StageArrangementMode } from '../../shared/event-api-types'
 import type { ColorAnalysisResult } from './image-analysis'
 import { hexToThemeColorName, THEME_COLOR_REF_HEX, type ThemeColorName } from './theme-colors'
 import {
@@ -31,16 +30,14 @@ export const THEME_SILHOUETTE_OPTIONS = DRESS_SILHOUETTE_OPTIONS
 export const THEME_SUIT_STYLE_OPTIONS = SUIT_STYLE_OPTIONS
 export const THEME_SUIT_BREASTING_OPTIONS = SUIT_BREASTING_OPTIONS
 
-export const ASSIGNMENT_DISPLAY_ORDER_LABELS: Record<AssignmentDisplayOrder, string> = {
-  participant_order: '参加者順',
-  rainbow: 'ステージ虹色順',
-  contrast: 'ステージコントラスト順',
+export const STAGE_ARRANGEMENT_LABELS: Record<StageArrangementMode, string> = {
+  participant_order: '参加者順のまま',
+  balanced: 'ステージの見え方を整える',
 }
 
-export const ASSIGNMENT_DISPLAY_ORDER_HINTS: Record<AssignmentDisplayOrder, string> = {
-  participant_order: '参加者リストの順番を、そのままステージ上の並びとして扱います。',
-  rainbow: '客席から見て、赤・橙・黄・緑・青・紫のように色相が自然につながるステージ並びにします。',
-  contrast: '客席から見て、隣同士の色差が出やすいように明暗・色相を交互に並べます。',
+export const STAGE_ARRANGEMENT_HINTS: Record<StageArrangementMode, string> = {
+  participant_order: '参加者リストの順番を、そのまま客席から見た左から右の並びとして扱います。',
+  balanced: '衣装決定後、色の流れや隣同士の見え方が不自然になりにくいようにステージ上の配置を整えます。',
 }
 
 export const COLOR_LABELS: Record<string, string> = {
@@ -250,8 +247,8 @@ export function formatThemeSummary(theme: EventThemePreferencesPayload): string[
   const lines: string[] = []
   const policy = migrateColorUnificationPolicy(theme.colorUnification, theme.avoidSimilarColors)
   lines.push(`色味: ${COLOR_UNIFICATION_LABELS[policy]}`)
-  if (theme.assignmentDisplayOrder && theme.assignmentDisplayOrder !== 'participant_order') {
-    lines.push(`ステージ並び: ${ASSIGNMENT_DISPLAY_ORDER_LABELS[theme.assignmentDisplayOrder]}`)
+  if (theme.stageArrangementMode && theme.stageArrangementMode !== 'participant_order') {
+    lines.push(`ステージ配置: ${STAGE_ARRANGEMENT_LABELS[theme.stageArrangementMode]}`)
   }
 
   const ranks = [
