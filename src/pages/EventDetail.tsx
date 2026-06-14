@@ -1475,6 +1475,7 @@ export default function EventDetail() {
 
                 <p className="system-optimization-lead">
                   テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
+                  調整しやすいように、各参加者の第3候補まで表示します。
                   ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
                 </p>
 
@@ -1524,6 +1525,31 @@ export default function EventDetail() {
                           <p className="tone">{result.costume.tone}</p>
                         </div>
                       </div>
+
+                      {(result.candidateProposals?.length ?? 0) > 1 && (
+                        <div className="candidate-proposals">
+                          <h5>調整用候補</h5>
+                          {result.candidateProposals.slice(1, 3).map((candidate) => (
+                            <div key={`${result.participantId}-${candidate.costumeId}`} className="candidate-proposal-row">
+                              <span className="candidate-rank">第{candidate.rank}候補</span>
+                              <div className="candidate-proposal-main">
+                                <strong>{candidate.costume.name}</strong>
+                                <div className="colors candidate-colors">
+                                  {normalizeCostumeColors(candidate.costume.colors).map((color) => (
+                                    <span
+                                      key={color}
+                                      className="color-dot"
+                                      style={{ backgroundColor: color }}
+                                      title={color}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <span className="candidate-score">{(candidate.score * 100).toFixed(0)}点</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="reasons">
                         {result.reason.map((r, i) => (

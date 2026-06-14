@@ -29,6 +29,15 @@ export interface OptimizationResult {
   costume: Costume
   score: number
   reason: string[]
+  candidateProposals?: OptimizationCandidate[]
+}
+
+export interface OptimizationCandidate {
+  costumeId: string
+  costume: Costume
+  score: number
+  reason: string[]
+  rank: number
 }
 
 export interface OptimizationInput {
@@ -154,6 +163,74 @@ function calculatePreferenceScore(costumeId: string, preferences: string[]): num
   return 1 - (preferenceIndex / Math.max(preferences.length, 5))
 }
 
+function buildReasonExplanation(
+  costume: Costume,
+  score: number,
+  preferences: string[],
+  themePreferences: EventThemePreferences | undefined,
+  recentUsageExcludeDays: number,
+): string[] {
+  const reasons: string[] = []
+
+  const colorPolicy = migrateColorUnificationPolicy(
+    themePreferences?.colorUnification,
+    themePreferences?.avoidSimilarColors,
+  )
+  if (colorPolicy === 'unified') {
+    reasons.push('色味統一（同系色）')
+  } else {
+    reasons.push('色味バラけ')
+    if (colorPolicy === 'varied_distinct') {
+      reasons.push('似た色を回避')
+    }
+  }
+
+  if (themePreferences) {
+    const colorMatch = calculateColorThemeScore(costume.colors, themePreferences)
+    if (colorMatch >= 0.9) reasons.push('テーマ色第1希望')
+    else if (colorMatch >= 0.7) reasons.push('テーマ色第2希望')
+    else if (colorMatch >= 0.5) reasons.push('テーマ色第3希望')
+
+    const toneMatch = calculateToneThemeScore(costume.tone, themePreferences)
+    if (toneMatch >= 0.9) reasons.push('テーマトーン第1希望')
+    else if (toneMatch >= 0.7) reasons.push('テーマトーン第2希望')
+
+    const patternMatch = calculatePatternThemeScore(costume.pattern, themePreferences)
+    if (patternMatch >= 0.9) reasons.push('テーマ柄第1希望')
+    else if (patternMatch >= 0.7) reasons.push('テーマ柄第2希望')
+
+    const silhouetteMatch = calculateSilhouetteThemeScore(costume, themePreferences)
+    if (silhouetteMatch !== null) {
+      if (silhouetteMatch >= 0.9) reasons.push('テーマシルエット第1希望')
+      else if (silhouetteMatch >= 0.7) reasons.push('テーマシルエット第2希望')
+    }
+
+    const suitStyleMatch = calculateSuitStyleThemeScore(costume, themePreferences)
+    if (suitStyleMatch !== null) {
+      if (suitStyleMatch >= 0.9) reasons.push('スーツ形式第1希望')
+      else if (suitStyleMatch >= 0.7) reasons.push('スーツ形式第2希望')
+    }
+
+    const suitBreastingMatch = calculateSuitBreastingThemeScore(costume, themePreferences)
+    if (suitBreastingMatch !== null) {
+      if (suitBreastingMatch >= 0.9) reasons.push('前釦第1希望')
+      else if (suitBreastingMatch >= 0.7) reasons.push('前釦第2希望')
+    }
+  }
+
+  const prefIndex = preferences.indexOf(costume.id)
+  if (prefIndex !== -1) {
+    reasons.push(`希望順位: ${prefIndex + 1}位`)
+  }
+
+  if (recentUsageExcludeDays > 0) {
+    reasons.push(`直近${recentUsageExcludeDays}日間未使用`)
+  }
+
+  reasons.push(`スコア: ${(score * 100).toFixed(1)}`)
+  return reasons
+}
+
 /**
  * Main optimization algorithm - prioritizes event theme preferences
  */
@@ -179,9 +256,7 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
   })
 
   for (const participant of sortedParticipants) {
-    let bestCostume: Costume | null = null
-    let bestScore = -Infinity
-    const reasons: string[] = []
+    const evaluatedCandidates: Array<{ costume: Costume; score: number }> = []
 
     const preferenceIds = new Set(participant.preferences)
     const eligibleCostumes =
@@ -236,80 +311,37 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
       )
       score += compatibilityScore * 0.16
 
-      if (score > bestScore) {
-        bestScore = score
-        bestCostume = costume
-      }
+      evaluatedCandidates.push({ costume, score })
     }
 
-    if (bestCostume) {
-      assignedCostumes.add(bestCostume.id)
+    evaluatedCandidates.sort((a, b) => b.score - a.score)
+    const bestCandidate = evaluatedCandidates[0]
 
-      // Build reason explanation
-      const colorPolicy = migrateColorUnificationPolicy(
-        themePreferences?.colorUnification,
-        themePreferences?.avoidSimilarColors,
-      )
-      if (colorPolicy === 'unified') {
-        reasons.push('色味統一（同系色）')
-      } else {
-        reasons.push('色味バラけ')
-        if (colorPolicy === 'varied_distinct') {
-          reasons.push('似た色を回避')
-        }
-      }
+    if (bestCandidate) {
+      assignedCostumes.add(bestCandidate.costume.id)
 
-      if (themePreferences) {
-        const colorMatch = calculateColorThemeScore(bestCostume.colors, themePreferences)
-        if (colorMatch >= 0.9) reasons.push('テーマ色第1希望')
-        else if (colorMatch >= 0.7) reasons.push('テーマ色第2希望')
-        else if (colorMatch >= 0.5) reasons.push('テーマ色第3希望')
-
-        const toneMatch = calculateToneThemeScore(bestCostume.tone, themePreferences)
-        if (toneMatch >= 0.9) reasons.push('テーマトーン第1希望')
-        else if (toneMatch >= 0.7) reasons.push('テーマトーン第2希望')
-
-        const patternMatch = calculatePatternThemeScore(bestCostume.pattern, themePreferences)
-        if (patternMatch >= 0.9) reasons.push('テーマ柄第1希望')
-        else if (patternMatch >= 0.7) reasons.push('テーマ柄第2希望')
-
-        const silhouetteMatch = calculateSilhouetteThemeScore(bestCostume, themePreferences)
-        if (silhouetteMatch !== null) {
-          if (silhouetteMatch >= 0.9) reasons.push('テーマシルエット第1希望')
-          else if (silhouetteMatch >= 0.7) reasons.push('テーマシルエット第2希望')
-        }
-
-        const suitStyleMatch = calculateSuitStyleThemeScore(bestCostume, themePreferences)
-        if (suitStyleMatch !== null) {
-          if (suitStyleMatch >= 0.9) reasons.push('スーツ形式第1希望')
-          else if (suitStyleMatch >= 0.7) reasons.push('スーツ形式第2希望')
-        }
-
-        const suitBreastingMatch = calculateSuitBreastingThemeScore(bestCostume, themePreferences)
-        if (suitBreastingMatch !== null) {
-          if (suitBreastingMatch >= 0.9) reasons.push('前釦第1希望')
-          else if (suitBreastingMatch >= 0.7) reasons.push('前釦第2希望')
-        }
-      }
-
-      const prefIndex = participant.preferences.indexOf(bestCostume.id)
-      if (prefIndex !== -1) {
-        reasons.push(`希望順位: ${prefIndex + 1}位`)
-      }
-
-      if (recentUsageExcludeDays > 0) {
-        reasons.push(`直近${recentUsageExcludeDays}日間未使用`)
-      }
-
-      reasons.push(`スコア: ${(bestScore * 100).toFixed(1)}`)
+      const candidateProposals = evaluatedCandidates.slice(0, 3).map((candidate, index) => ({
+        costumeId: candidate.costume.id,
+        costume: candidate.costume,
+        score: candidate.score,
+        rank: index + 1,
+        reason: buildReasonExplanation(
+          candidate.costume,
+          candidate.score,
+          participant.preferences,
+          themePreferences,
+          recentUsageExcludeDays,
+        ),
+      }))
 
       results.push({
         participantId: participant.id,
         participantName: participant.name,
-        costumeId: bestCostume.id,
-        costume: bestCostume,
-        score: bestScore,
-        reason: reasons,
+        costumeId: bestCandidate.costume.id,
+        costume: bestCandidate.costume,
+        score: bestCandidate.score,
+        reason: candidateProposals[0]?.reason ?? [],
+        candidateProposals,
       })
     }
   }

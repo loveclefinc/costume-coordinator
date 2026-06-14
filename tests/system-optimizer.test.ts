@@ -60,6 +60,29 @@ describe('runSystemOptimization', () => {
     expect(outcome.harmonyScore).toBeGreaterThan(0)
   })
 
+  it('includes up to 3 ranked costume candidates per selected participant', () => {
+    const outcome = runSystemOptimization({
+      participants: [
+        { id: 'a', name: 'A', preferences: ['c1', 'c2', 'c3', 'c4'] },
+      ],
+      costumes: [
+        costume('c1', 'Blue 1', ['blue']),
+        costume('c2', 'Blue 2', ['blue']),
+        costume('c3', 'Blue 3', ['blue']),
+        costume('c4', 'Blue 4', ['blue']),
+      ],
+      usageHistory: [],
+      themePreferences: theme,
+    })
+
+    const candidates = outcome.selected[0].candidateProposals ?? []
+    expect(candidates).toHaveLength(3)
+    expect(candidates.map((candidate) => candidate.rank)).toEqual([1, 2, 3])
+    expect(candidates[0].costumeId).toBe(outcome.selected[0].costumeId)
+    expect(candidates[0].score).toBeGreaterThanOrEqual(candidates[1].score)
+    expect(candidates[1].score).toBeGreaterThanOrEqual(candidates[2].score)
+  })
+
   it('assigns unique costumes for 10 participants from 5 candidates each', () => {
     const participants = Array.from({ length: 10 }, (_, index) => {
       const offset = index * 5

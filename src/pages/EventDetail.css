@@ -590,6 +590,59 @@
   margin: 0;
 }
 
+.candidate-proposals {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.candidate-proposals h5 {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.candidate-proposal-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.candidate-proposal-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.candidate-proposal-row:last-of-type {
+  padding-bottom: 0;
+}
+
+.candidate-rank,
+.candidate-score {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.candidate-rank {
+  font-weight: 600;
+}
+
+.candidate-proposal-main strong {
+  display: block;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.candidate-colors {
+  margin: 0.25rem 0 0;
+}
+
 .reasons {
   display: flex;
   flex-direction: column;
