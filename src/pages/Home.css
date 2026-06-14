@@ -114,6 +114,13 @@
   display: inline-block;
   border: none;
   cursor: pointer;
+  box-shadow: none;
+}
+
+.cta-button:hover,
+.cta-button:focus,
+.cta-button:active {
+  box-shadow: none;
 }
 
 .cta-button.primary {

@@ -58,6 +58,9 @@ export function normalizeCostume(raw: Costume | Record<string, unknown>): Costum
     id: r.id,
     name: r.name ?? '',
     image,
+    wearingPhotos: Array.isArray(r.wearingPhotos)
+      ? r.wearingPhotos.filter((photo): photo is string => typeof photo === 'string' && photo.length > 0)
+      : [],
     colors: enrichCostumeColors(normalizeCostumeColors(r.colors)),
     tone: (tone as Costume['tone']) || 'neutral',
     pattern: normalizePattern(r.pattern || 'solid'),

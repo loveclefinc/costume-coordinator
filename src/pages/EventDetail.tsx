@@ -814,6 +814,7 @@ export default function EventDetail() {
     eventSession?.inviteToken
       ? `/events/${event.id}/participate?t=${encodeURIComponent(eventSession.inviteToken)}`
       : null
+  const displayAssignments = buildClientReportAssignments()
 
   return (
     <div className="event-detail-page">
@@ -975,18 +976,22 @@ export default function EventDetail() {
       {!isParticipantOnly && (
       <details className="event-advanced-panel">
         <summary>
-          {serverApiEnabled ? 'その他のツール（共有・QR・書き出し）' : 'その他のツール（共有・QR・オフライン JSON）'}
+          補助ツール（必要なときだけ）
         </summary>
         <div className="event-advanced-body">
+          <p className="advanced-tool-note">
+            通常は「招待 URL をコピー」と「サーバーから提出を取り込む」だけで進められます。
+            共有メニュー、QR、CSV/JSON/PDF は外部連絡や控えが必要な場合に使います。
+          </p>
           <div className="event-toolbar">
             <button type="button" onClick={handleShareEvent} className="action-button share-button">
-              📤 共有
+              📤 共有メニュー
             </button>
             <button type="button" onClick={handleExportCSV} className="action-button export-button">
-              📊 CSV
+              📊 CSVを書き出し
             </button>
             <button type="button" onClick={handleExportJSON} className="action-button export-button">
-              📋 JSON
+              📋 JSONを書き出し
             </button>
             <button
               type="button"
@@ -994,10 +999,10 @@ export default function EventDetail() {
               disabled={isExportingPdf || buildClientReportAssignments().length === 0}
               className="action-button export-button client-pdf-button"
             >
-              {isExportingPdf ? 'PDF作成中…' : '📎 クライアント提出用PDF'}
+              {isExportingPdf ? 'PDF作成中…' : '📎 PDFを書き出し'}
             </button>
             <button type="button" onClick={handleGenerateQR} className="action-button qr-button">
-              🔲 QR
+              🔲 QRコードを表示
             </button>
           </div>
 
@@ -1029,7 +1034,7 @@ export default function EventDetail() {
                 className="action-button"
                 onClick={() => void handleExportParticipantSubmission()}
               >
-                提出用ファイルを書り出す
+                提出用ファイルを書き出す
               </button>
             </section>
           )}
@@ -1237,33 +1242,39 @@ export default function EventDetail() {
         {/* Participants Section */}
         {!isParticipantOnly && (
         <section className="section">
-          <h2>👥 参加者</h2>
+          <h2>👥 参加者一覧</h2>
           <p className="participant-name-hint">
-            参加者ごとに別名を登録できます。空欄のときは設定の表示名を初期値にします。
+            オンライン提出では、参加者は招待 URL から自分で登録します。ここでは現在このイベントに入っている参加者を確認できます。
           </p>
-          <div className="participant-input">
-            <input
-              type="text"
-              value={newParticipant}
-              onChange={(e) => setNewParticipant(e.target.value)}
-              placeholder={getDisplayName() ? `例: ${getDisplayName()} 以外の名前` : '参加者名を入力'}
-              maxLength={100}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddParticipant()}
-            />
-            {getDisplayName() && (
-              <button
-                type="button"
-                className="name-fill-button"
-                onClick={() => setNewParticipant(getDisplayName())}
-                disabled={newParticipant === getDisplayName()}
-              >
-                設定の名前
+          <details className="manual-participant-panel">
+            <summary>手入力で参加者名を調整（オフライン・修正用）</summary>
+            <p className="participant-name-hint">
+              招待 URL を使わない運用や、名前の修正が必要なときだけ使います。
+            </p>
+            <div className="participant-input">
+              <input
+                type="text"
+                value={newParticipant}
+                onChange={(e) => setNewParticipant(e.target.value)}
+                placeholder={getDisplayName() ? `例: ${getDisplayName()} 以外の名前` : '参加者名を入力'}
+                maxLength={100}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddParticipant()}
+              />
+              {getDisplayName() && (
+                <button
+                  type="button"
+                  className="name-fill-button"
+                  onClick={() => setNewParticipant(getDisplayName())}
+                  disabled={newParticipant === getDisplayName()}
+                >
+                  設定の名前
+                </button>
+              )}
+              <button onClick={handleAddParticipant} className="add-button">
+                追加
               </button>
-            )}
-            <button onClick={handleAddParticipant} className="add-button">
-              追加
-            </button>
-          </div>
+            </div>
+          </details>
 
           <div className="participants-list">
             {event.participants.length === 0 ? (
@@ -1329,7 +1340,7 @@ export default function EventDetail() {
           <h2>📅 使用履歴の手動登録</h2>
           <p className="participant-name-hint">
             組み合わせ自動決定を使わないイベントや、実際に着用した衣装を後から記録する場合に使います。
-            記録した衣装は設定の「直近使用除外日数」以内、候補から除外されます。
+            候補衣装として提出されただけでは使用済み扱いにしません。正式に組み合わせが決まった時点、またはここで手動記録した時点で使用履歴に入り、設定の「直近使用除外日数」以内は次回候補から除外されます。
           </p>
           <div className="manual-usage-form">
             <label>
@@ -1402,6 +1413,30 @@ export default function EventDetail() {
               <p className="server-awaiting-submissions">
                 まだ提出待ちの参加者がいます。全員提出後に取り込むと、システムが自動で組み合わせを決定します。
               </p>
+            )}
+
+            {displayAssignments.length > 0 && optimizationResults.length === 0 && (
+              <div className="confirmed-assignments-panel">
+                <h3>決定済みの衣装</h3>
+                <p>
+                  PDFを書き出さなくても、この画面でマッチした衣装を確認できます。
+                </p>
+                <div className="confirmed-assignments-grid">
+                  {displayAssignments.map((assignment) => (
+                    <article key={assignment.participantName} className="confirmed-assignment-card">
+                      {assignment.costumeImage ? (
+                        <img src={assignment.costumeImage} alt={assignment.costumeName} />
+                      ) : (
+                        <div className="confirmed-assignment-placeholder">写真なし</div>
+                      )}
+                      <div>
+                        <strong>{assignment.participantName}</strong>
+                        <span>{assignment.costumeName}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
             )}
 
             {optimizationResults.length > 0 && (

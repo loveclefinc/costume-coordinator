@@ -13,6 +13,8 @@ import dressSilhouetteALineIcon from '../generated/costume-icons/dress-silhouett
 import dressSilhouetteMermaidIcon from '../generated/costume-icons/dress-silhouette-mermaid.png'
 import dressSilhouettePrincessIcon from '../generated/costume-icons/dress-silhouette-princess.png'
 import dressSilhouetteSlenderIcon from '../generated/costume-icons/dress-silhouette-slender.png'
+import suitBreastingDoubleIcon from '../generated/costume-icons/suit-breasting-double.png'
+import suitBreastingSingleIcon from '../generated/costume-icons/suit-breasting-single.png'
 import suitLapelNotchIcon from '../generated/costume-icons/suit-lapel-notch.png'
 import suitLapelPeakIcon from '../generated/costume-icons/suit-lapel-peak.png'
 import suitLapelShawlIcon from '../generated/costume-icons/suit-lapel-shawl.png'
@@ -130,6 +132,11 @@ const SUIT_LAPEL_ICON_SRC: Record<SuitLapel, string> = {
   shawl: suitLapelShawlIcon,
 }
 
+const SUIT_BREASTING_ICON_SRC: Record<SuitBreasting, string> = {
+  single: suitBreastingSingleIcon,
+  double: suitBreastingDoubleIcon,
+}
+
 function DressSilhouetteIcon({ value }: { value: DressSilhouette }) {
   return (
     <img
@@ -151,19 +158,12 @@ function SuitStyleIcon({ value }: { value: SuitStyle }) {
 }
 
 function SuitBreastingIcon({ value }: { value: SuitBreasting }) {
-  const buttons = value === 'single'
-    ? [[60, 58], [60, 73], [60, 88]]
-    : [[52, 58], [68, 58], [52, 74], [68, 74], [52, 90], [68, 90]]
-
   return (
-    <svg viewBox="0 0 120 120" role="img" aria-label={`${SUIT_BREASTING_LABELS[value]}の図解`}>
-      <path className="guide-icon-body" d="M35 21 H85 L97 104 H23 Z" />
-      <path className="guide-icon-panel" d="M43 24 L58 52 L60 42 L62 52 L77 24" />
-      <path className="guide-icon-line" d={value === 'single' ? 'M60 43 V103' : 'M54 45 L50 103 M66 45 L70 103'} />
-      {buttons.map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} className="guide-icon-accent" cx={cx} cy={cy} r="3.5" />
-      ))}
-    </svg>
+    <img
+      className="guide-icon-image"
+      src={SUIT_BREASTING_ICON_SRC[value]}
+      alt={`${SUIT_BREASTING_LABELS[value]}の図解`}
+    />
   )
 }
 
@@ -226,6 +226,7 @@ export default function AddCostume() {
         const hexColors = pickHexColors(costume.colors)
         setName(costume.name)
         setImageUri(costume.image || null)
+        setWearingPhotos(Array.isArray(costume.wearingPhotos) ? costume.wearingPhotos : [])
 
         if (hexColors[0]) {
           const primary = hexColors[0].startsWith('#') ? hexColors[0] : `#${hexColors[0]}`
@@ -320,6 +321,13 @@ export default function AddCostume() {
     }
   }
 
+  const handleUseMainImageAsWearingPhoto = () => {
+    if (!imageUri) return
+    setWearingPhotos((current) => (
+      current.includes(imageUri) ? current : [...current, imageUri]
+    ))
+  }
+
   const handleRemoveWearingPhoto = (index: number) => {
     setWearingPhotos(wearingPhotos.filter((_, i) => i !== index))
   }
@@ -354,6 +362,7 @@ export default function AddCostume() {
       const payload = {
         name: name.trim(),
         image: imageUri,
+        wearingPhotos,
         colors,
         tone,
         pattern: normalizePattern(pattern),
@@ -831,6 +840,23 @@ export default function AddCostume() {
       {/* Wearing Photos Section */}
       <section className="section">
         <h2>👗 着用写真</h2>
+        {imageUri && (
+          <div className="wearing-photo-main-action">
+            <button
+              type="button"
+              className="secondary-action-button"
+              onClick={handleUseMainImageAsWearingPhoto}
+              disabled={loading || wearingPhotos.includes(imageUri)}
+            >
+              {wearingPhotos.includes(imageUri)
+                ? '衣装写真を着用写真に追加済み'
+                : '衣装写真を着用写真にも追加'}
+            </button>
+            <p className="add-costume-field-hint">
+              衣装写真が着用状態の写真でもある場合に使えます。
+            </p>
+          </div>
+        )}
         <div className="wearing-photo-upload">
           <input
             type="file"

@@ -59,4 +59,31 @@ describe('runSystemOptimization', () => {
     expect(outcome.selected[0].costumeId).not.toBe(outcome.selected[1].costumeId)
     expect(outcome.harmonyScore).toBeGreaterThan(0)
   })
+
+  it('assigns unique costumes for 10 participants from 5 candidates each', () => {
+    const participants = Array.from({ length: 10 }, (_, index) => {
+      const offset = index * 5
+      return {
+        id: `p${index + 1}`,
+        name: `参加者${index + 1}`,
+        preferences: Array.from({ length: 5 }, (__, i) => `c${offset + i + 1}`),
+      }
+    })
+    const costumes = Array.from({ length: 50 }, (_, index) => (
+      costume(`c${index + 1}`, `衣装${index + 1}`, ['blue'])
+    ))
+
+    const outcome = runSystemOptimization({
+      participants,
+      costumes,
+      usageHistory: [],
+      themePreferences: theme,
+      recentUsageExcludeDays: 30,
+    })
+
+    const assignedIds = new Set(outcome.selected.map((row) => row.costumeId))
+    expect(outcome.selected).toHaveLength(10)
+    expect(assignedIds).toHaveLength(10)
+    expect(outcome.harmonyScore).toBeGreaterThan(0)
+  })
 })

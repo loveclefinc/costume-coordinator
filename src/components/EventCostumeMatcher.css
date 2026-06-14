@@ -32,6 +32,13 @@
   color: var(--text-secondary, #666);
 }
 
+.event-costume-matcher-note {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.45;
+}
+
 .event-costume-matcher-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

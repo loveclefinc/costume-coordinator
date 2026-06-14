@@ -361,6 +361,28 @@
   cursor: not-allowed;
 }
 
+.secondary-action-button {
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.secondary-action-button:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.secondary-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .add-costume-color-section select {
   display: block;
   width: 100%;
@@ -398,6 +420,10 @@
 }
 
 /* Wearing Photos */
+.wearing-photo-main-action {
+  margin-bottom: 1rem;
+}
+
 .wearing-photo-upload {
   margin-bottom: 1.5rem;
 }

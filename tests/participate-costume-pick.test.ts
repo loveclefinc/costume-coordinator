@@ -58,4 +58,16 @@ describe('autoPickCostumesForParticipation', () => {
   it('returns empty when wardrobe is empty', () => {
     expect(autoPickCostumesForParticipation([], undefined, [], 5, 30)).toEqual([])
   })
+
+  it('keeps participant submissions capped at 5 costumes', () => {
+    const picked = autoPickCostumesForParticipation(
+      Array.from({ length: 12 }, (_, index) => costume(`c${index + 1}`, `衣装${index + 1}`)),
+      undefined,
+      [],
+      5,
+      30,
+    )
+
+    expect(picked).toHaveLength(5)
+  })
 })

@@ -10,6 +10,7 @@ export interface Costume {
   id: string
   name: string
   image: string // Base64 encoded image
+  wearingPhotos?: string[]
   colors: string[]
   tone: string // 'warm' | 'cool' | 'neutral'
   pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'

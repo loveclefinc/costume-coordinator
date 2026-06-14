@@ -67,10 +67,13 @@ export default function EventCostumeMatcher({
 
       <p className="event-costume-matcher-lead">
         {status === 'done'
-          ? `テーマに合う候補 ${picked.length} 件を提出しました。全員提出後、システムが最適な組み合わせを自動決定します。`
+          ? `テーマに合う候補 ${picked.length} 件を提出しました。これは仮の候補で、全員提出後にシステムが1着を正式決定します。`
           : status === 'submitting'
             ? `候補 ${picked.length} 件を提出しています…`
-            : `登録衣装の中から、テーマに合う候補を ${picked.length} 件自動選出しました（組み合わせの決定はシステムが行います）。`}
+            : `登録衣装の中から、テーマに合う候補を ${picked.length} 件自動選出しました（正式決定までは使用済み扱いにしません）。`}
+      </p>
+      <p className="event-costume-matcher-note">
+        衣装が正式決定されると使用履歴に記録され、設定した直近使用除外日数の間は次回候補から外れます。
       </p>
 
       <div className="event-costume-matcher-grid">
