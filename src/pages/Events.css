@@ -668,72 +668,61 @@
   background: var(--surface);
 }
 
-.stage-arrangement-audience {
-  margin-bottom: 0.45rem;
-  padding: 0.35rem;
-  border-radius: 6px;
-  background: rgba(var(--primary-rgb), 0.08);
-  color: var(--text-secondary);
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.stage-arrangement-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.45rem;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.stage-arrangement-stage {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.75rem;
+.stage-diagram-frame {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--background);
 }
 
-.stage-arrangement-row {
-  display: grid;
-  grid-template-columns: auto repeat(4, minmax(32px, 1fr));
-  gap: 0.35rem;
-  align-items: center;
+.stage-diagram-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.stage-arrangement-row span {
+.stage-label {
+  position: absolute;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 250, 248, 0.9);
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
-.stage-arrangement-row i,
-.stage-arrangement-row button {
-  min-height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  font-weight: 600;
+.stage-label--audience {
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
 }
 
-.stage-arrangement-row i {
-  display: block;
+.stage-label--left {
+  left: 9%;
+  top: 11%;
 }
 
-.stage-arrangement-row button {
-  padding: 0 0.6rem;
-  border-style: dashed;
+.stage-label--right {
+  right: 9%;
+  top: 11%;
+}
+
+.stage-label--back-row {
+  left: 10%;
+  top: 29%;
+}
+
+.stage-label--front-row {
+  left: 10%;
+  top: 56%;
+}
+
+.stage-label--divider {
+  left: 50%;
+  top: 43%;
+  transform: translateX(-50%);
   color: var(--primary);
-  opacity: 1;
-}
-
-.stage-arrangement-row--back {
-  padding-inline: 2rem;
 }

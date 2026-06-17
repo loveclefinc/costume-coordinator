@@ -31,6 +31,7 @@ import {
   SUIT_STYLE_LABELS,
   SUIT_STYLE_OPTIONS,
 } from '../utils/suit-attributes'
+import stageLayoutDiagram from '../generated/stage-layout-diagram.png'
 import './Events.css'
 
 // Color options for theme preferences
@@ -781,28 +782,17 @@ export default function Events() {
                   衣装決定後、客席から見た下手（左）から上手（右）の配置として確認できます。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
                 </p>
                 <div className="stage-arrangement-diagram" aria-label="ステージ配置の見方">
-                  <div className="stage-arrangement-audience">客席</div>
-                  <div className="stage-arrangement-axis">
-                    <span>下手（左）</span>
-                    <span>上手（右）</span>
-                  </div>
-                  <div className="stage-arrangement-stage">
-                    <div className="stage-arrangement-row stage-arrangement-row--back">
-                      <span>2列目</span>
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <div className="stage-arrangement-row stage-arrangement-row--front">
-                      <span>1列目</span>
-                      <i />
-                      <button type="button" disabled>区切り</button>
-                      <i />
-                      <i />
-                    </div>
+                  <div className="stage-diagram-frame">
+                    <img src={stageLayoutDiagram} alt="" aria-hidden="true" />
+                    <span className="stage-label stage-label--audience">客席</span>
+                    <span className="stage-label stage-label--left">下手（左）</span>
+                    <span className="stage-label stage-label--right">上手（右）</span>
+                    <span className="stage-label stage-label--back-row">2列目</span>
+                    <span className="stage-label stage-label--front-row">1列目</span>
+                    <span className="stage-label stage-label--divider">区切り</span>
                   </div>
                   <p className="form-hint">
-                    衣装決定後のイベント詳細で、区切りを押すとそこから2列目として表示できます。
+                    衣装決定後のイベント詳細で、1列目と2列目の間に入れる区切り位置を調整できます。
                   </p>
                 </div>
                 <div className="preference-group color-policy-option">

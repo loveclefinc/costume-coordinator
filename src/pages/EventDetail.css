@@ -478,6 +478,23 @@
   font-weight: 700;
 }
 
+.stage-row-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.stage-row-divider::before,
+.stage-row-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--primary);
+}
+
 .stage-image-assignment-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

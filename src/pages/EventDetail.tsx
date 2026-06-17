@@ -1609,45 +1609,62 @@ export default function EventDetail() {
                             <span>下手（左）</span>
                             <span>上手（右）</span>
                           </div>
-                          {splitStageRows(candidate.assignments, stageRowBreakIndex).map((stageRow, rowIndex) => (
-                            <div key={`${candidate.id}-row-${rowIndex}`} className="stage-image-row-wrap">
-                              {rowIndex === 1 && <span className="stage-row-label">2列目</span>}
-                              <div className="stage-image-assignment-grid">
-                                {stageRow.map((row, index) => {
-                                  const absoluteIndex = rowIndex === 0 ? index : (stageRowBreakIndex ?? 0) + index
-                                  const canPlaceBreak =
-                                    candidate.selected &&
-                                    rowIndex === 0 &&
-                                    absoluteIndex < candidate.assignments.length - 1
-                                  return (
-                                    <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment-with-break">
-                                      <div className="stage-image-assignment">
-                                        {row.costume.image && (
-                                          <img src={row.costume.image} alt={row.costume.name} />
-                                        )}
-                                        <div>
-                                          <strong>{row.participantName}</strong>
-                                          <span>{row.costume.name}</span>
-                                        </div>
-                                      </div>
-                                      {canPlaceBreak && (
-                                        <button
-                                          type="button"
-                                          className={[
-                                            'stage-break-button',
-                                            stageRowBreakIndex === absoluteIndex + 1 ? 'stage-break-button--active' : '',
-                                          ].filter(Boolean).join(' ')}
-                                          onClick={() => void handleStageRowBreak(absoluteIndex + 1)}
-                                        >
-                                          ここから2列目
-                                        </button>
-                                      )}
-                                    </div>
-                                  )
-                                })}
+                          {(() => {
+                            const [frontRow, backRow = []] = splitStageRows(candidate.assignments, stageRowBreakIndex)
+                            const renderAssignment = (row: any, absoluteIndex: number, canPlaceBreak: boolean) => (
+                              <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment-with-break">
+                                <div className="stage-image-assignment">
+                                  {row.costume.image && (
+                                    <img src={row.costume.image} alt={row.costume.name} />
+                                  )}
+                                  <div>
+                                    <strong>{row.participantName}</strong>
+                                    <span>{row.costume.name}</span>
+                                  </div>
+                                </div>
+                                {canPlaceBreak && (
+                                  <button
+                                    type="button"
+                                    className={[
+                                      'stage-break-button',
+                                      stageRowBreakIndex === absoluteIndex + 1 ? 'stage-break-button--active' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    onClick={() => void handleStageRowBreak(absoluteIndex + 1)}
+                                  >
+                                    区切り
+                                  </button>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )
+
+                            return (
+                              <>
+                                {backRow.length > 0 && (
+                                  <div className="stage-image-row-wrap stage-image-row-wrap--back">
+                                    <span className="stage-row-label">2列目</span>
+                                    <div className="stage-image-assignment-grid">
+                                      {backRow.map((row, index) => renderAssignment(row, (stageRowBreakIndex ?? 0) + index, false))}
+                                    </div>
+                                  </div>
+                                )}
+                                {backRow.length > 0 && (
+                                  <div className="stage-row-divider">
+                                    <span>区切り</span>
+                                  </div>
+                                )}
+                                <div className="stage-image-row-wrap stage-image-row-wrap--front">
+                                  <span className="stage-row-label">1列目</span>
+                                  <div className="stage-image-assignment-grid">
+                                    {frontRow.map((row, index) => renderAssignment(
+                                      row,
+                                      index,
+                                      candidate.selected && index < candidate.assignments.length - 1,
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            )
+                          })()}
                         </article>
                       ))}
                     </div>
