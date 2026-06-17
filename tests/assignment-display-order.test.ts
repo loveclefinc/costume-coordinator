@@ -9,7 +9,7 @@ const rows = [
 ]
 
 describe('arrangeAssignmentsForStage', () => {
-  it('keeps participant order as the default stage order', () => {
+  it('keeps the selected assignment order when stage balancing is off', () => {
     expect(arrangeAssignmentsForStage(rows, 'participant_order').map((row) => row.participantName))
       .toEqual(['A', 'B', 'C', 'D'])
   })

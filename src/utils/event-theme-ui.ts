@@ -31,13 +31,13 @@ export const THEME_SUIT_STYLE_OPTIONS = SUIT_STYLE_OPTIONS
 export const THEME_SUIT_BREASTING_OPTIONS = SUIT_BREASTING_OPTIONS
 
 export const STAGE_ARRANGEMENT_LABELS: Record<StageArrangementMode, string> = {
-  participant_order: '参加者順のまま',
+  participant_order: '手動で確認・調整',
   balanced: 'ステージの見え方を整える',
 }
 
 export const STAGE_ARRANGEMENT_HINTS: Record<StageArrangementMode, string> = {
-  participant_order: '参加者リストの上から順に、客席から見て下手（左）から上手（右）へ配置します。',
-  balanced: '衣装決定後、下手（左）から上手（右）への並びを保ちながら、色の流れや隣同士の見え方が不自然になりにくいように整えます。',
+  participant_order: '衣装決定後、客席から見た下手（左）から上手（右）の配置として確認・調整します。',
+  balanced: '衣装決定後、色の流れや隣同士の見え方が不自然になりにくいように配置を整えます。',
 }
 
 export const COLOR_LABELS: Record<string, string> = {

@@ -14,7 +14,7 @@ import {
 } from '../event-server/config'
 import { setEventSession, getEventSession, clearEventSession, isParticipantOnlySession, hasEventAdminAccess, isParticipantDeviceEvent } from '../event-server/session'
 import { cancelLocalParticipation } from '../utils/cancel-participation'
-import type { RetentionDays, StageArrangementMode } from '../../shared/event-api-types'
+import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
 import { getDisplayName } from '../utils/user-profile'
 import {
@@ -23,10 +23,6 @@ import {
   migrateColorUnificationPolicy,
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
-import {
-  STAGE_ARRANGEMENT_HINTS,
-  STAGE_ARRANGEMENT_LABELS,
-} from '../utils/event-theme-ui'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
 import {
@@ -782,45 +778,50 @@ export default function Events() {
               <div className="theme-subsection">
                 <h4>ステージ上の見え方</h4>
                 <p className="form-hint theme-unification-hint">
-                  参加者リストの上から順に、客席から見て下手（左）から上手（右）へ配置します。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
+                  衣装決定後、客席から見た下手（左）から上手（右）の配置として確認できます。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
                 </p>
                 <div className="stage-arrangement-diagram" aria-label="ステージ配置の見方">
+                  <div className="stage-arrangement-audience">客席</div>
                   <div className="stage-arrangement-axis">
                     <span>下手（左）</span>
                     <span>上手（右）</span>
                   </div>
-                  <div className="stage-arrangement-row">
-                    <span>1</span>
-                    <span>2</span>
-                    <span>3</span>
-                    <button type="button" disabled aria-label="ここから2列目">区切り</button>
-                    <span>4</span>
-                    <span>5</span>
+                  <div className="stage-arrangement-stage">
+                    <div className="stage-arrangement-row stage-arrangement-row--back">
+                      <span>2列目</span>
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <div className="stage-arrangement-row stage-arrangement-row--front">
+                      <span>1列目</span>
+                      <i />
+                      <button type="button" disabled>区切り</button>
+                      <i />
+                      <i />
+                    </div>
                   </div>
                   <p className="form-hint">
-                    区切り位置は、衣装決定後のイベント詳細で調整できます。区切り以降は2列目として表示します。
+                    衣装決定後のイベント詳細で、区切りを押すとそこから2列目として表示できます。
                   </p>
                 </div>
-                {(['participant_order', 'balanced'] as StageArrangementMode[]).map((mode) => (
-                  <div key={mode} className="preference-group color-policy-option">
-                    <label>
-                      <input
-                        type="radio"
-                        name="stageArrangementMode"
-                        value={mode}
-                        checked={(themePrefs.stageArrangementMode ?? 'participant_order') === mode}
-                        onChange={() => setThemePrefs((prev) => ({
-                          ...prev,
-                          stageArrangementMode: mode,
-                        }))}
-                      />
-                      {STAGE_ARRANGEMENT_LABELS[mode]}
-                    </label>
-                    <p className="form-hint color-policy-hint">
-                      {STAGE_ARRANGEMENT_HINTS[mode]}
-                    </p>
-                  </div>
-                ))}
+                <div className="preference-group color-policy-option">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="stageArrangementMode"
+                      checked={(themePrefs.stageArrangementMode ?? 'participant_order') === 'balanced'}
+                      onChange={(e) => setThemePrefs((prev) => ({
+                        ...prev,
+                        stageArrangementMode: e.target.checked ? 'balanced' : 'participant_order',
+                      }))}
+                    />
+                    ステージの見え方を整える
+                  </label>
+                  <p className="form-hint color-policy-hint">
+                    オンにすると、衣装決定後に色の流れや隣同士の見え方が不自然になりにくい配置へ整えます。最終的な並びと2列目の区切りはイベント詳細で確認・調整できます。
+                  </p>
+                </div>
               </div>
 
               <div className="theme-subsection">

@@ -668,6 +668,17 @@
   background: var(--surface);
 }
 
+.stage-arrangement-audience {
+  margin-bottom: 0.45rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  background: rgba(var(--primary-rgb), 0.08);
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .stage-arrangement-axis {
   display: flex;
   justify-content: space-between;
@@ -677,28 +688,43 @@
   font-weight: 600;
 }
 
+.stage-arrangement-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
 .stage-arrangement-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(32px, 1fr)) auto repeat(2, minmax(32px, 1fr));
+  grid-template-columns: auto repeat(4, minmax(32px, 1fr));
   gap: 0.35rem;
   align-items: center;
 }
 
-.stage-arrangement-row span,
+.stage-arrangement-row span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stage-arrangement-row i,
 .stage-arrangement-row button {
   min-height: 34px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--background);
+  background: var(--surface);
   color: var(--text-primary);
   font-size: 0.82rem;
   font-weight: 600;
 }
 
-.stage-arrangement-row span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.stage-arrangement-row i {
+  display: block;
 }
 
 .stage-arrangement-row button {
@@ -706,4 +732,8 @@
   border-style: dashed;
   color: var(--primary);
   opacity: 1;
+}
+
+.stage-arrangement-row--back {
+  padding-inline: 2rem;
 }
