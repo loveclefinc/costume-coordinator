@@ -46,6 +46,7 @@ export default function EventParticipate() {
 
   const [eventInfo, setEventInfo] = useState<EventPublicInfo | null>(null)
   const [displayName, setDisplayNameInput] = useState(() => getDisplayName())
+  const [editingName, setEditingName] = useState(() => !getDisplayName())
   const [joined, setJoined] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -70,6 +71,7 @@ export default function EventParticipate() {
 
   const fillProfileName = () => {
     if (profileName) setDisplayNameInput(profileName)
+    setEditingName(false)
   }
 
   const loadPublic = useCallback(async () => {
@@ -123,8 +125,10 @@ export default function EventParticipate() {
         }
       } else if (session?.displayName) {
         setDisplayNameInput(session.displayName)
+        setEditingName(false)
       } else {
         setDisplayNameInput((prev) => prev || getDisplayName())
+        setEditingName(!getDisplayName())
       }
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
@@ -314,7 +318,8 @@ export default function EventParticipate() {
     if (!eventId) return
     clearEventParticipantSession(eventId)
     setJoined(false)
-    setDisplayNameInput(getDisplayName())
+      setDisplayNameInput(getDisplayName())
+      setEditingName(!getDisplayName())
     setPickedMatches([])
     setSubmitPhase('idle')
     autoSubmitStarted.current = false
@@ -367,34 +372,59 @@ export default function EventParticipate() {
           <p className="participate-name-hint">
             参加後、登録済みの衣装からテーマに合う候補を複数自動選出し、代表者へ提出します（組み合わせは全員提出後にシステムが決定）。
           </p>
-          <div className="participate-name-row">
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayNameInput(e.target.value)}
-              placeholder="表示名（例: 太郎）"
-              className="participate-input"
-              maxLength={100}
-            />
-            {profileName && (
+          {profileName && !editingName ? (
+            <div className="participate-profile-choice">
+              <p>
+                設定の表示名 <strong>{profileName}</strong> で参加します。
+              </p>
+              <button
+                type="button"
+                className="participate-btn primary"
+                disabled={busy}
+                onClick={() => void handleJoin()}
+              >
+                この名前で参加して自動提出する
+              </button>
               <button
                 type="button"
                 className="participate-btn secondary"
-                onClick={fillProfileName}
-                disabled={displayName === profileName}
+                onClick={() => setEditingName(true)}
               >
-                設定の名前
+                別の名前で参加する
               </button>
-            )}
-          </div>
-          <button
-            type="button"
-            className="participate-btn primary"
-            disabled={busy || !displayName.trim()}
-            onClick={() => void handleJoin()}
-          >
-            参加して自動提出する
-          </button>
+            </div>
+          ) : (
+            <>
+              <div className="participate-name-row">
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayNameInput(e.target.value)}
+                  placeholder="表示名（例: 太郎）"
+                  className="participate-input"
+                  maxLength={100}
+                />
+                {profileName && (
+                  <button
+                    type="button"
+                    className="participate-btn secondary"
+                    onClick={fillProfileName}
+                    disabled={displayName === profileName}
+                  >
+                    設定の名前
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="participate-btn primary"
+                disabled={busy || !displayName.trim()}
+                onClick={() => void handleJoin()}
+              >
+                参加して自動提出する
+              </button>
+            </>
+          )}
         </section>
       ) : (
         <section className="participate-section">

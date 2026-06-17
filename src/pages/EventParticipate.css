@@ -96,6 +96,21 @@
   min-width: 0;
 }
 
+.participate-profile-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  background: var(--surface-alt, rgba(var(--primary-rgb), 0.04));
+}
+
+.participate-profile-choice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .participate-change-name {
   align-self: flex-start;
 }

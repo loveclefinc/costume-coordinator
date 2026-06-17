@@ -782,8 +782,25 @@ export default function Events() {
               <div className="theme-subsection">
                 <h4>ステージ上の見え方</h4>
                 <p className="form-hint theme-unification-hint">
-                  客席から見た左から右の配置です。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
+                  参加者リストの上から順に、客席から見て下手（左）から上手（右）へ配置します。必要に応じて、色の流れや隣同士の見え方に規則性が出るように整えます。
                 </p>
+                <div className="stage-arrangement-diagram" aria-label="ステージ配置の見方">
+                  <div className="stage-arrangement-axis">
+                    <span>下手（左）</span>
+                    <span>上手（右）</span>
+                  </div>
+                  <div className="stage-arrangement-row">
+                    <span>1</span>
+                    <span>2</span>
+                    <span>3</span>
+                    <button type="button" disabled aria-label="ここから2列目">区切り</button>
+                    <span>4</span>
+                    <span>5</span>
+                  </div>
+                  <p className="form-hint">
+                    区切り位置は、衣装決定後のイベント詳細で調整できます。区切り以降は2列目として表示します。
+                  </p>
+                </div>
                 {(['participant_order', 'balanced'] as StageArrangementMode[]).map((mode) => (
                   <div key={mode} className="preference-group color-policy-option">
                     <label>

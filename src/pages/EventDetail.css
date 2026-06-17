@@ -455,10 +455,40 @@
   color: var(--text-secondary);
 }
 
+.stage-image-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stage-image-row-wrap + .stage-image-row-wrap {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-color, #d8d8df);
+}
+
+.stage-row-label {
+  display: inline-flex;
+  margin-bottom: 0.45rem;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .stage-image-assignment-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.65rem;
+}
+
+.stage-image-assignment-with-break {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+  align-items: stretch;
 }
 
 .stage-image-assignment {
@@ -485,6 +515,25 @@
   margin-top: 0.15rem;
   color: var(--text-secondary);
   font-size: 0.85rem;
+}
+
+.stage-break-button {
+  min-width: 48px;
+  padding: 0.35rem 0.45rem;
+  border: 1px dashed var(--primary);
+  border-radius: 8px;
+  background: rgba(var(--primary-rgb), 0.05);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.stage-break-button--active {
+  background: var(--primary);
+  color: #fff;
+  border-style: solid;
 }
 
 .confirm-button {

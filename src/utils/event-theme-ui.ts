@@ -36,8 +36,8 @@ export const STAGE_ARRANGEMENT_LABELS: Record<StageArrangementMode, string> = {
 }
 
 export const STAGE_ARRANGEMENT_HINTS: Record<StageArrangementMode, string> = {
-  participant_order: '参加者リストの順番を、そのまま客席から見た左から右の並びとして扱います。',
-  balanced: '衣装決定後、色の流れや隣同士の見え方が不自然になりにくいようにステージ上の配置を整えます。',
+  participant_order: '参加者リストの上から順に、客席から見て下手（左）から上手（右）へ配置します。',
+  balanced: '衣装決定後、下手（左）から上手（右）への並びを保ちながら、色の流れや隣同士の見え方が不自然になりにくいように整えます。',
 }
 
 export const COLOR_LABELS: Record<string, string> = {

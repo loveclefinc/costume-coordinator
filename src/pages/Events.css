@@ -660,3 +660,50 @@
   color: var(--primary);
   font-weight: 600;
 }
+
+.stage-arrangement-diagram {
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.stage-arrangement-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.stage-arrangement-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(32px, 1fr)) auto repeat(2, minmax(32px, 1fr));
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.stage-arrangement-row span,
+.stage-arrangement-row button {
+  min-height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.stage-arrangement-row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-arrangement-row button {
+  padding: 0 0.6rem;
+  border-style: dashed;
+  color: var(--primary);
+  opacity: 1;
+}

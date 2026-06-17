@@ -99,6 +99,11 @@ const resolveStageArrangementMode = (themePreferences: any): StageArrangementMod
     : 'participant_order'
 }
 
+const splitStageRows = <T,>(items: T[], breakIndex?: number): T[][] => {
+  if (!breakIndex || breakIndex <= 0 || breakIndex >= items.length) return [items]
+  return [items.slice(0, breakIndex), items.slice(breakIndex)]
+}
+
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -258,6 +263,18 @@ export default function EventDetail() {
       setError(err instanceof Error ? err.message : '基準色の保存に失敗しました')
     } finally {
       setSavingColorAnchors(false)
+    }
+  }
+
+  const handleStageRowBreak = async (breakIndex: number) => {
+    if (!event) return
+    const nextBreak = event.stageRowBreakIndex === breakIndex ? undefined : breakIndex
+    try {
+      const updated = await updateEvent(event.id, { stageRowBreakIndex: nextBreak })
+      setEvent(updated)
+      toast(nextBreak ? '2列目の開始位置を保存しました' : '2列目の区切りを解除しました', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
     }
   }
 
@@ -865,6 +882,12 @@ export default function EventDetail() {
       selected: false,
     })),
   ].slice(0, 3)
+  const stageRowBreakIndex =
+    typeof event.stageRowBreakIndex === 'number' &&
+    event.stageRowBreakIndex > 0 &&
+    event.stageRowBreakIndex < displayedOptimizationResults.length
+      ? event.stageRowBreakIndex
+      : undefined
 
   return (
     <div className="event-detail-page">
@@ -1324,7 +1347,7 @@ export default function EventDetail() {
           <details className="manual-participant-panel">
             <summary>手入力で参加者名を調整（オフライン・修正用）</summary>
             <p className="participant-name-hint">
-              招待 URL を使わない運用や、名前の修正が必要なときだけ使います。
+              代表者がこのイベントの参加者一覧を補正するときだけ使います。招待 URL で参加する本人の表示名は、参加者側のオンライン提出画面で選択・変更します。
             </p>
             <div className="participant-input">
               <input
@@ -1567,6 +1590,7 @@ export default function EventDetail() {
                     <p>
                       1人ずつの予備ではなく、全員分を組み合わせた全体案です。
                       候補 1 は現在の採用案、候補 2・3 は色味や配置の調整用です。
+                      表示は客席から見て下手（左）から上手（右）の順です。
                     </p>
                     <div className="stage-image-candidates-list">
                       {stageImageCandidates.map((candidate) => (
@@ -1581,19 +1605,49 @@ export default function EventDetail() {
                             {candidate.label}
                             <span>調和 {(candidate.harmonyScore * 100).toFixed(1)}%</span>
                           </h4>
-                          <div className="stage-image-assignment-grid">
-                            {candidate.assignments.map((row) => (
-                              <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment">
-                                {row.costume.image && (
-                                  <img src={row.costume.image} alt={row.costume.name} />
-                                )}
-                                <div>
-                                  <strong>{row.participantName}</strong>
-                                  <span>{row.costume.name}</span>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="stage-image-axis">
+                            <span>下手（左）</span>
+                            <span>上手（右）</span>
                           </div>
+                          {splitStageRows(candidate.assignments, stageRowBreakIndex).map((stageRow, rowIndex) => (
+                            <div key={`${candidate.id}-row-${rowIndex}`} className="stage-image-row-wrap">
+                              {rowIndex === 1 && <span className="stage-row-label">2列目</span>}
+                              <div className="stage-image-assignment-grid">
+                                {stageRow.map((row, index) => {
+                                  const absoluteIndex = rowIndex === 0 ? index : (stageRowBreakIndex ?? 0) + index
+                                  const canPlaceBreak =
+                                    candidate.selected &&
+                                    rowIndex === 0 &&
+                                    absoluteIndex < candidate.assignments.length - 1
+                                  return (
+                                    <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment-with-break">
+                                      <div className="stage-image-assignment">
+                                        {row.costume.image && (
+                                          <img src={row.costume.image} alt={row.costume.name} />
+                                        )}
+                                        <div>
+                                          <strong>{row.participantName}</strong>
+                                          <span>{row.costume.name}</span>
+                                        </div>
+                                      </div>
+                                      {canPlaceBreak && (
+                                        <button
+                                          type="button"
+                                          className={[
+                                            'stage-break-button',
+                                            stageRowBreakIndex === absoluteIndex + 1 ? 'stage-break-button--active' : '',
+                                          ].filter(Boolean).join(' ')}
+                                          onClick={() => void handleStageRowBreak(absoluteIndex + 1)}
+                                        >
+                                          ここから2列目
+                                        </button>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </article>
                       ))}
                     </div>
