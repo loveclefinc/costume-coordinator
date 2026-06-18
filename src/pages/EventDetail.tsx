@@ -517,35 +517,31 @@ export default function EventDetail() {
         return
       }
 
-      const currentFingerprint = optimizationResults
-        .map((row) => `${row.participantId}:${row.costumeId}`)
-        .sort()
-        .join('|')
-      const generated = [
-        { id: 'stage-new-1', label: '再提案 1', assignments: outcome.selected, harmonyScore: outcome.harmonyScore },
-        ...outcome.alternatives.map((proposal, index) => ({
-          id: `stage-new-${index + 2}`,
-          label: `再提案 ${index + 2}`,
-          assignments: proposal.assignments,
-          harmonyScore: proposal.harmonyScore,
-        })),
-      ].filter((proposal) => proposal.assignments
-        .map((row) => `${row.participantId}:${row.costumeId}`)
-        .sort()
-        .join('|') !== currentFingerprint)
-
-      setStageReproposalCandidates([
+      const generated: StageProposalCandidate[] = [
         {
-          id: 'current',
-          label: '現在案',
-          assignments: optimizationResults,
-          harmonyScore,
+          id: 'stage-new-1',
+          label: '候補 1（システム推奨）',
+          assignments: outcome.selected,
+          harmonyScore: outcome.harmonyScore,
           selected: true,
           canEdit: true,
         },
-        ...generated.map((proposal) => ({ ...proposal, selected: false, canEdit: false })),
-      ].slice(0, 3))
-      toast(generated.length > 0 ? '現在案と比較できる再提案を作成しました' : '現在案がこの配置でも最適です', 'success')
+        ...outcome.alternatives.map((proposal, index) => ({
+          id: `stage-new-${index + 2}`,
+          label: `候補 ${index + 2}`,
+          assignments: proposal.assignments,
+          harmonyScore: proposal.harmonyScore,
+          selected: false,
+          canEdit: false,
+        })),
+      ].slice(0, 3)
+
+      await persistOptimizationResults(outcome.selected, event)
+      setOptimizationResults(outcome.selected)
+      setAlternativeProposals(outcome.alternatives)
+      setHarmonyScore(outcome.harmonyScore)
+      setStageReproposalCandidates(generated)
+      toast('この配置に合わせ、システムが候補1を決定しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '衣装の再提案に失敗しました')
     } finally {
@@ -561,11 +557,23 @@ export default function EventDetail() {
       await persistOptimizationResults(candidate.assignments, event)
       setOptimizationResults(candidate.assignments)
       setHarmonyScore(candidate.harmonyScore)
-      setAlternativeProposals([])
-      setStageReproposalCandidates(null)
-      toast(`${candidate.label}を採用しました`, 'success')
+      const switchedCandidates = stageImageCandidates.map((proposal) => ({
+        ...proposal,
+        selected: proposal.id === candidate.id,
+        canEdit: proposal.id === candidate.id,
+      }))
+      setAlternativeProposals(switchedCandidates
+        .filter((proposal) => proposal.id !== candidate.id)
+        .map((proposal, index) => ({
+          id: proposal.id,
+          label: `参考案 ${index + 1}`,
+          assignments: proposal.assignments,
+          harmonyScore: proposal.harmonyScore,
+        })))
+      setStageReproposalCandidates(switchedCandidates)
+      toast(`${candidate.label}へ変更しました`, 'success')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '再提案の採用に失敗しました')
+      setError(err instanceof Error ? err.message : '候補の変更に失敗しました')
     } finally {
       setIsSaving(false)
     }
@@ -990,7 +998,7 @@ export default function EventDetail() {
   const defaultStageImageCandidates: StageProposalCandidate[] = [
     {
       id: 'selected',
-      label: '候補 1（採用案）',
+      label: '候補 1（システム推奨）',
       harmonyScore,
       assignments: displayedOptimizationResults,
       selected: true,
@@ -1731,8 +1739,8 @@ export default function EventDetail() {
                     </div>
                     <p>
                       1人ずつの予備ではなく、全員分を組み合わせた全体案です。
-                      現在案で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
-                      配置に合わせて再提案しても、採用するまで現在案は変わりません。
+                      システムが候補1を推奨案として自動決定します。必要な場合だけ候補2・3へ変更できます。
+                      現在の決定案で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
                       表示は客席から見て下手（左）から上手（右）の順です。
                     </p>
                     <div className="stage-image-candidates-list">
@@ -1748,14 +1756,14 @@ export default function EventDetail() {
                             {candidate.label}
                             <span>調和 {(candidate.harmonyScore * 100).toFixed(1)}%</span>
                           </h4>
-                          {!candidate.selected && stageReproposalCandidates && (
+                          {!candidate.selected && (
                             <button
                               type="button"
                               className="stage-adopt-button"
                               onClick={() => void handleAdoptStageProposal(candidate)}
                               disabled={isSaving}
                             >
-                              この案を採用
+                              この候補へ変更
                             </button>
                           )}
                           <div className="stage-image-axis">
