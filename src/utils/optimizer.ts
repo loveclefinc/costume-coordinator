@@ -37,6 +37,10 @@ export interface OptimizationInput {
   usageHistory: UsageHistory[]
   themePreferences?: EventThemePreferences
   recentUsageExcludeDays?: number
+  /** 再提案時に使う、客席から見たステージ順 */
+  stageParticipantOrder?: string[]
+  /** ステージ順上の列区切り */
+  stageRowBreakIndices?: number[]
 }
 
 /**

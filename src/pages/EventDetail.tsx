@@ -69,6 +69,15 @@ import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attribut
 import { normalizeStageBreaks, orderStageAssignments, splitStageRows } from '../utils/stage-layout'
 import './EventDetail.css'
 
+interface StageProposalCandidate {
+  id: string
+  label: string
+  assignments: any[]
+  harmonyScore: number
+  selected: boolean
+  canEdit: boolean
+}
+
 // Tone labels for display
 const TONE_LABELS: Record<string, string> = {
   'pastel': 'パステル',
@@ -151,6 +160,8 @@ export default function EventDetail() {
   const [eventUsageHistory, setEventUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
   const [savingColorAnchors, setSavingColorAnchors] = useState(false)
   const [recordingUsage, setRecordingUsage] = useState(false)
+  const [stageReproposalCandidates, setStageReproposalCandidates] = useState<StageProposalCandidate[] | null>(null)
+  const [isStageReproposing, setIsStageReproposing] = useState(false)
   const serverApiEnabled = isEventServerEnabled()
 
   useEffect(() => {
@@ -274,6 +285,7 @@ export default function EventDetail() {
         stageRowBreakIndex: undefined,
       })
       setEvent(updated)
+      setStageReproposalCandidates(null)
       toast(nextBreaks.includes(breakIndex) ? '区切りを追加しました' : '区切りを削除しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
@@ -291,6 +303,7 @@ export default function EventDetail() {
     try {
       const updated = await updateEvent(event.id, { stageParticipantOrder: next.map((row) => row.participantId) })
       setEvent(updated)
+      setStageReproposalCandidates(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
     }
@@ -407,15 +420,15 @@ export default function EventDetail() {
     eventSnapshot: typeof event,
     prefs: { [key: string]: string[] },
     costumeList: Costume[],
-    options?: { autoPersist?: boolean },
+    options?: { autoPersist?: boolean; stageAware?: boolean; applyOutcome?: boolean },
   ) => {
     if (!eventSnapshot) return null
 
     await storage.init()
     const recentUsageExcludeDays = getRecentUsageExcludeDays()
-    const usageHistory = await storage.getRecentUsageHistory(
+    const usageHistory = (await storage.getRecentUsageHistory(
       recentUsageExcludeDays > 0 ? recentUsageExcludeDays : DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
-    )
+    )).filter((entry) => entry.eventId !== eventSnapshot.id)
     const participants = eventSnapshot.participants.map((p: string) => ({
       id: p,
       name: p,
@@ -428,12 +441,22 @@ export default function EventDetail() {
       usageHistory,
       themePreferences: eventSnapshot.themePreferences,
       recentUsageExcludeDays,
+      stageParticipantOrder: options?.stageAware ? eventSnapshot.stageParticipantOrder : undefined,
+      stageRowBreakIndices: options?.stageAware
+        ? normalizeStageBreaks(
+            eventSnapshot.participants.length,
+            eventSnapshot.stageRowBreakIndices,
+            eventSnapshot.stageRowBreakIndex,
+          )
+        : undefined,
     })
 
-    setOptimizationResults(outcome.selected)
-    setAlternativeProposals(outcome.alternatives)
-    setHarmonyScore(outcome.harmonyScore)
-    setAwaitingAllSubmissions(false)
+    if (options?.applyOutcome !== false) {
+      setOptimizationResults(outcome.selected)
+      setAlternativeProposals(outcome.alternatives)
+      setHarmonyScore(outcome.harmonyScore)
+      setAwaitingAllSubmissions(false)
+    }
 
     if (options?.autoPersist && outcome.selected.length > 0) {
       setIsSaving(true)
@@ -465,6 +488,86 @@ export default function EventDetail() {
       toast('システムが最適な組み合わせを決定しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '組み合わせの自動決定に失敗しました')
+    }
+  }
+
+  const handleStageReproposal = async () => {
+    if (!event || optimizationResults.length === 0) return
+    setIsStageReproposing(true)
+    setError('')
+    try {
+      const effectiveStageOrder = event.stageParticipantOrder?.length
+        ? event.stageParticipantOrder
+        : arrangeAssignmentsForStage(
+            optimizationResults.map((result) => ({
+              ...result,
+              colors: normalizeCostumeColors(result.costume.colors),
+            })),
+            resolveStageArrangementMode(event.themePreferences),
+          ).map((result) => result.participantId)
+      const eventWithStageLayout = { ...event, stageParticipantOrder: effectiveStageOrder }
+      const outcome = await runSystemOptimizationForEvent(
+        eventWithStageLayout,
+        participantPreferences,
+        costumesForEvent,
+        { stageAware: true, applyOutcome: false },
+      )
+      if (!outcome || outcome.selected.length === 0) {
+        setError('この配置に合う衣装案を生成できませんでした')
+        return
+      }
+
+      const currentFingerprint = optimizationResults
+        .map((row) => `${row.participantId}:${row.costumeId}`)
+        .sort()
+        .join('|')
+      const generated = [
+        { id: 'stage-new-1', label: '再提案 1', assignments: outcome.selected, harmonyScore: outcome.harmonyScore },
+        ...outcome.alternatives.map((proposal, index) => ({
+          id: `stage-new-${index + 2}`,
+          label: `再提案 ${index + 2}`,
+          assignments: proposal.assignments,
+          harmonyScore: proposal.harmonyScore,
+        })),
+      ].filter((proposal) => proposal.assignments
+        .map((row) => `${row.participantId}:${row.costumeId}`)
+        .sort()
+        .join('|') !== currentFingerprint)
+
+      setStageReproposalCandidates([
+        {
+          id: 'current',
+          label: '現在案',
+          assignments: optimizationResults,
+          harmonyScore,
+          selected: true,
+          canEdit: true,
+        },
+        ...generated.map((proposal) => ({ ...proposal, selected: false, canEdit: false })),
+      ].slice(0, 3))
+      toast(generated.length > 0 ? '現在案と比較できる再提案を作成しました' : '現在案がこの配置でも最適です', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '衣装の再提案に失敗しました')
+    } finally {
+      setIsStageReproposing(false)
+    }
+  }
+
+  const handleAdoptStageProposal = async (candidate: StageProposalCandidate) => {
+    if (!event || candidate.selected) return
+    setIsSaving(true)
+    setError('')
+    try {
+      await persistOptimizationResults(candidate.assignments, event)
+      setOptimizationResults(candidate.assignments)
+      setHarmonyScore(candidate.harmonyScore)
+      setAlternativeProposals([])
+      setStageReproposalCandidates(null)
+      toast(`${candidate.label}を採用しました`, 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '再提案の採用に失敗しました')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -884,13 +987,14 @@ export default function EventDetail() {
       stageArrangementMode,
     ),
   }))
-  const stageImageCandidates = [
+  const defaultStageImageCandidates: StageProposalCandidate[] = [
     {
       id: 'selected',
       label: '候補 1（採用案）',
       harmonyScore,
       assignments: displayedOptimizationResults,
       selected: true,
+      canEdit: true,
     },
     ...displayedAlternativeProposals.map((proposal, index) => ({
       id: proposal.id,
@@ -898,8 +1002,19 @@ export default function EventDetail() {
       harmonyScore: proposal.harmonyScore,
       assignments: proposal.assignments,
       selected: false,
+      canEdit: false,
     })),
   ].slice(0, 3)
+  const stageImageCandidates = (stageReproposalCandidates ?? defaultStageImageCandidates).map((candidate) => ({
+    ...candidate,
+    assignments: arrangeAssignmentsForStage(
+      candidate.assignments.map((result) => ({
+        ...result,
+        colors: normalizeCostumeColors(result.costume.colors),
+      })),
+      stageArrangementMode,
+    ),
+  }))
   const stageRowBreakIndices = normalizeStageBreaks(
     displayedOptimizationResults.length,
     event.stageRowBreakIndices,
@@ -1601,12 +1716,23 @@ export default function EventDetail() {
                   ))}
                 </div>
 
-                {stageImageCandidates.length > 1 && (
+                {stageImageCandidates.length > 0 && (
                   <div className="stage-image-candidates-panel">
-                    <h3>イベント全体の着用イメージ候補</h3>
+                    <div className="stage-image-candidates-heading">
+                      <h3>イベント全体の着用イメージ候補</h3>
+                      <button
+                        type="button"
+                        className="optimize-button stage-reproposal-button"
+                        onClick={() => void handleStageReproposal()}
+                        disabled={isStageReproposing || isSaving}
+                      >
+                        {isStageReproposing ? '再提案中…' : 'この配置で衣装を再提案'}
+                      </button>
+                    </div>
                     <p>
                       1人ずつの予備ではなく、全員分を組み合わせた全体案です。
-                      候補 1 で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
+                      現在案で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
+                      配置に合わせて再提案しても、採用するまで現在案は変わりません。
                       表示は客席から見て下手（左）から上手（右）の順です。
                     </p>
                     <div className="stage-image-candidates-list">
@@ -1622,6 +1748,16 @@ export default function EventDetail() {
                             {candidate.label}
                             <span>調和 {(candidate.harmonyScore * 100).toFixed(1)}%</span>
                           </h4>
+                          {!candidate.selected && stageReproposalCandidates && (
+                            <button
+                              type="button"
+                              className="stage-adopt-button"
+                              onClick={() => void handleAdoptStageProposal(candidate)}
+                              disabled={isSaving}
+                            >
+                              この案を採用
+                            </button>
+                          )}
                           <div className="stage-image-axis">
                             <span>下手（左）</span>
                             <span>上手（右）</span>
@@ -1642,7 +1778,7 @@ export default function EventDetail() {
                                     <strong>{row.participantName}</strong>
                                     <span>{row.costume.name}</span>
                                   </div>
-                                  {candidate.selected && (
+                                  {candidate.canEdit && (
                                     <div className="stage-order-controls" aria-label={`${row.participantName}の並び順`}>
                                       <button
                                         type="button"
@@ -1661,7 +1797,7 @@ export default function EventDetail() {
                                     </div>
                                   )}
                                 </div>
-                                {candidate.selected && absoluteIndex < orderedAssignments.length - 1 && !stageRowBreakIndices.includes(absoluteIndex + 1) && (
+                                {candidate.canEdit && absoluteIndex < orderedAssignments.length - 1 && !stageRowBreakIndices.includes(absoluteIndex + 1) && (
                                   <button
                                     type="button"
                                     className="stage-break-button"
@@ -1690,10 +1826,10 @@ export default function EventDetail() {
                                         <button
                                           type="button"
                                           className="stage-row-divider"
-                                          onClick={() => candidate.selected && void handleStageRowBreak(startIndex, orderedAssignments.length)}
-                                          disabled={!candidate.selected}
+                                          onClick={() => candidate.canEdit && void handleStageRowBreak(startIndex, orderedAssignments.length)}
+                                          disabled={!candidate.canEdit}
                                         >
-                                          <span>{candidate.selected ? '区切りを削除' : '区切り'}</span>
+                                          <span>{candidate.canEdit ? '区切りを削除' : '区切り'}</span>
                                         </button>
                                       )}
                                     </div>

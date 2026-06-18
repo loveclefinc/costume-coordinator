@@ -38,7 +38,7 @@ function hueFromHex(hex: string): number | null {
   return (hue * 60 + 360) % 360
 }
 
-function assignmentHue(item: AssignmentDisplayItem): number {
+export function assignmentHue(item: AssignmentDisplayItem): number {
   const colorName = themeColorNamesFrom(item.colors)[0] as ThemeColorName | undefined
   if (colorName && COLOR_HUE_ORDER[colorName] != null) return COLOR_HUE_ORDER[colorName]
 

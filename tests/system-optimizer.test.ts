@@ -119,4 +119,37 @@ describe('runSystemOptimization', () => {
     expect(assignedIds).toHaveLength(10)
     expect(outcome.harmonyScore).toBeGreaterThan(0)
   })
+
+  it('includes the saved stage order and row breaks in proposal scoring', () => {
+    const participants = ['a', 'b', 'c', 'd'].map((id) => ({
+      id,
+      name: id.toUpperCase(),
+      preferences: ['red', 'yellow', 'green', 'blue'],
+    }))
+    const costumes = [
+      costume('red', 'Red', ['red']),
+      costume('yellow', 'Yellow', ['yellow']),
+      costume('green', 'Green', ['green']),
+      costume('blue', 'Blue', ['blue']),
+    ]
+    const stageTheme = { ...theme, colorUnification: 'varied' as const, colors1stChoice: [] }
+
+    const withoutStage = runSystemOptimization({
+      participants,
+      costumes,
+      usageHistory: [],
+      themePreferences: stageTheme,
+    })
+    const withStage = runSystemOptimization({
+      participants,
+      costumes,
+      usageHistory: [],
+      themePreferences: stageTheme,
+      stageParticipantOrder: ['a', 'c', 'b', 'd'],
+      stageRowBreakIndices: [2],
+    })
+
+    expect(withStage.selected).toHaveLength(4)
+    expect(withStage.harmonyScore).not.toBe(withoutStage.harmonyScore)
+  })
 })
