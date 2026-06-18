@@ -696,7 +696,7 @@
 
 .stage-label--audience {
   left: 50%;
-  bottom: 8%;
+  top: 70%;
   transform: translateX(-50%);
 }
 
