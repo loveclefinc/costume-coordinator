@@ -792,7 +792,7 @@ export default function Events() {
                     <span className="stage-label stage-label--divider">区切り</span>
                   </div>
                   <p className="form-hint">
-                    衣装決定後のイベント詳細で、1列目と2列目の間に入れる区切り位置を調整できます。
+                    衣装決定後のイベント詳細で、参加者の順番を入れ替え、区切りを追加して3列以上に増やせます。
                   </p>
                 </div>
                 <div className="preference-group color-policy-option">
@@ -809,7 +809,7 @@ export default function Events() {
                     ステージの見え方を整える
                   </label>
                   <p className="form-hint color-policy-hint">
-                    オンにすると、衣装決定後に色の流れや隣同士の見え方が不自然になりにくい配置へ整えます。最終的な並びと2列目の区切りはイベント詳細で確認・調整できます。
+                    オンにすると、衣装決定後に色の流れや隣同士の見え方が不自然になりにくい配置へ整えます。最終的な並びと列の区切りはイベント詳細で確認・調整できます。
                   </p>
                 </div>
               </div>

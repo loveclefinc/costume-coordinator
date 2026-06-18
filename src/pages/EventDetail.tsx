@@ -66,6 +66,7 @@ import {
 import { arrangeAssignmentsForStage } from '../utils/assignment-display-order'
 import { SILHOUETTE_LABELS } from '../utils/silhouette'
 import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
+import { normalizeStageBreaks, orderStageAssignments, splitStageRows } from '../utils/stage-layout'
 import './EventDetail.css'
 
 // Tone labels for display
@@ -97,11 +98,6 @@ const resolveStageArrangementMode = (themePreferences: any): StageArrangementMod
   return themePreferences?.assignmentDisplayOrder && themePreferences.assignmentDisplayOrder !== 'participant_order'
     ? 'balanced'
     : 'participant_order'
-}
-
-const splitStageRows = <T,>(items: T[], breakIndex?: number): T[][] => {
-  if (!breakIndex || breakIndex <= 0 || breakIndex >= items.length) return [items]
-  return [items.slice(0, breakIndex), items.slice(breakIndex)]
 }
 
 export default function EventDetail() {
@@ -266,13 +262,35 @@ export default function EventDetail() {
     }
   }
 
-  const handleStageRowBreak = async (breakIndex: number) => {
+  const handleStageRowBreak = async (breakIndex: number, itemCount: number) => {
     if (!event) return
-    const nextBreak = event.stageRowBreakIndex === breakIndex ? undefined : breakIndex
+    const currentBreaks = normalizeStageBreaks(itemCount, event.stageRowBreakIndices, event.stageRowBreakIndex)
+    const nextBreaks = currentBreaks.includes(breakIndex)
+      ? currentBreaks.filter((index) => index !== breakIndex)
+      : [...currentBreaks, breakIndex].sort((a, b) => a - b)
     try {
-      const updated = await updateEvent(event.id, { stageRowBreakIndex: nextBreak })
+      const updated = await updateEvent(event.id, {
+        stageRowBreakIndices: nextBreaks,
+        stageRowBreakIndex: undefined,
+      })
       setEvent(updated)
-      toast(nextBreak ? '2列目の開始位置を保存しました' : '2列目の区切りを解除しました', 'success')
+      toast(nextBreaks.includes(breakIndex) ? '区切りを追加しました' : '区切りを削除しました', 'success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
+    }
+  }
+
+  const handleMoveStageParticipant = async (participantId: string, direction: -1 | 1, assignments: any[]) => {
+    if (!event) return
+    const ordered = orderStageAssignments(assignments, event.stageParticipantOrder)
+    const currentIndex = ordered.findIndex((row) => row.participantId === participantId)
+    const targetIndex = currentIndex + direction
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
+    const next = [...ordered]
+    ;[next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]]
+    try {
+      const updated = await updateEvent(event.id, { stageParticipantOrder: next.map((row) => row.participantId) })
+      setEvent(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
     }
@@ -882,12 +900,11 @@ export default function EventDetail() {
       selected: false,
     })),
   ].slice(0, 3)
-  const stageRowBreakIndex =
-    typeof event.stageRowBreakIndex === 'number' &&
-    event.stageRowBreakIndex > 0 &&
-    event.stageRowBreakIndex < displayedOptimizationResults.length
-      ? event.stageRowBreakIndex
-      : undefined
+  const stageRowBreakIndices = normalizeStageBreaks(
+    displayedOptimizationResults.length,
+    event.stageRowBreakIndices,
+    event.stageRowBreakIndex,
+  )
 
   return (
     <div className="event-detail-page">
@@ -1589,7 +1606,7 @@ export default function EventDetail() {
                     <h3>イベント全体の着用イメージ候補</h3>
                     <p>
                       1人ずつの予備ではなく、全員分を組み合わせた全体案です。
-                      候補 1 は現在の採用案、候補 2・3 は色味や配置の調整用です。
+                      候補 1 で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
                       表示は客席から見て下手（左）から上手（右）の順です。
                     </p>
                     <div className="stage-image-candidates-list">
@@ -1610,8 +1627,12 @@ export default function EventDetail() {
                             <span>上手（右）</span>
                           </div>
                           {(() => {
-                            const [frontRow, backRow = []] = splitStageRows(candidate.assignments, stageRowBreakIndex)
-                            const renderAssignment = (row: any, absoluteIndex: number, canPlaceBreak: boolean) => (
+                            const orderedAssignments = orderStageAssignments(candidate.assignments, event.stageParticipantOrder)
+                            const rows = splitStageRows(orderedAssignments, stageRowBreakIndices)
+                            const rowStarts = rows.map((_, rowIndex) => rows
+                              .slice(0, rowIndex)
+                              .reduce((total, row) => total + row.length, 0))
+                            const renderAssignment = (row: any, absoluteIndex: number) => (
                               <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment-with-break">
                                 <div className="stage-image-assignment">
                                   {row.costume.image && (
@@ -1621,16 +1642,32 @@ export default function EventDetail() {
                                     <strong>{row.participantName}</strong>
                                     <span>{row.costume.name}</span>
                                   </div>
+                                  {candidate.selected && (
+                                    <div className="stage-order-controls" aria-label={`${row.participantName}の並び順`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMoveStageParticipant(row.participantId, -1, candidate.assignments)}
+                                        disabled={absoluteIndex === 0}
+                                        title="下手（左）へ移動"
+                                        aria-label={`${row.participantName}を下手（左）へ移動`}
+                                      >←</button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMoveStageParticipant(row.participantId, 1, candidate.assignments)}
+                                        disabled={absoluteIndex === orderedAssignments.length - 1}
+                                        title="上手（右）へ移動"
+                                        aria-label={`${row.participantName}を上手（右）へ移動`}
+                                      >→</button>
+                                    </div>
+                                  )}
                                 </div>
-                                {canPlaceBreak && (
+                                {candidate.selected && absoluteIndex < orderedAssignments.length - 1 && !stageRowBreakIndices.includes(absoluteIndex + 1) && (
                                   <button
                                     type="button"
-                                    className={[
-                                      'stage-break-button',
-                                      stageRowBreakIndex === absoluteIndex + 1 ? 'stage-break-button--active' : '',
-                                    ].filter(Boolean).join(' ')}
-                                    onClick={() => void handleStageRowBreak(absoluteIndex + 1)}
+                                    className="stage-break-button"
+                                    onClick={() => void handleStageRowBreak(absoluteIndex + 1, orderedAssignments.length)}
                                   >
+                                    <span aria-hidden="true">＋</span>
                                     区切り
                                   </button>
                                 )}
@@ -1639,29 +1676,29 @@ export default function EventDetail() {
 
                             return (
                               <>
-                                {backRow.length > 0 && (
-                                  <div className="stage-image-row-wrap stage-image-row-wrap--back">
-                                    <span className="stage-row-label">2列目</span>
-                                    <div className="stage-image-assignment-grid">
-                                      {backRow.map((row, index) => renderAssignment(row, (stageRowBreakIndex ?? 0) + index, false))}
+                                {rows.map((row, rowIndex) => {
+                                  const startIndex = rowStarts[rowIndex]
+                                  return (
+                                    <div key={`${candidate.id}-row-${rowIndex}`} className="stage-image-row-group">
+                                      <div className="stage-image-row-wrap">
+                                        <span className="stage-row-label">{rowIndex + 1}列目</span>
+                                        <div className="stage-image-assignment-grid">
+                                          {row.map((assignment, index) => renderAssignment(assignment, startIndex + index))}
+                                        </div>
+                                      </div>
+                                      {rowIndex > 0 && (
+                                        <button
+                                          type="button"
+                                          className="stage-row-divider"
+                                          onClick={() => candidate.selected && void handleStageRowBreak(startIndex, orderedAssignments.length)}
+                                          disabled={!candidate.selected}
+                                        >
+                                          <span>{candidate.selected ? '区切りを削除' : '区切り'}</span>
+                                        </button>
+                                      )}
                                     </div>
-                                  </div>
-                                )}
-                                {backRow.length > 0 && (
-                                  <div className="stage-row-divider">
-                                    <span>区切り</span>
-                                  </div>
-                                )}
-                                <div className="stage-image-row-wrap stage-image-row-wrap--front">
-                                  <span className="stage-row-label">1列目</span>
-                                  <div className="stage-image-assignment-grid">
-                                    {frontRow.map((row, index) => renderAssignment(
-                                      row,
-                                      index,
-                                      candidate.selected && index < candidate.assignments.length - 1,
-                                    ))}
-                                  </div>
-                                </div>
+                                  )
+                                }).reverse()}
                               </>
                             )
                           })()}

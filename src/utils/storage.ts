@@ -91,8 +91,12 @@ export interface Event {
   costumes: { [participantId: string]: string } // participantId -> costumeId
   /** 参加者名 → 希望衣装 ID の順位 */
   participantPreferences?: Record<string, string[]>
-  /** ステージ表示で、この番号以降を2列目として扱う（客席から見て下手=左から数える） */
+  /** @deprecated 旧形式の2列目開始位置 */
   stageRowBreakIndex?: number
+  /** ステージ上の表示順（participantId） */
+  stageParticipantOrder?: string[]
+  /** この番号以降を次の列として扱う複数の区切り位置 */
+  stageRowBreakIndices?: number[]
   themePreferences?: EventThemePreferences // Optional for backward compatibility
   /** Cloudflare イベント API でホストしている場合 */
   hostedOnServer?: boolean
