@@ -82,4 +82,30 @@ describe('importAdminSnapshotToLocal', () => {
     expect(result.importedCostumes).toHaveLength(1)
     expect(result.importedCostumes[0].sourceEventId).toBeUndefined()
   })
+
+  it('does not add an abandoned zero-costume join to the active participant list', async () => {
+    const snapshot: EventAdminSnapshot = {
+      event: {
+        id: 'evt_1',
+        name: 'テスト',
+        date: '2026-04-01',
+        description: '',
+        expiresAt: Date.now() + 86400000,
+        uploadLimits: {
+          maxPhotoBytes: 1,
+          maxPhotosPerCostume: 1,
+          maxCostumesPerParticipant: 3,
+          maxEventStorageBytes: 1,
+        },
+      },
+      participants: [{ id: 'ghost', displayName: '途中参加', submittedAt: null, costumeCount: 0 }],
+      costumes: [],
+    }
+
+    await importAdminSnapshotToLocal(snapshot, 'evt_1')
+
+    expect(storageMock.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ participants: ['代表者'] }),
+    )
+  })
 })

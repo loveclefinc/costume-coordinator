@@ -98,6 +98,8 @@ export interface ServerParticipant {
   displayName: string
   submittedAt: number | null
   costumeCount: number
+  /** Older Worker responses may omit this field. */
+  photoCount?: number
 }
 
 export interface EventPublicInfo {

@@ -54,7 +54,7 @@ import {
   normalizeThemeColorPolicy,
 } from '../utils/theme-color-policy'
 import { STAGE_ARRANGEMENT_LABELS } from '../utils/event-theme-ui'
-import type { StageArrangementMode } from '../../shared/event-api-types'
+import type { ServerParticipant, StageArrangementMode } from '../../shared/event-api-types'
 import UsageGuideTip from '../components/UsageGuideTip'
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { useAppUi } from '../contexts/AppUiContext'
@@ -64,6 +64,12 @@ import {
   getRecentUsageExcludeDays,
 } from '../utils/app-settings'
 import { arrangeAssignmentsForStage } from '../utils/assignment-display-order'
+import {
+  activeServerParticipants,
+  areActiveSubmissionsComplete,
+  hasCompletedSubmission,
+  pendingServerParticipants,
+} from '../utils/server-submission-status'
 import { SILHOUETTE_LABELS } from '../utils/silhouette'
 import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
 import { normalizeStageBreaks, orderStageAssignments, splitStageRows } from '../utils/stage-layout'
@@ -145,6 +151,7 @@ export default function EventDetail() {
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [serverPulling, setServerPulling] = useState(false)
+  const [serverParticipants, setServerParticipants] = useState<ServerParticipant[]>([])
   const [extendingRetention, setExtendingRetention] = useState(false)
   const [registeringHost, setRegisteringHost] = useState(false)
   const [deletingServer, setDeletingServer] = useState(false)
@@ -873,6 +880,7 @@ export default function EventDetail() {
     setError('')
     try {
       const snapshot = await fetchAdminSnapshot(event.id, adminToken)
+      setServerParticipants(snapshot.participants)
       const result = await importAdminSnapshotToLocal(snapshot, event.id)
       await reloadEventCostumes()
       await storage.init()
@@ -888,9 +896,10 @@ export default function EventDetail() {
         setParticipantPreferences(freshPrefs)
       }
 
-      const submittedCount = snapshot.participants.filter((p) => p.submittedAt != null).length
-      const totalCount = snapshot.participants.length
-      const allSubmitted = totalCount > 0 && submittedCount === totalCount
+      const activeParticipants = activeServerParticipants(snapshot.participants)
+      const submittedCount = activeParticipants.filter(hasCompletedSubmission).length
+      const totalCount = activeParticipants.length
+      const allSubmitted = areActiveSubmissionsComplete(snapshot.participants)
 
       toast(
         `サーバーから取り込みました。参加者 +${result.participantsAdded} / 衣装 新規 ${result.costumesAdded}・更新 ${result.costumesUpdated} / 提出 ${submittedCount}/${totalCount} 名`,
@@ -1107,6 +1116,30 @@ export default function EventDetail() {
               参加を取り消す
             </button>
           </div>
+
+          {serverParticipants.length > 0 && (
+            <div className="server-participant-status" aria-label="オンライン提出状況">
+              <h3>提出状況</h3>
+              <ul>
+                {serverParticipants.map((participant) => {
+                  const submitted = hasCompletedSubmission(participant)
+                  const started = participant.costumeCount > 0
+                  return (
+                    <li key={participant.id}>
+                      <span>{participant.displayName}</span>
+                      <strong className={submitted ? 'is-complete' : started ? 'is-pending' : 'is-idle'}>
+                        {submitted
+                          ? `提出済み（衣装${participant.costumeCount}件）`
+                          : started
+                            ? `写真未提出（衣装${participant.costumeCount}件）`
+                            : '未開始（結果待ちの対象外）'}
+                      </strong>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
@@ -1649,9 +1682,20 @@ export default function EventDetail() {
             </div>
 
             {awaitingAllSubmissions && (
-              <p className="server-awaiting-submissions">
-                まだ提出待ちの参加者がいます。全員提出後に取り込むと、システムが自動で組み合わせを決定します。
-              </p>
+              <div className="server-awaiting-submissions">
+                {pendingServerParticipants(serverParticipants).length > 0 ? (
+                  <p>
+                    写真提出待ち: {' '}
+                    <strong>
+                      {pendingServerParticipants(serverParticipants)
+                        .map((participant) => participant.displayName)
+                        .join('、')}
+                    </strong>
+                  </p>
+                ) : (
+                  <p>提出状況を最新にするには「サーバーから提出を取り込む」を押してください。</p>
+                )}
+              </div>
             )}
 
             {optimizationResults.length > 0 && (

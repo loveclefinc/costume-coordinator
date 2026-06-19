@@ -3,9 +3,18 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppUi } from '../contexts/AppUiContext'
 import UsageGuideTip from '../components/UsageGuideTip'
 import { useEvents } from '../hooks/useEvents'
+import { useCostumes } from '../hooks/useCostumes'
 import { ConcertLink } from '../components/ConcertLink'
 import { EventThemePreferences, storage } from '../utils/storage'
-import { checkEventApiHealth, createServerEvent, deleteServerEvent, EventApiError } from '../event-server/client'
+import {
+  checkEventApiHealth,
+  createServerCostume,
+  createServerEvent,
+  deleteServerEvent,
+  fetchParticipantSubmissionStatus,
+  uploadServerPhoto,
+  EventApiError,
+} from '../event-server/client'
 import {
   getEventApiBaseUrl,
   isEventServerEnabled,
@@ -16,6 +25,10 @@ import { setEventSession, getEventSession, clearEventSession, isParticipantOnlyS
 import { cancelLocalParticipation } from '../utils/cancel-participation'
 import type { RetentionDays } from '../../shared/event-api-types'
 import { DEFAULT_UPLOAD_LIMITS, formatBytes } from '../../shared/upload-limits'
+import { autoPickCostumesForParticipation } from '../utils/participate-costume-pick'
+import { submitPickedCostumesIdempotent } from '../utils/submit-participant-costumes'
+import { dataUrlToBlob } from '../utils/image-blob'
+import { getRecentUsageExcludeDays } from '../utils/app-settings'
 import { getDisplayName } from '../utils/user-profile'
 import {
   COLOR_UNIFICATION_HINTS,
@@ -101,6 +114,7 @@ export default function Events() {
   const navigate = useNavigate()
   const { toast, confirm, prompt } = useAppUi()
   const { events, loading, error, addEvent, deleteEvent } = useEvents()
+  const { costumes: personalCostumes } = useCostumes()
   const [showForm, setShowForm] = useState(false)
   const serverEnabled = isEventServerEnabled()
   const [useOnlineSubmit, setUseOnlineSubmit] = useState(serverEnabled)
@@ -321,6 +335,38 @@ export default function Events() {
           throw new Error(
             `サーバーには作成済みですが、この端末への保存に失敗しました（${localMsg}）。\nイベントID: ${server.eventId}\n招待URL: ${inviteUrl}`,
           )
+        }
+
+        if (server.hostParticipant && personalCostumes.length > 0) {
+          try {
+            const usageHistory = await storage.getAllUsageHistory()
+            const picked = autoPickCostumesForParticipation(
+              personalCostumes,
+              normalizedTheme,
+              usageHistory,
+              DEFAULT_UPLOAD_LIMITS.maxCostumesPerParticipant,
+              getRecentUsageExcludeDays(),
+            )
+            if (picked.length > 0) {
+              await submitPickedCostumesIdempotent(
+                server.eventId,
+                server.hostParticipant.participantToken,
+                picked,
+                DEFAULT_UPLOAD_LIMITS,
+                {
+                  fetchStatus: fetchParticipantSubmissionStatus,
+                  createCostume: createServerCostume,
+                  uploadPhoto: uploadServerPhoto,
+                  dataUrlToBlob,
+                },
+              )
+              setEventSession(server.eventId, { costumesSubmitted: true })
+              toast(`代表者の候補衣装 ${picked.length} 件を自動提出しました`, 'success')
+            }
+          } catch (submitError) {
+            const message = submitError instanceof Error ? submitError.message : '写真提出に失敗しました'
+            toast(`イベントは作成しました。代表者の衣装提出を続けてください（${message}）`, 'error')
+          }
         }
 
         const inviteUrl = absoluteAppUrl(

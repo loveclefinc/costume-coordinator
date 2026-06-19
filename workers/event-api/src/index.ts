@@ -78,7 +78,7 @@ async function getEventStorageBytes(env: Env, eventId: string): Promise<number> 
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
-const EVENT_API_VERSION = '2026-06-19.1'
+const EVENT_API_VERSION = '2026-06-19.2'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -619,8 +619,9 @@ async function buildAdminSnapshot(
   const participants: ServerParticipant[] = (participantsResult.results ?? []).map((p) => ({
     id: p.id,
     displayName: p.display_name,
-    submittedAt: p.photo_count > 0 ? p.last_submit : null,
+    submittedAt: p.costume_count > 0 && p.photo_count >= p.costume_count ? p.last_submit : null,
     costumeCount: p.costume_count,
+    photoCount: p.photo_count,
   }))
 
   const costumesResult = await env.DB.prepare(

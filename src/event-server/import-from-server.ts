@@ -32,6 +32,7 @@ export async function importAdminSnapshotToLocal(
   const prefs: Record<string, string[]> = { ...(existingEvent?.participantPreferences ?? {}) }
 
   for (const p of snapshot.participants) {
+    if (p.costumeCount === 0) continue
     if (!participantNames.has(p.displayName)) {
       participantNames.add(p.displayName)
       participantsAdded++

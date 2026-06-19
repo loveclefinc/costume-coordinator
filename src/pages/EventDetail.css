@@ -326,6 +326,63 @@
   line-height: 1.5;
 }
 
+.server-participant-status {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-color, #e5e5ea);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+}
+
+.server-participant-status h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+}
+
+.server-participant-status ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.server-participant-status li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.server-participant-status strong {
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.server-participant-status .is-complete {
+  color: #18794e;
+}
+
+.server-participant-status .is-pending {
+  color: #b54708;
+}
+
+.server-participant-status .is-idle {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .server-participant-status li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .server-participant-status strong {
+    text-align: left;
+  }
+}
+
 .confirmed-assignments-panel {
   padding: 1rem;
   margin-bottom: 1rem;
