@@ -172,6 +172,7 @@ export default function EventDetail() {
   const [savingColorAnchors, setSavingColorAnchors] = useState(false)
   const [recordingUsage, setRecordingUsage] = useState(false)
   const [stageReproposalCandidates, setStageReproposalCandidates] = useState<StageProposalCandidate[] | null>(null)
+  const [activeStageCandidateId, setActiveStageCandidateId] = useState('')
   const [isStageReproposing, setIsStageReproposing] = useState(false)
   const serverApiEnabled = isEventServerEnabled()
 
@@ -555,6 +556,7 @@ export default function EventDetail() {
       setAlternativeProposals(outcome.alternatives)
       setHarmonyScore(outcome.harmonyScore)
       setStageReproposalCandidates(generated)
+      setActiveStageCandidateId(generated[0]?.id ?? '')
       toast('この配置に合わせ、システムが候補1を決定しました', 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '衣装の再提案に失敗しました')
@@ -585,6 +587,7 @@ export default function EventDetail() {
           harmonyScore: proposal.harmonyScore,
         })))
       setStageReproposalCandidates(switchedCandidates)
+      setActiveStageCandidateId(candidate.id)
       toast(`${candidate.label}へ変更しました`, 'success')
     } catch (err) {
       setError(err instanceof Error ? err.message : '候補の変更に失敗しました')
@@ -1046,6 +1049,9 @@ export default function EventDetail() {
       stageArrangementMode,
     ),
   }))
+  const activeStageCandidate = stageImageCandidates.find(
+    (candidate) => candidate.id === activeStageCandidateId,
+  ) ?? stageImageCandidates.find((candidate) => candidate.selected) ?? stageImageCandidates[0]
   const stageRowBreakIndices = normalizeStageBreaks(
     displayedOptimizationResults.length,
     event.stageRowBreakIndices,
@@ -1072,10 +1078,6 @@ export default function EventDetail() {
       {displayAssignments.length > 0 && (
         <section className="section confirmed-assignments-panel confirmed-assignments-panel--primary">
           <h2>👗 決定済みの衣装</h2>
-          <p>
-            PDFを書き出さなくても、この画面で参加者ごとの衣装を確認できます。
-            ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
-          </p>
           <div className="confirmed-assignments-grid">
             {displayAssignments.map((assignment) => (
               <article key={assignment.participantName} className="confirmed-assignment-card">
@@ -1796,14 +1798,24 @@ export default function EventDetail() {
                         {isStageReproposing ? '再提案中…' : 'この配置で衣装を再提案'}
                       </button>
                     </div>
-                    <p>
-                      1人ずつの予備ではなく、全員分を組み合わせた全体案です。
-                      システムが候補1を推奨案として自動決定します。必要な場合だけ候補2・3へ変更できます。
-                      現在の決定案で参加者を左右に移動し、カード間に区切りを追加すると列を増やせます。
-                      表示は客席から見て下手（左）から上手（右）の順です。
-                    </p>
+                    {stageImageCandidates.length > 1 && (
+                      <div className="stage-candidate-tabs" role="tablist" aria-label="着用イメージ候補">
+                        {stageImageCandidates.map((candidate, index) => (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={candidate.id === activeStageCandidate?.id}
+                            className={candidate.id === activeStageCandidate?.id ? 'active' : ''}
+                            onClick={() => setActiveStageCandidateId(candidate.id)}
+                          >
+                            候補 {index + 1}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="stage-image-candidates-list">
-                      {stageImageCandidates.map((candidate) => (
+                      {activeStageCandidate && [activeStageCandidate].map((candidate) => (
                         <article
                           key={candidate.id}
                           className={[
