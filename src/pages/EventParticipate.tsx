@@ -104,15 +104,10 @@ export default function EventParticipate() {
           }
         } catch (e) {
           if (e instanceof EventApiError && e.status === 404) {
-            setDisplayNameInput((prev) => session.displayName ?? prev)
-            setJoined(true)
-            if (session.displayName) {
-              await ensureLocalParticipantEvent(info, session.displayName)
-            }
-            if (session.costumesSubmitted) {
-              setSubmitPhase('done')
-              autoSubmitStarted.current = true
-            }
+            throw new EventApiError(
+              'オンライン提出APIが古いため、提出状態を確認できません。管理者にAPIの更新を依頼してください。',
+              503,
+            )
           } else if (e instanceof EventApiError && (e.status === 401 || e.status === 403)) {
             clearEventParticipantSession(eventId)
             setJoined(false)

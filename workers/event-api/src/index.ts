@@ -78,6 +78,7 @@ async function getEventStorageBytes(env: Env, eventId: string): Promise<number> 
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
+const EVENT_API_VERSION = '2026-06-19.1'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -89,7 +90,11 @@ export default {
 
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return cors(json({ ok: true, uploadLimits: parseUploadLimits(env) }), request, env)
+        return cors(
+          json({ ok: true, apiVersion: EVENT_API_VERSION, uploadLimits: parseUploadLimits(env) }),
+          request,
+          env,
+        )
       }
 
       if (url.pathname === '/api/events' && request.method === 'POST') {
@@ -779,6 +784,7 @@ type CostumeRow = {
   silhouette: string | null
   suit_style: string | null
   suit_breasting: string | null
+  suit_lapel: string | null
   preferences_json: string
   created_at: number
   updated_at: number

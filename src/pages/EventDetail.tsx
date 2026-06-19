@@ -1482,7 +1482,8 @@ export default function EventDetail() {
         <section className="section">
           <h2>👥 参加者一覧</h2>
           <p className="participant-name-hint">
-            オンライン提出では、参加者は招待 URL から自分で登録します。ここでは現在このイベントに入っている参加者を確認できます。
+            オンライン提出では、参加者は招待 URL から自分で登録します。
+            上の「サーバーから提出を取り込む」を押すと、参加者一覧も最新の状態に更新されます。
           </p>
           <details className="manual-participant-panel">
             <summary>手入力で参加者名を調整（オフライン・修正用）</summary>
