@@ -81,7 +81,7 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-06-19.6'
+const EVENT_API_VERSION = '2026-06-19.7'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -167,7 +167,7 @@ export default {
       return cors(json({ error: 'Not found' }, 404), request, env)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal error'
-      const status = message.includes('認証') || message.includes('トークン') ? 401 : 500
+      const status = errorStatus(message)
       return cors(json({ error: message }, status), request, env)
     }
   },
@@ -252,7 +252,7 @@ async function handleAdminSnapshot(
   assertNotExpired(row.expires_at)
   await assertAdminToken(env, eventId, admin, row.admin_token)
 
-  const snapshot = await buildAdminSnapshot(env, row, request.url, admin)
+  const snapshot = await buildAdminSnapshot(env, row, request.url)
   return json(snapshot)
 }
 
@@ -559,8 +559,12 @@ async function handleUploadPhoto(
 
 async function handleMedia(photoId: string, url: URL, env: Env): Promise<Response> {
   const photo = await env.DB.prepare(
-    `SELECT p.id, p.r2_key, p.content_type, p.event_id, e.expires_at, e.admin_token, e.invite_token
-     FROM photos p JOIN events e ON e.id = p.event_id WHERE p.id = ?`,
+    `SELECT p.id, p.r2_key, p.content_type, p.event_id, c.participant_id,
+      e.expires_at, e.admin_token
+     FROM photos p
+     JOIN costumes c ON c.id = p.costume_id AND c.event_id = p.event_id
+     JOIN events e ON e.id = p.event_id
+     WHERE p.id = ?`,
   )
     .bind(photoId)
     .first<{
@@ -568,29 +572,27 @@ async function handleMedia(photoId: string, url: URL, env: Env): Promise<Respons
       r2_key: string
       content_type: string
       event_id: string
+      participant_id: string
       expires_at: number
       admin_token: string
-      invite_token: string
     }>()
 
   if (!photo) return json({ error: 'Not found' }, 404)
   assertNotExpired(photo.expires_at)
 
-  const admin = url.searchParams.get('admin') ?? ''
+  const media = url.searchParams.get('media') ?? ''
   const participant = url.searchParams.get('participant') ?? ''
-  const invite = url.searchParams.get('invite') ?? ''
 
   let allowed = false
-  if (admin && (await verifyToken(admin, photo.admin_token))) allowed = true
-  if (!allowed && invite && (await verifyToken(invite, photo.invite_token))) allowed = true
+  if (media && (await verifyMediaAccessToken(media, photo.admin_token, photo.id))) allowed = true
   if (!allowed && participant) {
-    const p = await env.DB.prepare(
+    const eventParticipants = await env.DB.prepare(
       `SELECT token_hash FROM participants WHERE event_id = ? LIMIT 100`,
     )
       .bind(photo.event_id)
       .all<{ token_hash: string }>()
-    for (const row of p.results ?? []) {
-      if (await verifyToken(participant, row.token_hash)) {
+    for (const eventParticipant of eventParticipants.results ?? []) {
+      if (await verifyToken(participant, eventParticipant.token_hash)) {
         allowed = true
         break
       }
@@ -612,17 +614,16 @@ async function buildAdminSnapshot(
   env: Env,
   row: EventRow,
   requestUrl: string,
-  adminTokenPlain: string,
 ): Promise<EventAdminSnapshot> {
   const base = new URL(requestUrl)
 
   const participantsResult = await env.DB.prepare(
     `SELECT p.id, p.display_name, p.created_at,
-      (SELECT COUNT(*) FROM costumes c WHERE c.participant_id = p.id) as costume_count,
+      (SELECT COUNT(*) FROM costumes c WHERE c.event_id = p.event_id AND c.participant_id = p.id) as costume_count,
       (SELECT COUNT(*) FROM photos ph
         JOIN costumes c ON c.id = ph.costume_id
-        WHERE c.participant_id = p.id) as photo_count,
-      (SELECT MAX(c.updated_at) FROM costumes c WHERE c.participant_id = p.id) as last_submit
+        WHERE c.event_id = p.event_id AND ph.event_id = p.event_id AND c.participant_id = p.id) as photo_count,
+      (SELECT MAX(c.updated_at) FROM costumes c WHERE c.event_id = p.event_id AND c.participant_id = p.id) as last_submit
      FROM participants p WHERE p.event_id = ? ORDER BY p.created_at`,
   )
     .bind(row.id)
@@ -661,19 +662,23 @@ async function buildAdminSnapshot(
   const costumes: ServerCostume[] = []
   for (const c of costumesResult.results ?? []) {
     const photosRows = await env.DB.prepare(
-      `SELECT id, costume_id, content_type, sort_order FROM photos WHERE costume_id = ? ORDER BY sort_order`,
+      `SELECT id, costume_id, content_type, sort_order FROM photos
+       WHERE costume_id = ? AND event_id = ? ORDER BY sort_order`,
     )
-      .bind(c.id)
+      .bind(c.id, row.id)
       .all<{ id: string; costume_id: string; content_type: string; sort_order: number }>()
 
-    const adminQ = encodeURIComponent(adminTokenPlain)
     const photos: ServerPhoto[] = (photosRows.results ?? []).map((ph) => ({
       id: ph.id,
       costumeId: ph.costume_id,
       contentType: ph.content_type,
       sortOrder: ph.sort_order,
-      viewUrl: `${base.origin}/api/media/${ph.id}?admin=${adminQ}`,
+      viewUrl: '',
     }))
+    for (const photo of photos) {
+      const mediaToken = await createMediaAccessToken(row.admin_token, photo.id)
+      photo.viewUrl = `${base.origin}/api/media/${photo.id}?media=${encodeURIComponent(mediaToken)}`
+    }
 
     costumes.push({
       id: c.id,
@@ -830,6 +835,13 @@ async function getEventRow(env: Env, eventId: string): Promise<EventRow> {
   return row
 }
 
+function errorStatus(message: string): number {
+  if (message.includes('イベントが見つかりません')) return 404
+  if (message.includes('保存期限が切れています')) return 410
+  if (message.includes('認証') || message.includes('トークン')) return 401
+  return 500
+}
+
 function rowToPublic(row: EventRow, env: Env): EventPublicInfo {
   return {
     id: row.id,
@@ -911,6 +923,24 @@ async function verifyToken(plain: string, storedHash: string): Promise<boolean> 
   if (h.length !== storedHash.length) return false
   let diff = 0
   for (let i = 0; i < h.length; i++) diff |= h.charCodeAt(i) ^ storedHash.charCodeAt(i)
+  return diff === 0
+}
+
+async function createMediaAccessToken(adminTokenHash: string, photoId: string): Promise<string> {
+  return hashToken(`${adminTokenHash}:${photoId}:media`)
+}
+
+async function verifyMediaAccessToken(
+  plain: string,
+  adminTokenHash: string,
+  photoId: string,
+): Promise<boolean> {
+  const expected = await createMediaAccessToken(adminTokenHash, photoId)
+  if (plain.length !== expected.length) return false
+  let diff = 0
+  for (let i = 0; i < plain.length; i++) {
+    diff |= plain.charCodeAt(i) ^ expected.charCodeAt(i)
+  }
   return diff === 0
 }
 
