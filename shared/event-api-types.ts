@@ -146,6 +146,8 @@ export interface RegisterHostResponse extends JoinEventResponse {
 }
 
 export interface CreateCostumeRequest {
+  /** 端末内の衣装ID。同名衣装の識別と再送に使う。 */
+  sourceCostumeId?: string
   name: string
   colors: string[]
   tone: string
@@ -170,6 +172,7 @@ export interface UploadPhotoResponse {
 
 export interface ParticipantSubmissionCostume {
   id: string
+  sourceCostumeId?: string
   name: string
   photoCount: number
 }

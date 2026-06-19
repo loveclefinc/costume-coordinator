@@ -18,12 +18,19 @@ type SubmitDeps = {
   dataUrlToBlob: typeof dataUrlToBlob
 }
 
-function findServerCostumeByName(
+function findServerCostume(
   costumes: Awaited<ReturnType<typeof fetchParticipantSubmissionStatus>>['costumes'],
+  sourceCostumeId: string,
   name: string,
   usedCostumeIds: Set<string>,
 ) {
-  return costumes.find((costume) => costume.name === name && !usedCostumeIds.has(costume.id))
+  return (
+    costumes.find(
+      (costume) =>
+        costume.sourceCostumeId === sourceCostumeId && !usedCostumeIds.has(costume.id),
+    ) ??
+    costumes.find((costume) => costume.name === name && !usedCostumeIds.has(costume.id))
+  )
 }
 
 /** 既存のサーバー衣装を再利用し、再提出時に重複作成しない */
@@ -49,7 +56,7 @@ export async function submitPickedCostumesIdempotent(
     }
 
     const name = costume.name.trim()
-    let serverCostume = findServerCostumeByName(serverCostumes, name, usedCostumeIds)
+    let serverCostume = findServerCostume(serverCostumes, costume.id, name, usedCostumeIds)
 
     if (!serverCostume) {
       if (status.costumeCount >= limits.maxCostumesPerParticipant) {
@@ -61,6 +68,7 @@ export async function submitPickedCostumesIdempotent(
 
       const enriched = enrichCostumeColors(costume.colors)
       const body: CreateCostumeRequest = {
+        sourceCostumeId: costume.id,
         name,
         colors: enriched,
         tone: costume.tone,
@@ -79,7 +87,7 @@ export async function submitPickedCostumesIdempotent(
       }
 
       const { costumeId } = await deps.createCostume(eventId, participantToken, body)
-      serverCostume = { id: costumeId, name, photoCount: 0 }
+      serverCostume = { id: costumeId, sourceCostumeId: costume.id, name, photoCount: 0 }
       status = {
         ...status,
         costumeCount: status.costumeCount + 1,

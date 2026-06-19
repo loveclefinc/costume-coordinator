@@ -103,7 +103,60 @@ describe('submitPickedCostumesIdempotent', () => {
     )
 
     expect(createCostume).toHaveBeenCalledOnce()
+    expect(createCostume).toHaveBeenCalledWith(
+      'evt_1',
+      'token',
+      expect.objectContaining({ sourceCostumeId: 'local1', name: '赤ドレス' }),
+    )
     expect(count).toBe(1)
+  })
+
+  it('uses the hidden source costume id before the display name', async () => {
+    const createCostume = vi.fn()
+    const uploadPhoto = vi.fn().mockResolvedValue({ photoId: 'ph1', viewUrl: 'https://x' })
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({
+        participantId: 'p1',
+        displayName: '太郎',
+        costumeCount: 2,
+        photoCount: 1,
+        submitted: false,
+        costumes: [
+          { id: 'cos_other', sourceCostumeId: 'local2', name: '同じ名前', photoCount: 1 },
+          { id: 'cos_target', sourceCostumeId: 'local1', name: '同じ名前', photoCount: 0 },
+        ],
+      })
+      .mockResolvedValueOnce({
+        participantId: 'p1',
+        displayName: '太郎',
+        costumeCount: 2,
+        photoCount: 2,
+        submitted: true,
+        costumes: [],
+      })
+
+    await submitPickedCostumesIdempotent(
+      'evt_1',
+      'token',
+      [costumeMatch('local1', '同じ名前')],
+      DEFAULT_UPLOAD_LIMITS,
+      {
+        fetchStatus,
+        createCostume,
+        uploadPhoto,
+        dataUrlToBlob: vi.fn().mockResolvedValue({ blob: new Blob(['x']), contentType: 'image/jpeg' }),
+      },
+    )
+
+    expect(createCostume).not.toHaveBeenCalled()
+    expect(uploadPhoto).toHaveBeenCalledWith(
+      'evt_1',
+      'cos_target',
+      'token',
+      expect.any(Blob),
+      'image/jpeg',
+    )
   })
 
   it('uploads photos to each server costume when multiple costumes have the same name', async () => {

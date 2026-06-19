@@ -78,7 +78,7 @@ async function getEventStorageBytes(env: Env, eventId: string): Promise<number> 
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
-const EVENT_API_VERSION = '2026-06-19.3'
+const EVENT_API_VERSION = '2026-06-19.4'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -305,14 +305,14 @@ async function handleParticipantStatus(
     .first<{ costume_count: number; photo_count: number }>()
 
   const costumeRows = await env.DB.prepare(
-    `SELECT c.id, c.name,
+    `SELECT c.id, c.source_costume_id, c.name,
       (SELECT COUNT(*) FROM photos ph WHERE ph.costume_id = c.id) as photo_count
      FROM costumes c
      WHERE c.event_id = ? AND c.participant_id = ?
      ORDER BY c.created_at ASC`,
   )
     .bind(eventId, participant.id)
-    .all<{ id: string; name: string; photo_count: number }>()
+    .all<{ id: string; source_costume_id: string | null; name: string; photo_count: number }>()
 
   const costumeCount = counts?.costume_count ?? 0
   const photoCount = counts?.photo_count ?? 0
@@ -324,6 +324,7 @@ async function handleParticipantStatus(
     photoCount,
     costumes: (costumeRows.results ?? []).map((row) => ({
       id: row.id,
+      ...(row.source_costume_id ? { sourceCostumeId: row.source_costume_id } : {}),
       name: row.name,
       photoCount: row.photo_count,
     })),
@@ -398,6 +399,20 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const body = (await request.json()) as CreateCostumeRequest
   if (!body.name?.trim()) return json({ error: 'name は必須です' }, 400)
 
+  const sourceCostumeId = body.sourceCostumeId?.trim() || null
+  if (sourceCostumeId && sourceCostumeId.length > 200) {
+    return json({ error: 'sourceCostumeId が長すぎます' }, 400)
+  }
+
+  if (sourceCostumeId) {
+    const existing = await env.DB.prepare(
+      `SELECT id FROM costumes WHERE event_id = ? AND participant_id = ? AND source_costume_id = ?`,
+    )
+      .bind(eventId, participant.id, sourceCostumeId)
+      .first<{ id: string }>()
+    if (existing) return json({ costumeId: existing.id } satisfies CreateCostumeResponse)
+  }
+
   const limits = parseUploadLimits(env)
   const costumeCount = await env.DB.prepare(
     `SELECT COUNT(*) as c FROM costumes WHERE event_id = ? AND participant_id = ?`,
@@ -420,13 +435,14 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const preferences = JSON.stringify(Array.isArray(body.preferences) ? body.preferences : [])
 
   await env.DB.prepare(
-    `INSERT INTO costumes (id, event_id, participant_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, suit_lapel, preferences_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO costumes (id, event_id, participant_id, source_costume_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, suit_lapel, preferences_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       costumeId,
       eventId,
       participant.id,
+      sourceCostumeId,
       body.name.trim(),
       colors,
       body.tone ?? 'neutral',

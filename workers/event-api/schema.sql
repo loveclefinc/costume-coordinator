@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS costumes (
   id TEXT PRIMARY KEY NOT NULL,
   event_id TEXT NOT NULL,
   participant_id TEXT NOT NULL,
+  source_costume_id TEXT,
   name TEXT NOT NULL,
   colors_json TEXT NOT NULL,
   tone TEXT NOT NULL,
@@ -43,6 +44,10 @@ CREATE TABLE IF NOT EXISTS costumes (
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
   FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_costumes_participant_source
+  ON costumes(participant_id, source_costume_id)
+  WHERE source_costume_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS photos (
   id TEXT PRIMARY KEY NOT NULL,
