@@ -956,7 +956,8 @@ export default function Events() {
                             className="preference-wizard-btn secondary"
                             onClick={() => {
                               clearPreferenceRank('2nd')
-                              setPreferenceRankStep(3)
+                              clearPreferenceRank('3rd')
+                              setPreferenceWizardDone(true)
                             }}
                           >
                             第2希望は設定しない
