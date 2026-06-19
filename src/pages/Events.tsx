@@ -26,6 +26,11 @@ import {
 import ColorCoordinationAnchorsEditor from '../components/ColorCoordinationAnchorsEditor'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS } from '../utils/silhouette'
 import {
+  DRESS_SILHOUETTE_ICON_SRC,
+  SUIT_BREASTING_ICON_SRC,
+  SUIT_STYLE_ICON_SRC,
+} from '../utils/costume-attribute-icons'
+import {
   SUIT_BREASTING_LABELS,
   SUIT_BREASTING_OPTIONS,
   SUIT_STYLE_LABELS,
@@ -519,15 +524,17 @@ export default function Events() {
 
         <div className="preference-group">
           <label>シルエット（ドレス）</label>
-          <div className="option-grid">
+          <div className="option-grid option-grid--illustrated option-grid--dress">
             {DRESS_SILHOUETTE_OPTIONS.map((silhouette) => (
               <button
                 key={`silhouette-${priority}-${silhouette}`}
                 type="button"
                 onClick={() => toggleSilhouette(silhouette, priority)}
-                className={`option-button ${silhouettes.includes(silhouette) ? 'selected' : ''}`}
+                className={`option-button option-button--illustrated ${silhouettes.includes(silhouette) ? 'selected' : ''}`}
+                aria-pressed={silhouettes.includes(silhouette)}
               >
-                {SILHOUETTE_LABELS[silhouette]}
+                <img src={DRESS_SILHOUETTE_ICON_SRC[silhouette]} alt="" aria-hidden="true" />
+                <span>{SILHOUETTE_LABELS[silhouette]}</span>
               </button>
             ))}
           </div>
@@ -535,15 +542,17 @@ export default function Events() {
 
         <div className="preference-group">
           <label>スーツ形式</label>
-          <div className="option-grid">
+          <div className="option-grid option-grid--illustrated option-grid--suit">
             {SUIT_STYLE_OPTIONS.map((style) => (
               <button
                 key={`suit-style-${priority}-${style}`}
                 type="button"
                 onClick={() => toggleSuitStyle(style, priority)}
-                className={`option-button ${suitStyles.includes(style) ? 'selected' : ''}`}
+                className={`option-button option-button--illustrated ${suitStyles.includes(style) ? 'selected' : ''}`}
+                aria-pressed={suitStyles.includes(style)}
               >
-                {SUIT_STYLE_LABELS[style]}
+                <img src={SUIT_STYLE_ICON_SRC[style]} alt="" aria-hidden="true" />
+                <span>{SUIT_STYLE_LABELS[style]}</span>
               </button>
             ))}
           </div>
@@ -551,15 +560,17 @@ export default function Events() {
 
         <div className="preference-group">
           <label>スーツの前釦（シングル / ダブル）</label>
-          <div className="option-grid">
+          <div className="option-grid option-grid--illustrated option-grid--breasting">
             {SUIT_BREASTING_OPTIONS.map((breasting) => (
               <button
                 key={`suit-breasting-${priority}-${breasting}`}
                 type="button"
                 onClick={() => toggleSuitBreasting(breasting, priority)}
-                className={`option-button ${suitBreasting.includes(breasting) ? 'selected' : ''}`}
+                className={`option-button option-button--illustrated ${suitBreasting.includes(breasting) ? 'selected' : ''}`}
+                aria-pressed={suitBreasting.includes(breasting)}
               >
-                {SUIT_BREASTING_LABELS[breasting]}
+                <img src={SUIT_BREASTING_ICON_SRC[breasting]} alt="" aria-hidden="true" />
+                <span>{SUIT_BREASTING_LABELS[breasting]}</span>
               </button>
             ))}
           </div>

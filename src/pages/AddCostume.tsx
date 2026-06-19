@@ -9,18 +9,12 @@ import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
 import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS, type DressSilhouette } from '../utils/silhouette'
-import dressSilhouetteALineIcon from '../generated/costume-icons/dress-silhouette-a-line.png'
-import dressSilhouetteMermaidIcon from '../generated/costume-icons/dress-silhouette-mermaid.png'
-import dressSilhouettePrincessIcon from '../generated/costume-icons/dress-silhouette-princess.png'
-import dressSilhouetteSlenderIcon from '../generated/costume-icons/dress-silhouette-slender.png'
-import suitBreastingDoubleIcon from '../generated/costume-icons/suit-breasting-double.png'
-import suitBreastingSingleIcon from '../generated/costume-icons/suit-breasting-single.png'
-import suitLapelNotchIcon from '../generated/costume-icons/suit-lapel-notch.png'
-import suitLapelPeakIcon from '../generated/costume-icons/suit-lapel-peak.png'
-import suitLapelShawlIcon from '../generated/costume-icons/suit-lapel-shawl.png'
-import suitStyleStandardIcon from '../generated/costume-icons/suit-style-standard.png'
-import suitStyleTailcoatIcon from '../generated/costume-icons/suit-style-tailcoat.png'
-import suitStyleTuxedoIcon from '../generated/costume-icons/suit-style-tuxedo.png'
+import {
+  DRESS_SILHOUETTE_ICON_SRC,
+  SUIT_BREASTING_ICON_SRC,
+  SUIT_LAPEL_ICON_SRC,
+  SUIT_STYLE_ICON_SRC,
+} from '../utils/costume-attribute-icons'
 import {
   SUIT_BREASTING_LABELS,
   SUIT_BREASTING_OPTIONS,
@@ -111,30 +105,6 @@ const SUIT_LAPEL_HELP: Record<SuitLapel, string> = {
   notch: '切れ込みのある標準的な襟',
   peak: '先端が上向きの格式ある襟',
   shawl: '丸くつながる柔らかな襟',
-}
-
-const DRESS_SILHOUETTE_ICON_SRC: Record<DressSilhouette, string> = {
-  a_line: dressSilhouetteALineIcon,
-  princess: dressSilhouettePrincessIcon,
-  slender: dressSilhouetteSlenderIcon,
-  mermaid: dressSilhouetteMermaidIcon,
-}
-
-const SUIT_STYLE_ICON_SRC: Record<SuitStyle, string> = {
-  tuxedo: suitStyleTuxedoIcon,
-  tailcoat: suitStyleTailcoatIcon,
-  standard: suitStyleStandardIcon,
-}
-
-const SUIT_LAPEL_ICON_SRC: Record<SuitLapel, string> = {
-  notch: suitLapelNotchIcon,
-  peak: suitLapelPeakIcon,
-  shawl: suitLapelShawlIcon,
-}
-
-const SUIT_BREASTING_ICON_SRC: Record<SuitBreasting, string> = {
-  single: suitBreastingSingleIcon,
-  double: suitBreastingDoubleIcon,
 }
 
 function DressSilhouetteIcon({ value }: { value: DressSilhouette }) {
