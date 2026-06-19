@@ -253,11 +253,17 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
   for (const participant of sortedParticipants) {
     const evaluatedCandidates: Array<{ costume: Costume; score: number }> = []
 
+    const hasParticipantOwnedCostumes = costumes.some(
+      (costume) => costume.sourceParticipantName != null,
+    )
+    const participantCostumes = hasParticipantOwnedCostumes
+      ? costumes.filter((costume) => costume.sourceParticipantName === participant.name)
+      : costumes
     const preferenceIds = new Set(participant.preferences)
     const eligibleCostumes =
       preferenceIds.size > 0
-        ? costumes.filter((costume) => preferenceIds.has(costume.id))
-        : costumes
+        ? participantCostumes.filter((costume) => preferenceIds.has(costume.id))
+        : participantCostumes
 
     for (const costume of eligibleCostumes) {
       // Skip already assigned costumes

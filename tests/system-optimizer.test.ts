@@ -40,6 +40,15 @@ function costume(id: string, name: string, colors: string[]): Costume {
   }
 }
 
+function participantCostume(
+  id: string,
+  name: string,
+  colors: string[],
+  participantName: string,
+): Costume {
+  return { ...costume(id, name, colors), sourceParticipantName: participantName }
+}
+
 describe('runSystemOptimization', () => {
   it('returns a primary assignment and deduplicated alternatives', () => {
     const outcome = runSystemOptimization(
@@ -118,6 +127,43 @@ describe('runSystemOptimization', () => {
     expect(outcome.selected).toHaveLength(10)
     expect(assignedIds).toHaveLength(10)
     expect(outcome.harmonyScore).toBeGreaterThan(0)
+  })
+
+  it('only assigns costumes submitted by that participant', () => {
+    const outcome = runSystemOptimization({
+      participants: [
+        { id: 'host', name: 'テストユーザー', preferences: [] },
+        { id: 'guest', name: 'げんげん', preferences: [] },
+      ],
+      costumes: [
+        participantCostume('host-dress', '花柄ドレス', ['red'], 'テストユーザー'),
+        participantCostume('guest-suit', '青タキシード', ['blue'], 'げんげん'),
+      ],
+      usageHistory: [],
+      themePreferences: theme,
+    })
+
+    expect(outcome.selected).toHaveLength(2)
+    expect(outcome.selected.find((row) => row.participantName === 'テストユーザー')?.costumeId)
+      .toBe('host-dress')
+    expect(outcome.selected.find((row) => row.participantName === 'げんげん')?.costumeId)
+      .toBe('guest-suit')
+  })
+
+  it('does not borrow another participant costume when a participant has no submitted costume', () => {
+    const outcome = runSystemOptimization({
+      participants: [
+        { id: 'host', name: 'テストユーザー', preferences: [] },
+        { id: 'guest', name: 'げんげん', preferences: [] },
+      ],
+      costumes: [participantCostume('guest-suit', '青タキシード', ['blue'], 'げんげん')],
+      usageHistory: [],
+      themePreferences: theme,
+    })
+
+    expect(outcome.selected).toHaveLength(1)
+    expect(outcome.selected[0].participantName).toBe('げんげん')
+    expect(outcome.selected[0].costumeId).toBe('guest-suit')
   })
 
   it('includes the saved stage order and row breaks in proposal scoring', () => {

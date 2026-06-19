@@ -3,6 +3,7 @@ import {
   filterEventCostumes,
   filterPersonalWardrobeCostumes,
   findCostumeById,
+  hasInvalidImportedCostumeAssignments,
   isPersonalWardrobeCostume,
   resolveEventCostumeCatalog,
 } from '../src/utils/costume-scope'
@@ -57,5 +58,19 @@ describe('costume-scope', () => {
   it('finds costumes in event catalog first', () => {
     expect(findCostumeById('c2', [personal], [eventCostume])).toEqual(eventCostume)
     expect(findCostumeById('c1', [personal], [eventCostume])).toEqual(personal)
+  })
+
+  it('detects an assignment using another participant costume', () => {
+    expect(hasInvalidImportedCostumeAssignments({
+      costumes: { 'テストユーザー': 'c2' },
+      importedCostumes: [eventCostume],
+    })).toBe(true)
+  })
+
+  it('keeps an assignment using the participant own costume', () => {
+    expect(hasInvalidImportedCostumeAssignments({
+      costumes: { '花子': 'c2' },
+      importedCostumes: [eventCostume],
+    })).toBe(false)
   })
 })

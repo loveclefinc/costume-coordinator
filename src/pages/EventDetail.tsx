@@ -4,7 +4,11 @@ import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage, type Costume } from '../utils/storage'
 import { normalizeCostumeList } from '../utils/costume-normalize'
-import { findCostumeById, resolveEventCostumeCatalog } from '../utils/costume-scope'
+import {
+  findCostumeById,
+  hasInvalidImportedCostumeAssignments,
+  resolveEventCostumeCatalog,
+} from '../utils/costume-scope'
 import {
   runSystemOptimization,
   type SystemOptimizationAlternative,
@@ -193,6 +197,9 @@ export default function EventDetail() {
         if (!eventData) throw new Error('Event not found')
         if (eventData.participants.length === 0) {
           eventData = await updateEvent(id, { participants: ['代表者'] })
+        }
+        if (eventData.hostedOnServer && hasInvalidImportedCostumeAssignments(eventData)) {
+          eventData = await updateEvent(id, { costumes: {}, confirmed: false })
         }
         setEvent(eventData)
         setParticipantPreferences(eventData.participantPreferences ?? {})
@@ -920,6 +927,13 @@ export default function EventDetail() {
           )
         }
       } else {
+        if (freshEvent && (Object.keys(freshEvent.costumes ?? {}).length > 0 || freshEvent.confirmed)) {
+          const resetEvent = await updateEvent(freshEvent.id, {
+            costumes: {},
+            confirmed: false,
+          })
+          setEvent(resetEvent)
+        }
         setAwaitingAllSubmissions(true)
         setOptimizationResults([])
         setAlternativeProposals([])

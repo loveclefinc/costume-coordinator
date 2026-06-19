@@ -55,3 +55,21 @@ export function findCostumeById(
     ?? personalCostumes.find((costume) => costume.id === costumeId)
   )
 }
+
+/** オンライン提出衣装の所有者と保存済み割当が一致するか */
+export function hasInvalidImportedCostumeAssignments(event: Pick<Event, 'costumes' | 'importedCostumes'>): boolean {
+  const assignments = Object.entries(event.costumes ?? {})
+  if (assignments.length === 0) return false
+
+  const importedById = new Map(
+    (event.importedCostumes ?? [])
+      .filter((costume) => costume.sourceParticipantName)
+      .map((costume) => [costume.id, costume]),
+  )
+  if (importedById.size === 0) return false
+
+  return assignments.some(([participantName, costumeId]) => {
+    const costume = importedById.get(costumeId)
+    return !costume || costume.sourceParticipantName !== participantName
+  })
+}
