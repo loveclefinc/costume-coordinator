@@ -78,7 +78,7 @@ async function getEventStorageBytes(env: Env, eventId: string): Promise<number> 
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
-const EVENT_API_VERSION = '2026-06-19.2'
+const EVENT_API_VERSION = '2026-06-19.3'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -327,7 +327,7 @@ async function handleParticipantStatus(
       name: row.name,
       photoCount: row.photo_count,
     })),
-    submitted: costumeCount > 0 && photoCount > 0,
+    submitted: costumeCount > 0 && photoCount >= costumeCount,
   }
   return json(res)
 }

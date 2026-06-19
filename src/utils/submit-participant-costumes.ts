@@ -21,8 +21,9 @@ type SubmitDeps = {
 function findServerCostumeByName(
   costumes: Awaited<ReturnType<typeof fetchParticipantSubmissionStatus>>['costumes'],
   name: string,
+  usedCostumeIds: Set<string>,
 ) {
-  return costumes.find((costume) => costume.name === name)
+  return costumes.find((costume) => costume.name === name && !usedCostumeIds.has(costume.id))
 }
 
 /** 既存のサーバー衣装を再利用し、再提出時に重複作成しない */
@@ -36,6 +37,7 @@ export async function submitPickedCostumesIdempotent(
   let status = await deps.fetchStatus(eventId, participantToken)
   let processed = 0
   const serverCostumes = status.costumes ?? []
+  const usedCostumeIds = new Set<string>()
 
   for (const match of picked) {
     const costume = match.costume
@@ -47,7 +49,7 @@ export async function submitPickedCostumesIdempotent(
     }
 
     const name = costume.name.trim()
-    let serverCostume = findServerCostumeByName(serverCostumes, name)
+    let serverCostume = findServerCostumeByName(serverCostumes, name, usedCostumeIds)
 
     if (!serverCostume) {
       if (status.costumeCount >= limits.maxCostumesPerParticipant) {
@@ -85,6 +87,8 @@ export async function submitPickedCostumesIdempotent(
       }
       serverCostumes.push(serverCostume)
     }
+
+    usedCostumeIds.add(serverCostume.id)
 
     if (serverCostume.photoCount > 0) {
       processed++
