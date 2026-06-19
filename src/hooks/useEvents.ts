@@ -46,8 +46,21 @@ export function useEvents() {
     const onChanged = () => {
       void reloadEvents()
     }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void reloadEvents()
+    }
     window.addEventListener(EVENTS_CHANGED_EVENT, onChanged)
-    return () => window.removeEventListener(EVENTS_CHANGED_EVENT, onChanged)
+    window.addEventListener('focus', onChanged)
+    window.addEventListener('pageshow', onChanged)
+    window.addEventListener('online', onChanged)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(EVENTS_CHANGED_EVENT, onChanged)
+      window.removeEventListener('focus', onChanged)
+      window.removeEventListener('pageshow', onChanged)
+      window.removeEventListener('online', onChanged)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [reloadEvents])
 
   const addEvent = useCallback(async (

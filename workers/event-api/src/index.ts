@@ -77,8 +77,11 @@ async function getEventStorageBytes(env: Env, eventId: string): Promise<number> 
   }
 }
 
-const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' }
-const EVENT_API_VERSION = '2026-06-19.4'
+const JSON_HEADERS = {
+  'Content-Type': 'application/json; charset=utf-8',
+  'Cache-Control': 'no-store',
+}
+const EVENT_API_VERSION = '2026-06-19.6'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -648,6 +651,13 @@ async function buildAdminSnapshot(
     .bind(row.id)
     .all<CostumeRow & { participant_name: string }>()
 
+  const costumeIdsByParticipant = new Map<string, string[]>()
+  for (const costume of costumesResult.results ?? []) {
+    const ids = costumeIdsByParticipant.get(costume.participant_id) ?? []
+    ids.push(costume.id)
+    costumeIdsByParticipant.set(costume.participant_id, ids)
+  }
+
   const costumes: ServerCostume[] = []
   for (const c of costumesResult.results ?? []) {
     const photosRows = await env.DB.prepare(
@@ -679,7 +689,12 @@ async function buildAdminSnapshot(
       suitStyle: c.suit_style ?? undefined,
       suitBreasting: c.suit_breasting ?? undefined,
       suitLapel: c.suit_lapel ?? undefined,
-      preferences: JSON.parse(c.preferences_json) as string[],
+      preferences: (() => {
+        const saved = JSON.parse(c.preferences_json) as string[]
+        return saved.length > 0
+          ? saved
+          : (costumeIdsByParticipant.get(c.participant_id) ?? [])
+      })(),
       photos,
       createdAt: c.created_at,
       updatedAt: c.updated_at,

@@ -27,6 +27,7 @@ import { getRecentUsageExcludeDays } from '../utils/app-settings'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { ensureLocalParticipantEvent } from '../utils/ensure-local-participant-event'
+import { cancelLocalParticipation } from '../utils/cancel-participation'
 import { recordSingleCostumeUsage } from '../utils/usage-tracker'
 import {
   resolveSubmitPhaseAfterStatusCheck,
@@ -126,6 +127,13 @@ export default function EventParticipate() {
         setEditingName(!getDisplayName())
       }
     } catch (e) {
+      if (eventId && e instanceof EventApiError && (e.status === 404 || e.status === 410)) {
+        await cancelLocalParticipation(eventId)
+        setEventInfo(null)
+        setJoined(false)
+        setError('このイベントは主催者により削除されました')
+        return
+      }
       setError(e instanceof EventApiError ? e.message : 'イベントの読み込みに失敗しました')
     } finally {
       setLoading(false)
