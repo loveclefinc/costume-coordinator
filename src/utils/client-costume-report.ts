@@ -113,7 +113,6 @@ function renderAssignmentCard(assignment: ClientReportAssignment): string {
       </div>
       <div class="assignment-body">
         <p class="participant-name">${escapeHtml(assignment.participantName)}</p>
-        <p class="costume-name">${escapeHtml(assignment.costumeName)}</p>
         ${meta ? `<p class="costume-meta">${escapeHtml(meta)}</p>` : ''}
         ${assignment.colors.length > 0 ? `<div class="color-row">${renderColorSwatches(assignment.colors)}</div>` : ''}
       </div>
@@ -202,9 +201,11 @@ export function buildClientReportHtml(
       overflow: hidden;
     }
     .assignment-image img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
       display: block;
     }
     .assignment-image-placeholder {
@@ -218,11 +219,6 @@ export function buildClientReportHtml(
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 4px;
-    }
-    .costume-name {
-      font-size: 14px;
-      color: #333;
-      margin-bottom: 6px;
     }
     .costume-meta {
       font-size: 12px;

@@ -29,7 +29,6 @@ import { useCostumes } from '../hooks/useCostumes'
 import { storage } from '../utils/storage'
 import { ensureLocalParticipantEvent } from '../utils/ensure-local-participant-event'
 import { cancelLocalParticipation } from '../utils/cancel-participation'
-import { recordSingleCostumeUsage } from '../utils/usage-tracker'
 import {
   resolveSubmitPhaseAfterStatusCheck,
   shouldStartAutoSubmit,
@@ -238,19 +237,6 @@ export default function EventParticipate() {
       )
       setEventSession(eventId, { costumesSubmitted: true })
       setSubmitPhase('done')
-      const participantName = getEventSession(eventId)?.displayName ?? displayName
-      const primary = pickedMatches[0]
-      if (primary && participantName.trim()) {
-        try {
-          await recordSingleCostumeUsage(
-            eventId,
-            participantName.trim(),
-            primary.costume.id,
-          )
-        } catch {
-          /* 使用履歴は任意 */
-        }
-      }
       const names = pickedMatches.map((entry) => entry.costume.name).join('、')
       toast(
         `候補 ${count} 件を提出しました（${names}）。全員提出後にシステムが組み合わせを自動決定します。`,

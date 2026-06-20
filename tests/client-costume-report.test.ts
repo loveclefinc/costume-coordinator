@@ -22,6 +22,8 @@ describe('client costume report', () => {
     expect(html).toContain('赤いドレス')
     expect(html).toContain('data:image/jpeg;base64,abc')
     expect(html).toContain('衣装コーディネート提案')
+    expect(html).not.toContain('<p class="costume-name">')
+    expect(html).toContain('object-fit: contain')
   })
 
   it('shows placeholder when costume image is missing', () => {

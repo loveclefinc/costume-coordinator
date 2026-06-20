@@ -13,7 +13,7 @@ import {
   runSystemOptimization,
   type SystemOptimizationAlternative,
 } from '../utils/system-optimizer'
-import { recordCostumeUsage, recordSingleCostumeUsage } from '../utils/usage-tracker'
+import { recordCostumeUsage } from '../utils/usage-tracker'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { shareEvent, exportEventAsCSV, exportEventAsJSON, generateEventQRCode, shareEventWithQR } from '../utils/share-export'
 import {
@@ -79,7 +79,13 @@ import {
 } from '../utils/server-submission-status'
 import { SILHOUETTE_LABELS } from '../utils/silhouette'
 import { SUIT_BREASTING_LABELS, SUIT_STYLE_LABELS } from '../utils/suit-attributes'
-import { normalizeStageBreaks, orderStageAssignments, splitStageRows } from '../utils/stage-layout'
+import {
+  findStageBreakToAdd,
+  moveStageBreak,
+  normalizeStageBreaks,
+  orderStageAssignments,
+  splitStageRows,
+} from '../utils/stage-layout'
 import './EventDetail.css'
 
 interface StageProposalCandidate {
@@ -169,11 +175,7 @@ export default function EventDetail() {
     adminToken?: string
     hostParticipateUrl?: string
   } | null>(null)
-  const [manualUsageParticipant, setManualUsageParticipant] = useState('')
-  const [manualUsageCostumeId, setManualUsageCostumeId] = useState('')
-  const [eventUsageHistory, setEventUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
   const [savingColorAnchors, setSavingColorAnchors] = useState(false)
-  const [recordingUsage, setRecordingUsage] = useState(false)
   const [stageReproposalCandidates, setStageReproposalCandidates] = useState<StageProposalCandidate[] | null>(null)
   const [activeStageCandidateId, setActiveStageCandidateId] = useState('')
   const [isStageReproposing, setIsStageReproposing] = useState(false)
@@ -321,26 +323,6 @@ export default function EventDetail() {
     })
   }, [event?.id, event?.hostedOnServer, event?.costumes])
 
-  useEffect(() => {
-    if (!id) return
-    let cancelled = false
-    void storage.init().then(async () => {
-      const all = await storage.getAllUsageHistory()
-      if (!cancelled) {
-        setEventUsageHistory(all.filter((entry) => entry.eventId === id))
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [id, isConfirmed])
-
-  useEffect(() => {
-    if (event?.participants?.length && !manualUsageParticipant) {
-      setManualUsageParticipant(event.participants[0])
-    }
-  }, [event?.participants, manualUsageParticipant])
-
   const handleAddParticipant = async () => {
     if (!newParticipant.trim() || !event) return
 
@@ -410,6 +392,35 @@ export default function EventDetail() {
     }
   }
 
+  const handleAddStageRowBreak = async (itemCount: number) => {
+    if (!event) return
+    const currentBreaks = normalizeStageBreaks(itemCount, event.stageRowBreakIndices, event.stageRowBreakIndex)
+    const breakIndex = findStageBreakToAdd(currentBreaks, itemCount)
+    if (breakIndex === null) return
+    await handleStageRowBreak(breakIndex, itemCount)
+  }
+
+  const handleMoveStageRowBreak = async (
+    breakIndex: number,
+    direction: -1 | 1,
+    itemCount: number,
+  ) => {
+    if (!event) return
+    const currentBreaks = normalizeStageBreaks(itemCount, event.stageRowBreakIndices, event.stageRowBreakIndex)
+    const nextBreaks = moveStageBreak(currentBreaks, breakIndex, direction, itemCount)
+    if (nextBreaks.every((index, position) => index === currentBreaks[position])) return
+    try {
+      const updated = await updateEvent(event.id, {
+        stageRowBreakIndices: nextBreaks,
+        stageRowBreakIndex: undefined,
+      })
+      setEvent(updated)
+      setStageReproposalCandidates(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '区切り位置の保存に失敗しました')
+    }
+  }
+
   const handleMoveStageParticipant = async (participantId: string, direction: -1 | 1, assignments: any[]) => {
     if (!event) return
     const ordered = orderStageAssignments(assignments, event.stageParticipantOrder)
@@ -424,32 +435,6 @@ export default function EventDetail() {
       setStageReproposalCandidates(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ステージ配置の保存に失敗しました')
-    }
-  }
-
-  const handleRecordManualUsage = async () => {
-    if (!event || !manualUsageParticipant.trim() || !manualUsageCostumeId) return
-    if (isParticipantOnlySession(event.id)) {
-      setError('使用履歴の手動登録は代表者のみ操作できます')
-      return
-    }
-    setRecordingUsage(true)
-    setError('')
-    try {
-      await storage.init()
-      await recordSingleCostumeUsage(
-        event.id,
-        manualUsageParticipant.trim(),
-        manualUsageCostumeId,
-      )
-      const all = await storage.getAllUsageHistory()
-      setEventUsageHistory(all.filter((entry) => entry.eventId === event.id))
-      const costumeName = findCostume(manualUsageCostumeId)?.name ?? '衣装'
-      toast(`${manualUsageParticipant} さんの「${costumeName}」を使用履歴に記録しました`, 'success')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '使用履歴の記録に失敗しました')
-    } finally {
-      setRecordingUsage(false)
     }
   }
 
@@ -1757,72 +1742,6 @@ export default function EventDetail() {
           </section>
         )}
 
-        {/* Manual usage history */}
-        {!isParticipantOnly && (
-        <section className="section">
-          <h2>📅 使用履歴の手動登録</h2>
-          <p className="participant-name-hint">
-            組み合わせ自動決定を使わないイベントや、実際に着用した衣装を後から記録する場合に使います。
-            候補衣装として提出されただけでは使用済み扱いにしません。正式に組み合わせが決まった時点、またはここで手動記録した時点で使用履歴に入り、設定の「直近使用除外日数」以内は次回候補から除外されます。
-          </p>
-          <div className="manual-usage-form">
-            <label>
-              参加者
-              <select
-                value={manualUsageParticipant}
-                onChange={(e) => setManualUsageParticipant(e.target.value)}
-              >
-                {(event.participants.length > 0 ? event.participants : [getDisplayName() || '自分'])
-                  .filter(Boolean)
-                  .map((name: string) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label>
-              着用した衣装
-              <select
-                value={manualUsageCostumeId}
-                onChange={(e) => setManualUsageCostumeId(e.target.value)}
-              >
-                <option value="">選択してください</option>
-                {personalCostumes.map((costume) => (
-                  <option key={costume.id} value={costume.id}>
-                    {costume.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="action-button"
-              disabled={recordingUsage || !manualUsageCostumeId || !manualUsageParticipant.trim()}
-              onClick={() => void handleRecordManualUsage()}
-            >
-              {recordingUsage ? '記録中…' : '使用履歴に記録'}
-            </button>
-          </div>
-          {eventUsageHistory.length > 0 && (
-            <ul className="manual-usage-list">
-              {eventUsageHistory
-                .slice()
-                .sort((a, b) => b.usedAt - a.usedAt)
-                .map((entry) => {
-                  const costumeName =
-                    findCostume(entry.costumeId)?.name ?? entry.costumeId
-                  return (
-                    <li key={entry.id}>
-                      {new Date(entry.usedAt).toLocaleString('ja-JP')} — {entry.participantName}: {costumeName}
-                    </li>
-                  )
-                })}
-            </ul>
-          )}
-        </section>
-        )}
-
         {/* System optimization */}
         {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (
           <section className="section">
@@ -2012,16 +1931,6 @@ export default function EventDetail() {
                                     </div>
                                   )}
                                 </div>
-                                {candidate.canEdit && absoluteIndex < orderedAssignments.length - 1 && !stageRowBreakIndices.includes(absoluteIndex + 1) && (
-                                  <button
-                                    type="button"
-                                    className="stage-break-button"
-                                    onClick={() => void handleStageRowBreak(absoluteIndex + 1, orderedAssignments.length)}
-                                  >
-                                    <span aria-hidden="true">＋</span>
-                                    区切り
-                                  </button>
-                                )}
                               </div>
                             )
 
@@ -2038,18 +1947,51 @@ export default function EventDetail() {
                                         </div>
                                       </div>
                                       {rowIndex > 0 && (
-                                        <button
-                                          type="button"
-                                          className="stage-row-divider"
-                                          onClick={() => candidate.canEdit && void handleStageRowBreak(startIndex, orderedAssignments.length)}
-                                          disabled={!candidate.canEdit}
-                                        >
-                                          <span>{candidate.canEdit ? '区切りを削除' : '区切り'}</span>
-                                        </button>
+                                        <div className="stage-row-divider">
+                                          <span className="stage-row-divider-line" aria-hidden="true" />
+                                          {candidate.canEdit ? (
+                                            <div className="stage-row-divider-controls" aria-label={`${rowIndex}列目と${rowIndex + 1}列目の区切り`}>
+                                              <button
+                                                type="button"
+                                                onClick={() => void handleMoveStageRowBreak(startIndex, 1, orderedAssignments.length)}
+                                                disabled={startIndex >= orderedAssignments.length - 1 || stageRowBreakIndices.includes(startIndex + 1)}
+                                                title="区切り線を上へ移動"
+                                                aria-label="区切り線を上へ移動"
+                                              >↑</button>
+                                              <span>列の区切り</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => void handleMoveStageRowBreak(startIndex, -1, orderedAssignments.length)}
+                                                disabled={startIndex <= 1 || stageRowBreakIndices.includes(startIndex - 1)}
+                                                title="区切り線を下へ移動"
+                                                aria-label="区切り線を下へ移動"
+                                              >↓</button>
+                                              <button
+                                                type="button"
+                                                className="stage-row-divider-remove"
+                                                onClick={() => void handleStageRowBreak(startIndex, orderedAssignments.length)}
+                                                title="区切り線を削除"
+                                                aria-label="区切り線を削除"
+                                              >×</button>
+                                            </div>
+                                          ) : (
+                                            <span className="stage-row-divider-label">列の区切り</span>
+                                          )}
+                                          <span className="stage-row-divider-line" aria-hidden="true" />
+                                        </div>
                                       )}
                                     </div>
                                   )
                                 }).reverse()}
+                                {candidate.canEdit && findStageBreakToAdd(stageRowBreakIndices, orderedAssignments.length) !== null && (
+                                  <button
+                                    type="button"
+                                    className="stage-add-divider-button"
+                                    onClick={() => void handleAddStageRowBreak(orderedAssignments.length)}
+                                  >
+                                    ＋ 列の区切りを追加
+                                  </button>
+                                )}
                               </>
                             )
                           })()}
