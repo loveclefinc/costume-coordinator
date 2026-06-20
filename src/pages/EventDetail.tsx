@@ -429,6 +429,10 @@ export default function EventDetail() {
 
   const handleRecordManualUsage = async () => {
     if (!event || !manualUsageParticipant.trim() || !manualUsageCostumeId) return
+    if (isParticipantOnlySession(event.id)) {
+      setError('使用履歴の手動登録は代表者のみ操作できます')
+      return
+    }
     setRecordingUsage(true)
     setError('')
     try {
@@ -1199,15 +1203,24 @@ export default function EventDetail() {
           <h2>👗 決定済みの衣装</h2>
           <div className="confirmed-assignments-grid">
             {displayAssignments.map((assignment) => (
-              <article key={assignment.participantName} className="confirmed-assignment-card">
+              <article
+                key={assignment.participantName}
+                className={`confirmed-assignment-card ${assignment.participantName === eventSession?.displayName ? 'confirmed-assignment-card--self' : ''}`}
+                aria-current={assignment.participantName === eventSession?.displayName ? 'true' : undefined}
+              >
                 {assignment.costumeImage ? (
                   <img src={assignment.costumeImage} alt={assignment.costumeName} />
                 ) : (
                   <div className="confirmed-assignment-placeholder">写真なし</div>
                 )}
-                <div>
-                  <strong>{assignment.participantName}</strong>
-                  <span>{assignment.costumeName}</span>
+                <div className="confirmed-assignment-text">
+                  <div className="confirmed-assignment-name">
+                    <strong>{assignment.participantName}</strong>
+                    {assignment.participantName === eventSession?.displayName && (
+                      <span className="confirmed-self-badge">自分</span>
+                    )}
+                  </div>
+                  <span className="confirmed-costume-name">{assignment.costumeName}</span>
                 </div>
               </article>
             ))}
@@ -1745,6 +1758,7 @@ export default function EventDetail() {
         )}
 
         {/* Manual usage history */}
+        {!isParticipantOnly && (
         <section className="section">
           <h2>📅 使用履歴の手動登録</h2>
           <p className="participant-name-hint">
@@ -1807,6 +1821,7 @@ export default function EventDetail() {
             </ul>
           )}
         </section>
+        )}
 
         {/* System optimization */}
         {!isParticipantOnly && event.participants.length > 0 && costumesForEvent.length > 0 && (

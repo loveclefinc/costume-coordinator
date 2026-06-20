@@ -427,6 +427,42 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.confirmed-assignment-card--self {
+  border: 3px solid var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+.confirmed-assignment-text {
+  min-width: 0;
+}
+
+.confirmed-assignment-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.confirmed-assignment-name strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.confirmed-assignment-card .confirmed-self-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  margin: 0;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .confirmed-assignment-card img,
@@ -450,6 +486,12 @@
 .confirmed-assignment-card span {
   display: block;
   line-height: 1.35;
+}
+
+.confirmed-assignment-card .confirmed-costume-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .confirmed-assignment-card span {
