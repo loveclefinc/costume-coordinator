@@ -1229,7 +1229,9 @@ export default function EventDetail() {
           </p>
           {eventSession?.costumesSubmitted ? (
             <p className="participant-submitted-note">
-              候補衣装の提出は完了しています。全員の提出が揃うと代表者が取り込み、組み合わせが決定されます。
+              {displayAssignments.length > 0
+                ? '組み合わせが決定しました。'
+                : '候補衣装の提出は完了しています。代表者の確認待ちです。'}
             </p>
           ) : (
             <p className="participant-submitted-note">
@@ -1282,13 +1284,13 @@ export default function EventDetail() {
         <section className="section server-primary-card" aria-labelledby="server-primary-heading">
           <h2 id="server-primary-heading">代表者の操作</h2>
           <p className="server-primary-lead">
-            参加者に招待 URL を送り、全員提出後に取り込むとシステムが組み合わせを自動決定します。
+            参加者に招待 URL を送り、提出が揃ったら下のボタンで組み合わせを決定します。
           </p>
           <UsageGuideTip title="ℹ️ 代表者・参加者の手順">
             <ol>
               <li>招待 URL をコピーして参加者へ送付</li>
               <li>代表者は「写真提出」または下のボタンから衣装写真をアップロード</li>
-              <li>全員提出後「サーバーから提出を取り込む」→ システムが自動で最適な組み合わせを決定（参考案も表示）</li>
+              <li>全員提出後「提出状況を確認して組み合わせを決定」を押す</li>
             </ol>
             <p>
               <Link to="/guide">使い方ガイド（全文）</Link>
@@ -1357,7 +1359,7 @@ export default function EventDetail() {
             >
               <span className="server-action-step">2</span>
               <span className="server-action-text">
-                {serverPulling ? '取り込み中…' : 'サーバーから提出を取り込む'}
+                {serverPulling ? '確認中…' : '提出状況を確認して組み合わせを決定'}
               </span>
             </button>
           </div>

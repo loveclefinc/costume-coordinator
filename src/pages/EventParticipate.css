@@ -129,6 +129,16 @@
   font-size: 0.9rem;
 }
 
+.participate-success p {
+  margin: 0 0 0.75rem;
+}
+
+.participate-success .participate-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 .participate-footer {
   margin-top: 2rem;
   font-size: 0.9rem;

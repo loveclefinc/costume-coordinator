@@ -7,6 +7,7 @@ import EventCostumeMatcher from '../components/EventCostumeMatcher'
 import {
   createServerCostume,
   fetchEventPublic,
+  fetchPublishedEventResults,
   fetchParticipantSubmissionStatus,
   joinServerEvent,
   uploadServerPhoto,
@@ -55,6 +56,7 @@ export default function EventParticipate() {
   const [usageHistoryLoaded, setUsageHistoryLoaded] = useState(false)
   const [pickedMatches, setPickedMatches] = useState<CostumeThemeMatch[]>([])
   const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
+  const [resultsPublished, setResultsPublished] = useState(false)
   const autoSubmitStarted = useRef(false)
   const submitInFlightRef = useRef(false)
 
@@ -103,6 +105,8 @@ export default function EventParticipate() {
           if (status.submitted) {
             autoSubmitStarted.current = true
           }
+          const published = await fetchPublishedEventResults(eventId, token)
+          setResultsPublished(published.assignments.length > 0)
         } catch (e) {
           if (e instanceof EventApiError && e.status === 404) {
             throw new EventApiError(
@@ -151,6 +155,12 @@ export default function EventParticipate() {
       return
     }
     void loadPublic()
+    window.addEventListener('focus', loadPublic)
+    window.addEventListener('pageshow', loadPublic)
+    return () => {
+      window.removeEventListener('focus', loadPublic)
+      window.removeEventListener('pageshow', loadPublic)
+    }
   }, [loadPublic])
 
   useEffect(() => {
@@ -473,9 +483,18 @@ export default function EventParticipate() {
           )}
 
           {submitPhase === 'done' && (
-            <p className="participate-success">
-              候補衣装の提出が完了しました。全員の提出が揃ったあと、システムが最適な組み合わせを自動で決定します。
-            </p>
+            <div className="participate-success">
+              <p>
+                {resultsPublished
+                  ? '組み合わせが決定しました。'
+                  : '候補衣装の提出は完了しています。代表者の確認待ちです。'}
+              </p>
+              {resultsPublished && eventId && (
+                <Link to={`/events/${eventId}`} className="participate-btn primary">
+                  決定衣装を見る
+                </Link>
+              )}
+            </div>
           )}
 
           {wardrobeReady && costumes.length === 0 && (
