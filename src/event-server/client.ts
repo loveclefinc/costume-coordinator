@@ -9,6 +9,8 @@ import type {
   JoinEventRequest,
   JoinEventResponse,
   ParticipantSubmissionStatus,
+  PublishEventResultsRequest,
+  PublishedEventResults,
   RegisterHostRequest,
   RegisterHostResponse,
   UploadPhotoResponse,
@@ -146,6 +148,31 @@ export async function fetchParticipantSubmissionStatus(
   return apiFetch<ParticipantSubmissionStatus>(
     `/api/events/${encodeURIComponent(eventId)}/participant/status`,
     { participantToken },
+  )
+}
+
+export async function fetchPublishedEventResults(
+  eventId: string,
+  participantToken: string,
+): Promise<PublishedEventResults> {
+  return apiFetch<PublishedEventResults>(
+    `/api/events/${encodeURIComponent(eventId)}/results`,
+    { participantToken },
+  )
+}
+
+export async function publishEventResults(
+  eventId: string,
+  adminToken: string,
+  body: PublishEventResultsRequest,
+): Promise<PublishedEventResults> {
+  return apiFetch<PublishedEventResults>(
+    `/api/events/${encodeURIComponent(eventId)}/results`,
+    {
+      method: 'PUT',
+      adminToken,
+      body: JSON.stringify(body),
+    },
   )
 }
 

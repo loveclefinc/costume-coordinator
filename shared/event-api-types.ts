@@ -118,6 +118,23 @@ export interface EventAdminSnapshot {
   costumes: ServerCostume[]
 }
 
+export interface PublishEventResultsRequest {
+  assignments: Array<{
+    participantName: string
+    costumeId: string
+  }>
+}
+
+export interface PublishedEventAssignment {
+  participantName: string
+  costume: ServerCostume
+}
+
+export interface PublishedEventResults {
+  updatedAt: number | null
+  assignments: PublishedEventAssignment[]
+}
+
 export interface ExtendRetentionRequest {
   days?: 7
 }

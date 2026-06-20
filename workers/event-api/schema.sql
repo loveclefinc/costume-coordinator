@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS events (
   event_date TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   theme_json TEXT,
+  results_json TEXT,
   expires_at INTEGER NOT NULL,
   admin_token TEXT NOT NULL,
   invite_token TEXT NOT NULL,

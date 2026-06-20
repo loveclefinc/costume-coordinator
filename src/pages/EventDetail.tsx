@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEvents } from '../hooks/useEvents'
 import { useCostumes } from '../hooks/useCostumes'
 import { storage, type Costume } from '../utils/storage'
-import { normalizeCostumeList } from '../utils/costume-normalize'
+import { normalizeCostume, normalizeCostumeList } from '../utils/costume-normalize'
 import {
   findCostumeById,
   hasInvalidImportedCostumeAssignments,
@@ -32,6 +32,8 @@ import {
   deleteServerEvent,
   extendServerEventRetention,
   fetchAdminSnapshot,
+  fetchPublishedEventResults,
+  publishEventResults,
   registerHostOnServer,
   EventApiError,
 } from '../event-server/client'
@@ -47,6 +49,7 @@ import {
   formatServerExpiryLabel,
 } from '../utils/server-expiry-display'
 import { importAdminSnapshotToLocal } from '../event-server/import-from-server'
+import { mergeEventImportedCostumes } from '../utils/event-imported-costumes'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
 import { cancelLocalParticipation } from '../utils/cancel-participation'
 import { pruneRemovedParticipantEvents } from '../utils/prune-participant-events'
@@ -174,6 +177,7 @@ export default function EventDetail() {
   const [stageReproposalCandidates, setStageReproposalCandidates] = useState<StageProposalCandidate[] | null>(null)
   const [activeStageCandidateId, setActiveStageCandidateId] = useState('')
   const [isStageReproposing, setIsStageReproposing] = useState(false)
+  const publishedResultFingerprintRef = useRef('')
   const serverApiEnabled = isEventServerEnabled()
 
   useEffect(() => {
@@ -217,6 +221,105 @@ export default function EventDetail() {
   useEffect(() => {
     void reloadEventCostumes()
   }, [reloadEventCostumes])
+
+  useEffect(() => {
+    if (!event?.id || !event.hostedOnServer || !isParticipantOnlySession(event.id)) return
+    const participantToken = getEventSession(event.id)?.participantToken
+    if (!participantToken) return
+    let cancelled = false
+
+    const loadPublishedResults = async () => {
+      try {
+        const published = await fetchPublishedEventResults(event.id, participantToken)
+        if (cancelled) return
+
+        if (published.assignments.length === 0) {
+          if (Object.keys(event.costumes ?? {}).length > 0 || event.confirmed) {
+            const reset = await updateEvent(event.id, { costumes: {}, confirmed: false })
+            if (!cancelled) setEvent(reset)
+          }
+          return
+        }
+
+        const incomingCostumes = published.assignments.map(({ participantName, costume }) => {
+          const primaryPhoto = [...costume.photos].sort((a, b) => a.sortOrder - b.sortOrder)[0]
+          return normalizeCostume({
+            id: costume.id,
+            name: costume.name,
+            image: primaryPhoto?.viewUrl ?? '',
+            colors: costume.colors,
+            tone: costume.tone,
+            pattern: costume.pattern,
+            season: costume.season,
+            type: costume.type,
+            silhouette: costume.silhouette,
+            suitStyle: costume.suitStyle,
+            suitBreasting: costume.suitBreasting,
+            suitLapel: costume.suitLapel,
+            sourceEventId: event.id,
+            sourceParticipantName: participantName,
+            createdAt: costume.createdAt,
+            updatedAt: costume.updatedAt,
+          })
+        })
+        const costumes = Object.fromEntries(
+          published.assignments.map(({ participantName, costume }) => [participantName, costume.id]),
+        )
+        const participants = Array.from(new Set([
+          ...event.participants,
+          ...published.assignments.map((assignment) => assignment.participantName),
+        ]))
+        const importedCostumes = mergeEventImportedCostumes(event.importedCostumes, incomingCostumes)
+        const updated = await updateEvent(event.id, {
+          participants,
+          costumes,
+          importedCostumes,
+          confirmed: true,
+        })
+        if (!cancelled) {
+          setEvent(updated)
+          setEventCostumes(normalizeCostumeList(importedCostumes))
+          setIsConfirmed(true)
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof EventApiError ? loadError.message : '決定衣装の読み込みに失敗しました')
+        }
+      }
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadPublishedResults()
+    }
+    void loadPublishedResults()
+    window.addEventListener('focus', loadPublishedResults)
+    window.addEventListener('pageshow', loadPublishedResults)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', loadPublishedResults)
+      window.removeEventListener('pageshow', loadPublishedResults)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [event?.id, event?.hostedOnServer, updateEvent])
+
+  useEffect(() => {
+    if (!event?.id || !event.hostedOnServer || !hasEventAdminAccess(event.id)) return
+    const assignments = Object.entries(event.costumes ?? {}) as Array<[string, string]>
+    if (assignments.length === 0) return
+    const fingerprint = JSON.stringify([...assignments].sort(([a], [b]) => a.localeCompare(b)))
+    if (publishedResultFingerprintRef.current === fingerprint) return
+    const adminToken = getEventSession(event.id)?.adminToken
+    if (!adminToken) return
+
+    publishedResultFingerprintRef.current = fingerprint
+    void publishEventResults(event.id, adminToken, {
+      assignments: assignments.map(([participantName, costumeId]) => ({ participantName, costumeId })),
+    }).catch((publishError) => {
+      publishedResultFingerprintRef.current = ''
+      setError(publishError instanceof EventApiError ? publishError.message : '決定結果の公開に失敗しました')
+    })
+  }, [event?.id, event?.hostedOnServer, event?.costumes])
 
   useEffect(() => {
     if (!id) return
@@ -416,6 +519,22 @@ export default function EventDetail() {
     assignments.forEach((result) => {
       costumesMap[result.participantName] = result.costume.id
     })
+
+    if (eventSnapshot.hostedOnServer) {
+      const adminToken = getEventSession(eventSnapshot.id)?.adminToken
+      if (!adminToken) {
+        throw new Error('決定結果を公開する管理者トークンがありません')
+      }
+      await publishEventResults(eventSnapshot.id, adminToken, {
+        assignments: assignments.map((result) => ({
+          participantName: result.participantName,
+          costumeId: result.costume.id,
+        })),
+      })
+      publishedResultFingerprintRef.current = JSON.stringify(
+        Object.entries(costumesMap).sort(([a], [b]) => a.localeCompare(b)),
+      )
+    }
 
     const updatedEvent = {
       ...eventSnapshot,

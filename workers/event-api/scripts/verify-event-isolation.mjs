@@ -148,6 +148,45 @@ try {
   const mediaBWithEventMember = await request(`/api/media/${photoId}?participant=${encodeURIComponent(eventBMember.participantToken)}`)
   assert(mediaBWithEventMember.status === 200, `event B member cannot read event B photo: ${mediaBWithEventMember.status}`)
 
+  const invalidOwnerResult = await jsonRequest(`/api/events/${eventB.eventId}/results`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Token': eventB.adminToken },
+    body: JSON.stringify({
+      assignments: [{ participantName: eventBMember.displayName, costumeId: costumeB }],
+    }),
+  })
+  assert(invalidOwnerResult.response.status === 400, `mismatched result owner was accepted: ${invalidOwnerResult.response.status}`)
+
+  const publishB = await jsonRequest(`/api/events/${eventB.eventId}/results`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Token': eventB.adminToken },
+    body: JSON.stringify({
+      assignments: [{ participantName: eventB.hostParticipant.displayName, costumeId: costumeB }],
+    }),
+  })
+  assert(publishB.response.status === 200, `publish event B result: ${publishB.response.status}`)
+
+  const resultsBWithEventMember = await jsonRequest(`/api/events/${eventB.eventId}/results`, {
+    headers: { 'X-Participant-Token': eventBMember.participantToken },
+  })
+  assert(resultsBWithEventMember.response.status === 200, `event B member cannot read results: ${resultsBWithEventMember.response.status}`)
+  assert(resultsBWithEventMember.body.assignments.length === 1, 'event B published result is missing')
+  assert(resultsBWithEventMember.body.assignments[0].costume.id === costumeB, 'event B published the wrong costume')
+
+  const resultsBWithParticipantA = await request(`/api/events/${eventB.eventId}/results`, {
+    headers: { 'X-Participant-Token': eventA.hostParticipant.participantToken },
+  })
+  expectRejected(resultsBWithParticipantA.status, 'participant A -> results B')
+
+  const publishBWithAdminA = await jsonRequest(`/api/events/${eventB.eventId}/results`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Token': eventA.adminToken },
+    body: JSON.stringify({
+      assignments: [{ participantName: eventB.hostParticipant.displayName, costumeId: costumeB }],
+    }),
+  })
+  expectRejected(publishBWithAdminA.response.status, 'admin A -> publish results B')
+
   const deleteBWithAdminA = await request(`/api/events/${eventB.eventId}`, {
     method: 'DELETE',
     headers: { 'X-Admin-Token': eventA.adminToken },

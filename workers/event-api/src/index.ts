@@ -10,6 +10,8 @@ import type {
   JoinEventRequest,
   JoinEventResponse,
   ParticipantSubmissionStatus,
+  PublishEventResultsRequest,
+  PublishedEventResults,
   ServerCostume,
   ServerParticipant,
   ServerPhoto,
@@ -81,7 +83,7 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-06-19.7'
+const EVENT_API_VERSION = '2026-06-20.1'
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -120,6 +122,14 @@ export default {
       const snapshotMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/snapshot$/)
       if (snapshotMatch && request.method === 'GET') {
         return cors(await handleAdminSnapshot(snapshotMatch[1], url, env, request), request, env)
+      }
+
+      const resultsMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/results$/)
+      if (resultsMatch && request.method === 'GET') {
+        return cors(await handleGetPublishedResults(resultsMatch[1], request, env), request, env)
+      }
+      if (resultsMatch && request.method === 'PUT') {
+        return cors(await handlePublishResults(resultsMatch[1], request, env), request, env)
       }
 
       const extendMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/extend-retention$/)
@@ -254,6 +264,68 @@ async function handleAdminSnapshot(
 
   const snapshot = await buildAdminSnapshot(env, row, request.url)
   return json(snapshot)
+}
+
+async function handleGetPublishedResults(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  await requireParticipant(eventId, request, env)
+  const row = await getEventRow(env, eventId)
+  assertNotExpired(row.expires_at)
+  return json(await buildPublishedResults(env, row, request.url))
+}
+
+async function handlePublishResults(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const admin = getAdminToken(new URL(request.url), request)
+  const row = await getEventRow(env, eventId)
+  assertNotExpired(row.expires_at)
+  await assertAdminToken(env, eventId, admin, row.admin_token)
+
+  const body = (await request.json()) as PublishEventResultsRequest
+  const assignments = Array.isArray(body.assignments) ? body.assignments : []
+  const available = await env.DB.prepare(
+    `SELECT c.id, p.display_name
+     FROM costumes c
+     JOIN participants p ON p.id = c.participant_id AND p.event_id = c.event_id
+     WHERE c.event_id = ?`,
+  )
+    .bind(eventId)
+    .all<{ id: string; display_name: string }>()
+  const owners = new Map((available.results ?? []).map((item) => [item.id, item.display_name]))
+  const participantNames = new Set<string>()
+
+  for (const assignment of assignments) {
+    const participantName = assignment.participantName?.trim()
+    if (!participantName || !assignment.costumeId) {
+      return json({ error: '参加者名と衣装IDは必須です' }, 400)
+    }
+    if (participantNames.has(participantName)) {
+      return json({ error: '同じ参加者の結果が重複しています' }, 400)
+    }
+    if (owners.get(assignment.costumeId) !== participantName) {
+      return json({ error: '衣装の所有者が参加者と一致しません' }, 400)
+    }
+    participantNames.add(participantName)
+  }
+
+  const payload = {
+    updatedAt: Date.now(),
+    assignments: assignments.map((assignment) => ({
+      participantName: assignment.participantName.trim(),
+      costumeId: assignment.costumeId,
+    })),
+  }
+  await env.DB.prepare(`UPDATE events SET results_json = ? WHERE id = ?`)
+    .bind(JSON.stringify(payload), eventId)
+    .run()
+
+  return json(await buildPublishedResults(env, { ...row, results_json: JSON.stringify(payload) }, request.url))
 }
 
 async function handleExtendRetention(
@@ -713,6 +785,30 @@ async function buildAdminSnapshot(
   }
 }
 
+async function buildPublishedResults(
+  env: Env,
+  row: EventRow,
+  requestUrl: string,
+): Promise<PublishedEventResults> {
+  if (!row.results_json) return { updatedAt: null, assignments: [] }
+
+  const stored = JSON.parse(row.results_json) as {
+    updatedAt: number
+    assignments: Array<{ participantName: string; costumeId: string }>
+  }
+  const snapshot = await buildAdminSnapshot(env, row, requestUrl)
+  const costumes = new Map(snapshot.costumes.map((costume) => [costume.id, costume]))
+
+  return {
+    updatedAt: stored.updatedAt,
+    assignments: stored.assignments.flatMap((assignment) => {
+      const costume = costumes.get(assignment.costumeId)
+      if (!costume || costume.participantName !== assignment.participantName) return []
+      return [{ participantName: assignment.participantName, costume }]
+    }),
+  }
+}
+
 // Fix viewUrl in snapshot - admin will append token client-side
 function mediaUrl(requestUrl: string, photoId: string, _invite?: string): string {
   const origin = new URL(requestUrl).origin
@@ -801,6 +897,7 @@ type EventRow = {
   event_date: string
   description: string
   theme_json: string | null
+  results_json: string | null
   expires_at: number
   admin_token: string
   invite_token: string
