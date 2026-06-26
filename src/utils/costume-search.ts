@@ -96,6 +96,8 @@ const QUERY_ALIASES: Record<string, string[]> = {
   茶系: ['茶色', 'ブラウン', 'ベージュ'],
   花: ['花柄', 'フローラル'],
   フローラル: ['花柄', 'フローラル'],
+  無地: ['無地', 'plain', 'solid'],
+  柄: ['柄あり', '花柄', 'ストライプ', 'ドット', 'チェック', '幾何学模様', 'アニマル柄'],
   ボーダー: ['ストライプ', '縞'],
   縞: ['ストライプ', '縞'],
   落ち着いた: ['落ち着いた', 'neutral', 'くすみ', '控えめ'],
@@ -143,11 +145,14 @@ export function queryTokens(query: string): string[][] {
 }
 
 export function costumeSearchLabels(costume: Costume): string[] {
+  const normalizedPattern = normalizePattern(costume.pattern)
+  const patternLabel = labelFor(PATTERN_LABELS, normalizedPattern)
   const labels = [
     costume.name,
     labelFor(COSTUME_TYPE_LABELS, costume.type),
     labelFor(TONE_LABELS, costume.tone),
-    labelFor(PATTERN_LABELS, normalizePattern(costume.pattern)),
+    patternLabel,
+    normalizedPattern === 'plain' ? '無地' : '柄あり',
     costume.silhouette ? silhouetteLabel(costume.silhouette) : '',
     costume.suitStyle ? suitStyleLabel(costume.suitStyle) : '',
     costume.suitBreasting ? suitBreastingLabel(costume.suitBreasting) : '',
@@ -165,11 +170,14 @@ export function costumeSearchLabels(costume: Costume): string[] {
 function scoreCostume(costume: Costume, tokenGroups: string[][]): CostumeSearchResult | null {
   const labels = costumeSearchLabels(costume)
   const searchable = normalizeText(labels.join(' '))
+  const normalizedLabels = labels.map((label) => normalizeText(label))
   const matchedLabels: string[] = []
   let score = 0
 
   for (const group of tokenGroups) {
-    const matchedToken = group.find((token) => searchable.includes(token))
+    const matchedToken =
+      group.find((token) => normalizedLabels.includes(token)) ??
+      group.find((token) => searchable.includes(token))
     if (!matchedToken) return null
 
     const label =

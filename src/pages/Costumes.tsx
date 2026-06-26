@@ -18,7 +18,7 @@ function labelFor(labels: Record<string, string>, value: string): string {
   return labels[value.toLowerCase()] ?? value
 }
 
-const QUICK_SEARCHES = ['花柄', '青系', '落ち着いた', 'タキシード', 'Aライン']
+const QUICK_SEARCHES = ['無地', '柄', '花柄', '青系', 'タキシード', 'Aライン']
 
 export default function Costumes() {
   const { confirm } = useAppUi()
@@ -69,7 +69,7 @@ export default function Costumes() {
       <div className="search-box">
         <input
           type="text"
-          placeholder="例: 花柄の衣装 / 青系 / 落ち着いた / タキシード"
+          placeholder="例: 無地 / 柄 / 青系 / タキシード"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="search-input"

@@ -72,6 +72,18 @@ describe('Costume wardrobe search', () => {
     expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
   })
 
+  it('searches plain costumes with 無地', () => {
+    const results = searchWardrobeCostumes(wardrobe, '無地')
+    expect(results.map((result) => result.costume.id)).toEqual(['red-dress', 'black-tuxedo'])
+    expect(results[0].matchedLabels).toContain('無地')
+  })
+
+  it('searches patterned costumes with 柄', () => {
+    const results = searchWardrobeCostumes(wardrobe, '柄')
+    expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
+    expect(results[0].matchedLabels).toContain('柄あり')
+  })
+
   it('searches tone, type, silhouette, and suit attributes as Japanese labels', () => {
     expect(searchWardrobeCostumes(wardrobe, '落ち着いた').map((r) => r.costume.id)).toEqual([])
     expect(searchWardrobeCostumes(wardrobe, 'Aライン').map((r) => r.costume.id)).toEqual(['floral-blue'])
