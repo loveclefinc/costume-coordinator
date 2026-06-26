@@ -1,260 +1,200 @@
-/**
- * Costume Search and Filter Utility
- */
+import type { Costume } from './storage'
+import { normalizeCostumeColors } from './costume-normalize'
+import { silhouetteLabel } from './silhouette'
+import { suitBreastingLabel, suitLapelLabel, suitStyleLabel } from './suit-attributes'
+import { normalizePattern } from './theme-colors'
 
-export interface CostumeSearchFilters {
-  searchText?: string;
-  colors?: string[];
-  tones?: string[];
-  patterns?: string[];
-  tags?: string[];
-  seasons?: string[];
+export const COLOR_LABELS: Record<string, string> = {
+  red: '赤',
+  pink: 'ピンク',
+  purple: '紫',
+  blue: '青',
+  cyan: '水色',
+  green: '緑',
+  yellow: '黄色',
+  orange: 'オレンジ',
+  brown: '茶色',
+  gray: 'グレー',
+  white: '白',
+  black: '黒',
+  beige: 'ベージュ',
+  navy: 'ネイビー',
 }
 
-export interface SearchResult {
-  id: string;
-  name: string;
-  matchScore: number;
-  matchReasons: string[];
+export const TONE_LABELS: Record<string, string> = {
+  pastel: 'パステル',
+  vivid: '鮮やか',
+  dark: '濃い',
+  neutral: '落ち着いた',
+  warm: '暖色',
+  cool: '寒色',
 }
 
-/**
- * Search costumes by text and filters
- */
-export function searchCostumes(
-  costumes: any[],
-  filters: CostumeSearchFilters
-): SearchResult[] {
-  return costumes
-    .map((costume) => {
-      const matchReasons: string[] = [];
-      let matchScore = 0;
+export const PATTERN_LABELS: Record<string, string> = {
+  plain: '無地',
+  solid: '無地',
+  floral: '花柄',
+  stripe: 'ストライプ',
+  striped: 'ストライプ',
+  dot: 'ドット',
+  check: 'チェック',
+  geometric: '幾何学模様',
+  animal: 'アニマル柄',
+  other: 'その他',
+}
 
-      // Text search (name, description)
-      if (filters.searchText) {
-        const searchLower = filters.searchText.toLowerCase();
-        const nameLower = costume.name?.toLowerCase() || '';
-        const descLower = costume.description?.toLowerCase() || '';
+export const SEASON_LABELS: Record<string, string> = {
+  spring: '春',
+  summer: '夏',
+  autumn: '秋',
+  fall: '秋',
+  winter: '冬',
+}
 
-        if (nameLower.includes(searchLower)) {
-          matchScore += 50;
-          matchReasons.push(`名前に「${filters.searchText}」を含む`);
-        }
-        if (descLower.includes(searchLower)) {
-          matchScore += 25;
-          matchReasons.push(`説明に「${filters.searchText}」を含む`);
-        }
-      }
+export const COSTUME_TYPE_LABELS: Record<string, string> = {
+  dress: 'ドレス',
+  suit: 'スーツ',
+  shirt: 'シャツ',
+  necktie: 'ネクタイ',
+  bowtie: '蝶ネクタイ',
+  accessory: '小物',
+  other: 'その他',
+}
 
-      // Color filter
-      if (filters.colors && filters.colors.length > 0) {
-        const costumeColors = costume.colors || [];
-        const colorMatches = costumeColors.filter((c: string) =>
-          filters.colors!.includes(c)
-        );
+export interface CostumeSearchResult {
+  costume: Costume
+  score: number
+  matchedLabels: string[]
+}
 
-        if (colorMatches.length > 0) {
-          matchScore += colorMatches.length * 20;
-          matchReasons.push(
-            `色が一致: ${colorMatches.join(', ')}`
-          );
-        }
-      }
+const QUERY_FILLER_WORDS = [
+  '衣装',
+  '服',
+  'どんなの',
+  'どんなもの',
+  '持ってたっけ',
+  '持っていたっけ',
+  '持ってる',
+  '持っている',
+  '探したい',
+  '探す',
+  '検索',
+  'みたい',
+  'もの',
+  'やつ',
+  'の',
+]
 
-      // Tone filter
-      if (filters.tones && filters.tones.length > 0) {
-        const costumeTones = costume.tones || [];
-        const toneMatches = costumeTones.filter((t: string) =>
-          filters.tones!.includes(t)
-        );
+const QUERY_ALIASES: Record<string, string[]> = {
+  青系: ['青', 'ブルー', '水色', 'ネイビー'],
+  赤系: ['赤', 'ピンク', 'ワイン', 'ボルドー'],
+  黄系: ['黄色', 'イエロー', '金'],
+  緑系: ['緑', 'グリーン'],
+  紫系: ['紫', 'パープル'],
+  黒系: ['黒', 'ブラック'],
+  白系: ['白', 'ホワイト'],
+  茶系: ['茶色', 'ブラウン', 'ベージュ'],
+  花: ['花柄', 'フローラル'],
+  フローラル: ['花柄', 'フローラル'],
+  ボーダー: ['ストライプ', '縞'],
+  縞: ['ストライプ', '縞'],
+  落ち着いた: ['落ち着いた', 'neutral', 'くすみ', '控えめ'],
+  派手: ['鮮やか', 'vivid', '華やか'],
+  鮮やか: ['鮮やか', 'vivid', '華やか'],
+}
 
-        if (toneMatches.length > 0) {
-          matchScore += toneMatches.length * 15;
-          matchReasons.push(
-            `トーンが一致: ${toneMatches.join(', ')}`
-          );
-        }
-      }
+function labelFor(labels: Record<string, string>, value?: string): string {
+  if (!value) return ''
+  return labels[value.toLowerCase()] ?? value
+}
 
-      // Pattern filter
-      if (filters.patterns && filters.patterns.length > 0) {
-        const pattern = costume.pattern;
-        if (pattern && filters.patterns.includes(pattern)) {
-          matchScore += 15;
-          matchReasons.push(`柄が一致: ${pattern}`);
-        }
-      }
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[、。,.!?！？「」『』（）()[\]【】]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
-      // Tag filter
-      if (filters.tags && filters.tags.length > 0) {
-        const costumeTags = costume.tags || [];
-        const tagMatches = costumeTags.filter((tag: string) =>
-          filters.tags!.includes(tag)
-        );
+function stripFillers(query: string): string {
+  let text = query
+  for (const filler of QUERY_FILLER_WORDS) {
+    text = text.replaceAll(filler, ' ')
+  }
+  return text
+}
 
-        if (tagMatches.length > 0) {
-          matchScore += tagMatches.length * 10;
-          matchReasons.push(
-            `タグが一致: ${tagMatches.join(', ')}`
-          );
-        }
-      }
+export function queryTokens(query: string): string[][] {
+  const normalized = normalizeText(query)
+  if (!normalized) return []
 
-      // Season filter
-      if (filters.seasons && filters.seasons.length > 0) {
-        const season = costume.season;
-        if (season && filters.seasons.includes(season)) {
-          matchScore += 10;
-          matchReasons.push(`季節が一致: ${season}`);
-        }
-      }
+  const compact = stripFillers(normalized).replace(/\s+/g, ' ').trim()
+  const rawTokens = compact ? compact.split(' ') : [normalized]
 
-      return {
-        id: costume.id,
-        name: costume.name,
-        matchScore,
-        matchReasons,
-      };
+  return rawTokens
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map((token) => {
+      const aliases = QUERY_ALIASES[token] ?? []
+      const suffixless = token.endsWith('系') ? token.slice(0, -1) : token
+      return Array.from(new Set([token, suffixless, ...aliases].map(normalizeText).filter(Boolean)))
     })
-    .filter((result) => result.matchScore > 0)
-    .sort((a, b) => b.matchScore - a.matchScore);
 }
 
-/**
- * Filter costumes by single criterion
- */
-export function filterCostumes(
-  costumes: any[],
-  criterion: keyof CostumeSearchFilters,
-  values: string[]
-): any[] {
-  if (!values || values.length === 0) {
-    return costumes;
+export function costumeSearchLabels(costume: Costume): string[] {
+  const labels = [
+    costume.name,
+    labelFor(COSTUME_TYPE_LABELS, costume.type),
+    labelFor(TONE_LABELS, costume.tone),
+    labelFor(PATTERN_LABELS, normalizePattern(costume.pattern)),
+    costume.silhouette ? silhouetteLabel(costume.silhouette) : '',
+    costume.suitStyle ? suitStyleLabel(costume.suitStyle) : '',
+    costume.suitBreasting ? suitBreastingLabel(costume.suitBreasting) : '',
+    costume.suitLapel ? suitLapelLabel(costume.suitLapel) : '',
+    ...(Array.isArray(costume.season) ? costume.season.map((s) => labelFor(SEASON_LABELS, s)) : []),
+    ...normalizeCostumeColors(costume.colors).flatMap((color) => [
+      color,
+      labelFor(COLOR_LABELS, color),
+    ]),
+  ]
+
+  return Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean)))
+}
+
+function scoreCostume(costume: Costume, tokenGroups: string[][]): CostumeSearchResult | null {
+  const labels = costumeSearchLabels(costume)
+  const searchable = normalizeText(labels.join(' '))
+  const matchedLabels: string[] = []
+  let score = 0
+
+  for (const group of tokenGroups) {
+    const matchedToken = group.find((token) => searchable.includes(token))
+    if (!matchedToken) return null
+
+    const label =
+      labels.find((candidate) => normalizeText(candidate) === matchedToken) ??
+      labels.find((candidate) => normalizeText(candidate).includes(matchedToken)) ??
+      matchedToken
+    matchedLabels.push(label)
+    score += label === costume.name ? 30 : 15
   }
 
-  return costumes.filter((costume) => {
-    switch (criterion) {
-      case 'colors':
-        const costumeColors = costume.colors || [];
-        return costumeColors.some((c: string) => values.includes(c));
-
-      case 'tones':
-        const costumeTones = costume.tones || [];
-        return costumeTones.some((t: string) => values.includes(t));
-
-      case 'patterns':
-        return values.includes(costume.pattern);
-
-      case 'tags':
-        const costumeTags = costume.tags || [];
-        return costumeTags.some((tag: string) => values.includes(tag));
-
-      case 'seasons':
-        return values.includes(costume.season);
-
-      default:
-        return true;
-    }
-  });
-}
-
-/**
- * Get available filter options
- */
-export function getAvailableFilterOptions(costumes: any[]) {
-  const options = {
-    colors: new Set<string>(),
-    tones: new Set<string>(),
-    patterns: new Set<string>(),
-    tags: new Set<string>(),
-    seasons: new Set<string>(),
-  };
-
-  costumes.forEach((costume) => {
-    (costume.colors || []).forEach((c: string) => options.colors.add(c));
-    (costume.tones || []).forEach((t: string) => options.tones.add(t));
-    if (costume.pattern) options.patterns.add(costume.pattern);
-    (costume.tags || []).forEach((tag: string) => options.tags.add(tag));
-    if (costume.season) options.seasons.add(costume.season);
-  });
-
   return {
-    colors: Array.from(options.colors),
-    tones: Array.from(options.tones),
-    patterns: Array.from(options.patterns),
-    tags: Array.from(options.tags),
-    seasons: Array.from(options.seasons),
-  };
+    costume,
+    score,
+    matchedLabels: Array.from(new Set(matchedLabels)),
+  }
 }
 
-/**
- * Get color category label
- */
-export function getColorCategoryLabel(color: string): string {
-  const colorLabels: Record<string, string> = {
-    red: '赤',
-    orange: 'オレンジ',
-    yellow: '黄色',
-    green: '緑',
-    blue: '青',
-    purple: '紫',
-    pink: 'ピンク',
-    white: '白',
-    black: '黒',
-    gray: 'グレー',
-    brown: '茶色',
-    beige: 'ベージュ',
-    navy: 'ネイビー',
-  };
+export function searchWardrobeCostumes(costumes: Costume[], query: string): CostumeSearchResult[] {
+  const tokens = queryTokens(query)
+  if (tokens.length === 0) {
+    return costumes.map((costume) => ({ costume, score: 0, matchedLabels: [] }))
+  }
 
-  return colorLabels[color.toLowerCase()] || color;
-}
-
-/**
- * Get tone label
- */
-export function getToneLabel(tone: string): string {
-  const toneLabels: Record<string, string> = {
-    pastel: 'パステル',
-    vivid: 'ビビッド',
-    dark: 'ダーク',
-    light: 'ライト',
-    muted: 'ミュート',
-    bright: 'ブライト',
-  };
-
-  return toneLabels[tone.toLowerCase()] || tone;
-}
-
-/**
- * Get pattern label
- */
-export function getPatternLabel(pattern: string): string {
-  const patternLabels: Record<string, string> = {
-    solid: '無地',
-    floral: '花柄',
-    stripe: 'ストライプ',
-    dot: 'ドット',
-    check: 'チェック',
-    geometric: '幾何学模様',
-    animal: 'アニマル柄',
-    other: 'その他',
-  };
-
-  return patternLabels[pattern.toLowerCase()] || pattern;
-}
-
-/**
- * Get season label
- */
-export function getSeasonLabel(season: string): string {
-  const seasonLabels: Record<string, string> = {
-    spring: '春',
-    summer: '夏',
-    autumn: '秋',
-    winter: '冬',
-    all: 'オールシーズン',
-  };
-
-  return seasonLabels[season.toLowerCase()] || season;
+  return costumes
+    .map((costume) => scoreCostume(costume, tokens))
+    .filter((result): result is CostumeSearchResult => result !== null)
+    .sort((a, b) => b.score - a.score || b.costume.updatedAt - a.costume.updatedAt)
 }

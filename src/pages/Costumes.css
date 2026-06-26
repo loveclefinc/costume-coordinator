@@ -47,11 +47,13 @@
 
 .search-box {
   margin-bottom: 2rem;
+  display: grid;
+  gap: 0.75rem;
 }
 
 .search-input {
   width: 100%;
-  max-width: 400px;
+  max-width: 680px;
   padding: 10px 16px;
   border: 2px solid var(--border);
   border-radius: 8px;
@@ -63,6 +65,37 @@
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.quick-searches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quick-search-chip,
+.quick-search-clear {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quick-search-chip.active,
+.quick-search-chip:hover,
+.quick-search-clear:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+.search-result-count {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
 }
 
 .empty-state {
@@ -86,6 +119,11 @@
   text-decoration: none;
   font-weight: 600;
   transition: all 0.2s;
+}
+
+.cta-link-button {
+  border: 0;
+  cursor: pointer;
 }
 
 .cta-link:hover {
@@ -131,6 +169,25 @@
 .costume-info h3 {
   margin: 0 0 0.75rem 0;
   font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.matched-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: -0.25rem 0 0.75rem;
+}
+
+.matched-label {
+  display: inline-block;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .costume-details {
@@ -170,7 +227,8 @@
 
 .tone-tag,
 .pattern-tag,
-.season-tag {
+.season-tag,
+.type-tag {
   display: inline-block;
   background-color: var(--primary);
   color: white;
@@ -183,6 +241,23 @@
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+.searchable-attributes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.25rem;
+}
+
+.searchable-attributes span {
+  display: inline-block;
+  background: var(--background);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.76rem;
 }
 
 .costume-actions {

@@ -1,184 +1,104 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, it } from 'vitest'
+import type { Costume } from '../src/utils/storage'
+import {
+  costumeSearchLabels,
+  queryTokens,
+  searchWardrobeCostumes,
+} from '../src/utils/costume-search'
 
-/**
- * Test suite for costume search and filter feature
- * Tests color, pattern, and tone filtering capabilities
- */
-
-interface CostumeData {
-  id: string;
-  name: string;
-  colorCategory: "warm" | "cool" | "neutral";
-  tone: "pastel" | "vivid" | "dark" | "neutral";
-  pattern: string;
+function costume(overrides: Partial<Costume>): Costume {
+  return {
+    id: overrides.id ?? 'c1',
+    name: overrides.name ?? '衣装',
+    image: '',
+    colors: overrides.colors ?? [],
+    tone: overrides.tone ?? 'neutral',
+    pattern: overrides.pattern ?? 'plain',
+    season: overrides.season ?? [],
+    type: overrides.type,
+    silhouette: overrides.silhouette,
+    suitStyle: overrides.suitStyle,
+    suitBreasting: overrides.suitBreasting,
+    suitLapel: overrides.suitLapel,
+    createdAt: overrides.createdAt ?? 1,
+    updatedAt: overrides.updatedAt ?? 1,
+  }
 }
 
-describe("Costume Search and Filter", () => {
-  let costumes: CostumeData[];
+describe('Costume wardrobe search', () => {
+  const wardrobe = [
+    costume({
+      id: 'floral-blue',
+      name: '青い花柄ドレス',
+      colors: ['blue'],
+      tone: 'pastel',
+      pattern: 'floral',
+      season: ['spring'],
+      type: 'dress',
+      silhouette: 'a_line',
+      updatedAt: 10,
+    }),
+    costume({
+      id: 'black-tuxedo',
+      name: '黒タキシード',
+      colors: ['black'],
+      tone: 'dark',
+      pattern: 'plain',
+      type: 'suit',
+      suitStyle: 'tuxedo',
+      suitLapel: 'shawl',
+      updatedAt: 20,
+    }),
+    costume({
+      id: 'red-dress',
+      name: '赤い無地ドレス',
+      colors: ['red'],
+      tone: 'vivid',
+      pattern: 'plain',
+      type: 'dress',
+      silhouette: 'princess',
+      updatedAt: 30,
+    }),
+  ]
 
-  beforeEach(() => {
-    costumes = [
-      {
-        id: "1",
-        name: "ピンクのドレス",
-        colorCategory: "warm",
-        tone: "vivid",
-        pattern: "solid",
-      },
-      {
-        id: "2",
-        name: "紫のスーツ",
-        colorCategory: "cool",
-        tone: "vivid",
-        pattern: "solid",
-      },
-      {
-        id: "3",
-        name: "黒のタキシード",
-        colorCategory: "neutral",
-        tone: "dark",
-        pattern: "solid",
-      },
-      {
-        id: "4",
-        name: "花柄ドレス",
-        colorCategory: "warm",
-        tone: "pastel",
-        pattern: "floral",
-      },
-      {
-        id: "5",
-        name: "ストライプシャツ",
-        colorCategory: "cool",
-        tone: "neutral",
-        pattern: "stripe",
-      },
-    ];
-  });
+  it('keeps filler words from blocking natural Japanese search', () => {
+    const results = searchWardrobeCostumes(wardrobe, '花柄の衣装どんなの持ってたっけ？')
+    expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
+    expect(results[0].matchedLabels).toContain('花柄')
+  })
 
-  it("should filter by color category - warm", () => {
-    const filtered = costumes.filter((c) => c.colorCategory === "warm");
-    expect(filtered.length).toBe(2);
-    expect(filtered.map((c) => c.id)).toEqual(["1", "4"]);
-  });
+  it('searches by color family aliases such as 青系', () => {
+    const results = searchWardrobeCostumes(wardrobe, '青系')
+    expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
+  })
 
-  it("should filter by color category - cool", () => {
-    const filtered = costumes.filter((c) => c.colorCategory === "cool");
-    expect(filtered.length).toBe(2);
-    expect(filtered.map((c) => c.id)).toEqual(["2", "5"]);
-  });
+  it('searches tone, type, silhouette, and suit attributes as Japanese labels', () => {
+    expect(searchWardrobeCostumes(wardrobe, '落ち着いた').map((r) => r.costume.id)).toEqual([])
+    expect(searchWardrobeCostumes(wardrobe, 'Aライン').map((r) => r.costume.id)).toEqual(['floral-blue'])
+    expect(searchWardrobeCostumes(wardrobe, 'タキシード ショールカラー').map((r) => r.costume.id)).toEqual(['black-tuxedo'])
+  })
 
-  it("should filter by color category - neutral", () => {
-    const filtered = costumes.filter((c) => c.colorCategory === "neutral");
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("3");
-  });
+  it('requires all meaningful query terms to match the same costume', () => {
+    const results = searchWardrobeCostumes(wardrobe, '青 花柄')
+    expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
+  })
 
-  it("should filter by tone - vivid", () => {
-    const filtered = costumes.filter((c) => c.tone === "vivid");
-    expect(filtered.length).toBe(2);
-    expect(filtered.map((c) => c.id)).toEqual(["1", "2"]);
-  });
+  it('returns all costumes when the query is empty', () => {
+    expect(searchWardrobeCostumes(wardrobe, '').map((result) => result.costume.id)).toEqual([
+      'floral-blue',
+      'black-tuxedo',
+      'red-dress',
+    ])
+  })
 
-  it("should filter by tone - pastel", () => {
-    const filtered = costumes.filter((c) => c.tone === "pastel");
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("4");
-  });
+  it('builds searchable Japanese labels from registered attributes', () => {
+    const labels = costumeSearchLabels(wardrobe[0])
+    expect(labels).toEqual(expect.arrayContaining(['青い花柄ドレス', '青', '花柄', 'ドレス', '春', 'Aライン']))
+  })
 
-  it("should filter by tone - dark", () => {
-    const filtered = costumes.filter((c) => c.tone === "dark");
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("3");
-  });
-
-  it("should filter by pattern - solid", () => {
-    const filtered = costumes.filter((c) => c.pattern === "solid");
-    expect(filtered.length).toBe(3);
-    expect(filtered.map((c) => c.id)).toEqual(["1", "2", "3"]);
-  });
-
-  it("should filter by pattern - floral", () => {
-    const filtered = costumes.filter((c) => c.pattern === "floral");
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("4");
-  });
-
-  it("should filter by pattern - stripe", () => {
-    const filtered = costumes.filter((c) => c.pattern === "stripe");
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("5");
-  });
-
-  it("should apply multiple filters - warm and vivid", () => {
-    const filtered = costumes.filter(
-      (c) => c.colorCategory === "warm" && c.tone === "vivid"
-    );
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("1");
-  });
-
-  it("should apply multiple filters - cool and solid", () => {
-    const filtered = costumes.filter(
-      (c) => c.colorCategory === "cool" && c.pattern === "solid"
-    );
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("2");
-  });
-
-  it("should search by name - exact match", () => {
-    const query = "ピンク";
-    const filtered = costumes.filter((c) =>
-      c.name.toLowerCase().includes(query.toLowerCase())
-    );
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("1");
-  });
-
-  it("should search by name - partial match", () => {
-    const query = "ドレス";
-    const filtered = costumes.filter((c) =>
-      c.name.toLowerCase().includes(query.toLowerCase())
-    );
-    expect(filtered.length).toBe(2);
-    expect(filtered.map((c) => c.id)).toEqual(["1", "4"]);
-  });
-
-  it("should search by name - case insensitive", () => {
-    const query = "PURPLE";
-    const filtered = costumes.filter((c) =>
-      c.name.toLowerCase().includes(query.toLowerCase())
-    );
-    expect(filtered.length).toBe(0);
-  });
-
-  it("should apply all filters together", () => {
-    const colorFilter = "warm";
-    const toneFilter = "vivid";
-    const patternFilter = "solid";
-    const searchQuery = "ピンク";
-
-    const filtered = costumes.filter(
-      (c) =>
-        c.colorCategory === colorFilter &&
-        c.tone === toneFilter &&
-        c.pattern === patternFilter &&
-        c.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe("1");
-  });
-
-  it("should return all costumes when no filters applied", () => {
-    const filtered = costumes.filter(() => true);
-    expect(filtered.length).toBe(5);
-  });
-
-  it("should return empty array when no matches found", () => {
-    const filtered = costumes.filter(
-      (c) => c.colorCategory === "warm" && c.tone === "dark"
-    );
-    expect(filtered.length).toBe(0);
-  });
-});
+  it('normalizes casual query tokens', () => {
+    expect(queryTokens('青系の衣装')).toEqual([
+      expect.arrayContaining(['青系', '青', 'ブルー', '水色', 'ネイビー']),
+    ])
+  })
+})
