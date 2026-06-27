@@ -905,8 +905,9 @@ export default function Events() {
 
                 <div className="preference-wizard-steps" aria-label="設定の進捗">
                   {([1, 2, 3] as const).map(step => (
-                    <span
+                    <button
                       key={step}
+                      type="button"
                       className={[
                         'preference-wizard-step',
                         preferenceWizardDone || preferenceRankStep > step ? 'done' : '',
@@ -914,9 +915,14 @@ export default function Events() {
                       ]
                         .filter(Boolean)
                         .join(' ')}
+                      onClick={() => {
+                        setPreferenceRankStep(step)
+                        setPreferenceWizardDone(false)
+                      }}
+                      aria-current={!preferenceWizardDone && preferenceRankStep === step ? 'step' : undefined}
                     >
                       第{step}希望
-                    </span>
+                    </button>
                   ))}
                 </div>
 

@@ -395,6 +395,21 @@
   background-color: var(--surface);
   color: var(--text-secondary);
   border: 2px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+}
+
+.preference-wizard-step:hover,
+.preference-wizard-step:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: rgba(var(--primary-rgb), 0.06);
+}
+
+.preference-wizard-step:focus-visible {
+  outline: 3px solid rgba(var(--primary-rgb), 0.18);
+  outline-offset: 2px;
 }
 
 .preference-wizard-step.active {
