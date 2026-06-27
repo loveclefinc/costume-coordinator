@@ -263,12 +263,13 @@
 .costume-actions {
   display: flex;
   gap: 0.5rem;
-  padding-top: 1rem;
+  padding: 1rem;
   border-top: 1px solid var(--border);
 }
 
 .action-button {
   flex: 1;
+  box-sizing: border-box;
   padding: 8px 12px;
   border: none;
   border-radius: 6px;

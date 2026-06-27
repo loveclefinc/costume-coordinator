@@ -105,8 +105,39 @@ const TONE_LABELS: Record<string, string> = {
   'neutral': 'ニュートラル'
 }
 
+const COLOR_LABELS: Record<string, string> = {
+  red: '赤',
+  pink: 'ピンク',
+  purple: '紫',
+  blue: '青',
+  cyan: '水色',
+  green: '緑',
+  yellow: '黄色',
+  orange: 'オレンジ',
+  brown: '茶色',
+  gray: 'グレー',
+  white: '白',
+  black: '黒',
+}
+
+const PATTERN_LABELS: Record<string, string> = {
+  plain: '無地',
+  solid: '無地',
+  floral: '花柄',
+  stripe: 'ストライプ',
+  striped: 'ストライプ',
+  dot: 'ドット',
+  check: 'チェック',
+  geometric: '幾何学模様',
+  animal: 'アニマル柄',
+}
+
 const translateTones = (tones: string[]): string => {
   return tones.map(tone => TONE_LABELS[tone] || tone).join(', ')
+}
+
+const translatePatterns = (patterns: string[]): string => {
+  return patterns.map(pattern => PATTERN_LABELS[pattern] || pattern).join(', ')
 }
 
 const translateSilhouettes = (silhouettes: string[]): string => {
@@ -1484,7 +1515,7 @@ export default function EventDetail() {
                         <span className="preference-rank">第1希望:</span>
                         <div className="color-display">
                           {event.themePreferences.colors1stChoice.map(color => (
-                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{COLOR_LABELS[color] || color}</span>
                           ))}
                         </div>
                       </div>
@@ -1494,7 +1525,7 @@ export default function EventDetail() {
                         <span className="preference-rank">第2希望:</span>
                         <div className="color-display">
                           {event.themePreferences.colors2ndChoice.map(color => (
-                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{COLOR_LABELS[color] || color}</span>
                           ))}
                         </div>
                       </div>
@@ -1504,7 +1535,7 @@ export default function EventDetail() {
                         <span className="preference-rank">第3希望:</span>
                         <div className="color-display">
                           {event.themePreferences.colors3rdChoice.map(color => (
-                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{color}</span>
+                            <span key={color} className="color-tag" style={{ backgroundColor: color }}>{COLOR_LABELS[color] || color}</span>
                           ))}
                         </div>
                       </div>
@@ -1544,19 +1575,19 @@ export default function EventDetail() {
                     {event.themePreferences.patterns1stChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第1希望:</span>
-                        <span className="pattern-tags">{event.themePreferences.patterns1stChoice.join(', ')}</span>
+                        <span className="pattern-tags">{translatePatterns(event.themePreferences.patterns1stChoice)}</span>
                       </div>
                     )}
                     {event.themePreferences.patterns2ndChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第2希望:</span>
-                        <span className="pattern-tags">{event.themePreferences.patterns2ndChoice.join(', ')}</span>
+                        <span className="pattern-tags">{translatePatterns(event.themePreferences.patterns2ndChoice)}</span>
                       </div>
                     )}
                     {event.themePreferences.patterns3rdChoice.length > 0 && (
                       <div className="preference-item">
                         <span className="preference-rank">第3希望:</span>
-                        <span className="pattern-tags">{event.themePreferences.patterns3rdChoice.join(', ')}</span>
+                        <span className="pattern-tags">{translatePatterns(event.themePreferences.patterns3rdChoice)}</span>
                       </div>
                     )}
                   </div>

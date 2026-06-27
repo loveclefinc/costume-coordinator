@@ -605,9 +605,9 @@
 
 .event-theme-summary {
   background-color: var(--background);
-  border-left: 4px solid var(--primary);
+  border: 1px solid var(--border);
   padding: 0.75rem 1rem;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 1rem;
 }
 
@@ -620,14 +620,17 @@
 
 .event-theme-summary .theme-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
 .event-theme-summary .theme-info span {
-  text-transform: capitalize;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 /* Mobile adjustments */

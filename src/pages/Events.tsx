@@ -57,6 +57,20 @@ const COLOR_OPTIONS = [
   'red', 'pink', 'purple', 'blue', 'cyan', 'green',
   'yellow', 'orange', 'brown', 'gray', 'white', 'black'
 ]
+const COLOR_LABELS: Record<string, string> = {
+  red: '赤',
+  pink: 'ピンク',
+  purple: '紫',
+  blue: '青',
+  cyan: '水色',
+  green: '緑',
+  yellow: '黄色',
+  orange: 'オレンジ',
+  brown: '茶色',
+  gray: 'グレー',
+  white: '白',
+  black: '黒',
+}
 
 // Tone options
 const TONE_OPTIONS = ['pastel', 'vivid', 'dark', 'neutral']
@@ -77,6 +91,10 @@ const PATTERN_LABELS: Record<string, string> = {
   check: 'チェック',
   geometric: '幾何学',
   animal: 'アニマル',
+}
+
+function labelValues(values: string[], labels: Record<string, string>): string {
+  return values.map((value) => labels[value] ?? value).join('、')
 }
 
 type PreferencePriority = '1st' | '2nd' | '3rd'
@@ -651,9 +669,9 @@ export default function Events() {
             <div key={priority} className="preference-summary-row">
               <strong>{label}</strong>
               <span>
-                {colors.length > 0 && `色: ${colors.join(', ')}`}
-                {tones.length > 0 && `${prefixParts[0] ? ' / ' : ''}トーン: ${tones.map(t => TONE_LABELS[t] ?? t).join(', ')}`}
-                {patterns.length > 0 && `${(prefixParts[0] || prefixParts[1]) ? ' / ' : ''}柄: ${patterns.map(p => PATTERN_LABELS[p] ?? p).join(', ')}`}
+                {colors.length > 0 && `色: ${labelValues(colors, COLOR_LABELS)}`}
+                {tones.length > 0 && `${prefixParts[0] ? ' / ' : ''}トーン: ${labelValues(tones, TONE_LABELS)}`}
+                {patterns.length > 0 && `${(prefixParts[0] || prefixParts[1]) ? ' / ' : ''}柄: ${labelValues(patterns, PATTERN_LABELS)}`}
                 {silhouettes.length > 0 && `${(prefixParts[0] || prefixParts[1] || prefixParts[2]) ? ' / ' : ''}シルエット: ${silhouettes.map(s => SILHOUETTE_LABELS[s as keyof typeof SILHOUETTE_LABELS] ?? s).join(', ')}`}
                 {suitStyles.length > 0 && `${(colors.length + tones.length + patterns.length + silhouettes.length) > 0 ? ' / ' : ''}スーツ形式: ${suitStyles.map(s => SUIT_STYLE_LABELS[s as keyof typeof SUIT_STYLE_LABELS] ?? s).join(', ')}`}
                 {suitBreasting.length > 0 && `${(colors.length + tones.length + patterns.length + silhouettes.length + suitStyles.length) > 0 ? ' / ' : ''}前釦: ${suitBreasting.map(p => SUIT_BREASTING_LABELS[p as keyof typeof SUIT_BREASTING_LABELS] ?? p).join(', ')}`}
@@ -1088,13 +1106,13 @@ export default function Events() {
                   <p className="theme-label">テーマ設定:</p>
                   <div className="theme-info">
                     {event.themePreferences.colors1stChoice.length > 0 && (
-                      <span>色: {event.themePreferences.colors1stChoice.join(', ')}</span>
+                      <span>第1希望 色: {labelValues(event.themePreferences.colors1stChoice, COLOR_LABELS)}</span>
                     )}
                     {event.themePreferences.tones1stChoice.length > 0 && (
-                      <span>トーン: {event.themePreferences.tones1stChoice.join(', ')}</span>
+                      <span>第1希望 トーン: {labelValues(event.themePreferences.tones1stChoice, TONE_LABELS)}</span>
                     )}
                     {event.themePreferences.patterns1stChoice.length > 0 && (
-                      <span>柄: {event.themePreferences.patterns1stChoice.join(', ')}</span>
+                      <span>第1希望 柄: {labelValues(event.themePreferences.patterns1stChoice, PATTERN_LABELS)}</span>
                     )}
                   </div>
                 </div>

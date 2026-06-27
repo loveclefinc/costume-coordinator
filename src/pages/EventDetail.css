@@ -1160,7 +1160,7 @@
   background-color: var(--background);
   border-radius: 8px;
   padding: 1rem;
-  border-left: 4px solid var(--primary);
+  border: 1px solid var(--border);
 }
 
 .preference-display h4 {
@@ -1205,6 +1205,8 @@
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .tone-tags,
@@ -1216,7 +1218,9 @@
   font-size: 0.9rem;
   color: var(--text);
   border: 1px solid var(--border);
-  text-transform: capitalize;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .setting-tag {
