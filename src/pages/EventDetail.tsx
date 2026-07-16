@@ -71,6 +71,7 @@ import {
   getRecentUsageExcludeDays,
 } from '../utils/app-settings'
 import { arrangeAssignmentsForStage } from '../utils/assignment-display-order'
+import { buildAssignmentReasonMap, compactAssignmentReasons } from '../utils/assignment-reasons'
 import {
   activeServerParticipants,
   areActiveSubmissionsComplete,
@@ -237,7 +238,7 @@ export default function EventDetail() {
           eventData = await updateEvent(id, { participants: ['代表者'] })
         }
         if (eventData.hostedOnServer && hasInvalidImportedCostumeAssignments(eventData)) {
-          eventData = await updateEvent(id, { costumes: {}, confirmed: false })
+          eventData = await updateEvent(id, { costumes: {}, assignmentReasons: {}, confirmed: false })
         }
         setEvent(eventData)
         setParticipantPreferences(eventData.participantPreferences ?? {})
@@ -268,7 +269,11 @@ export default function EventDetail() {
 
         if (published.assignments.length === 0) {
           if (Object.keys(event.costumes ?? {}).length > 0 || event.confirmed) {
-            const reset = await updateEvent(event.id, { costumes: {}, confirmed: false })
+            const reset = await updateEvent(event.id, {
+              costumes: {},
+              assignmentReasons: {},
+              confirmed: false,
+            })
             if (!cancelled) setEvent(reset)
           }
           return
@@ -298,6 +303,12 @@ export default function EventDetail() {
         const costumes = Object.fromEntries(
           published.assignments.map(({ participantName, costume }) => [participantName, costume.id]),
         )
+        const assignmentReasons = buildAssignmentReasonMap(
+          published.assignments.map(({ participantName, reasons }) => ({
+            participantName,
+            reason: reasons,
+          })),
+        )
         const participants = Array.from(new Set([
           ...event.participants,
           ...published.assignments.map((assignment) => assignment.participantName),
@@ -306,6 +317,7 @@ export default function EventDetail() {
         const updated = await updateEvent(event.id, {
           participants,
           costumes,
+          assignmentReasons,
           importedCostumes,
           confirmed: true,
         })
@@ -340,19 +352,26 @@ export default function EventDetail() {
     if (!event?.id || !event.hostedOnServer || !hasEventAdminAccess(event.id)) return
     const assignments = Object.entries(event.costumes ?? {}) as Array<[string, string]>
     if (assignments.length === 0) return
-    const fingerprint = JSON.stringify([...assignments].sort(([a], [b]) => a.localeCompare(b)))
+    const publishedAssignments = assignments.map(([participantName, costumeId]) => ({
+      participantName,
+      costumeId,
+      reasons: compactAssignmentReasons(event.assignmentReasons?.[participantName]),
+    }))
+    const fingerprint = JSON.stringify(
+      [...publishedAssignments].sort((a, b) => a.participantName.localeCompare(b.participantName)),
+    )
     if (publishedResultFingerprintRef.current === fingerprint) return
     const adminToken = getEventSession(event.id)?.adminToken
     if (!adminToken) return
 
     publishedResultFingerprintRef.current = fingerprint
     void publishEventResults(event.id, adminToken, {
-      assignments: assignments.map(([participantName, costumeId]) => ({ participantName, costumeId })),
+      assignments: publishedAssignments,
     }).catch((publishError) => {
       publishedResultFingerprintRef.current = ''
       setError(publishError instanceof EventApiError ? publishError.message : '決定結果の公開に失敗しました')
     })
-  }, [event?.id, event?.hostedOnServer, event?.costumes])
+  }, [event?.id, event?.hostedOnServer, event?.costumes, event?.assignmentReasons])
 
   const handleAddParticipant = async () => {
     if (!newParticipant.trim() || !event) return
@@ -539,6 +558,12 @@ export default function EventDetail() {
     assignments.forEach((result) => {
       costumesMap[result.participantName] = result.costume.id
     })
+    const assignmentReasons = buildAssignmentReasonMap(assignments)
+    const publishedAssignments = assignments.map((result) => ({
+      participantName: result.participantName,
+      costumeId: result.costume.id,
+      reasons: compactAssignmentReasons(result.reason),
+    }))
 
     if (eventSnapshot.hostedOnServer) {
       const adminToken = getEventSession(eventSnapshot.id)?.adminToken
@@ -546,19 +571,17 @@ export default function EventDetail() {
         throw new Error('決定結果を公開する管理者トークンがありません')
       }
       await publishEventResults(eventSnapshot.id, adminToken, {
-        assignments: assignments.map((result) => ({
-          participantName: result.participantName,
-          costumeId: result.costume.id,
-        })),
+        assignments: publishedAssignments,
       })
       publishedResultFingerprintRef.current = JSON.stringify(
-        Object.entries(costumesMap).sort(([a], [b]) => a.localeCompare(b)),
+        [...publishedAssignments].sort((a, b) => a.participantName.localeCompare(b.participantName)),
       )
     }
 
     const updatedEvent = {
       ...eventSnapshot,
       costumes: costumesMap,
+      assignmentReasons,
       confirmed: true,
     }
 
@@ -1072,6 +1095,7 @@ export default function EventDetail() {
         if (freshEvent && (Object.keys(freshEvent.costumes ?? {}).length > 0 || freshEvent.confirmed)) {
           const resetEvent = await updateEvent(freshEvent.id, {
             costumes: {},
+            assignmentReasons: {},
             confirmed: false,
           })
           setEvent(resetEvent)
@@ -1140,7 +1164,10 @@ export default function EventDetail() {
       : null
   const stageArrangementMode = resolveStageArrangementMode(event.themePreferences)
   const displayAssignments = arrangeAssignmentsForStage(
-    buildClientReportAssignments(),
+    buildClientReportAssignments().map((assignment) => ({
+      ...assignment,
+      reasons: compactAssignmentReasons(event.assignmentReasons?.[assignment.participantName]),
+    })),
     stageArrangementMode,
   )
   const displayedOptimizationResults = arrangeAssignmentsForStage(
@@ -1237,6 +1264,14 @@ export default function EventDetail() {
                     )}
                   </div>
                   <span className="confirmed-costume-name">{assignment.costumeName}</span>
+                  <div className="confirmed-assignment-reasons">
+                    <span className="confirmed-assignment-reasons-label">選定理由</span>
+                    <ul>
+                      {assignment.reasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </article>
             ))}

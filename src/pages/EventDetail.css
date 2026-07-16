@@ -494,6 +494,32 @@
   word-break: break-word;
 }
 
+.confirmed-assignment-reasons {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.confirmed-assignment-card .confirmed-assignment-reasons-label {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.confirmed-assignment-reasons ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+  color: var(--text-secondary);
+}
+
+.confirmed-assignment-reasons li {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .confirmed-assignment-card span {
   margin-top: 0.2rem;
   color: var(--text-secondary);

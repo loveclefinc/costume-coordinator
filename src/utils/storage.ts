@@ -98,6 +98,10 @@ export interface Event {
   /** この番号以降を次の列として扱う複数の区切り位置 */
   stageRowBreakIndices?: number[]
   themePreferences?: EventThemePreferences // Optional for backward compatibility
+  /** システムによる衣装割当を確定済みか */
+  confirmed?: boolean
+  /** 参加者名ごとの、決定的最適化エンジンによる公開用選定理由 */
+  assignmentReasons?: Record<string, string[]>
   /** Cloudflare イベント API でホストしている場合 */
   hostedOnServer?: boolean
   serverExpiresAt?: number

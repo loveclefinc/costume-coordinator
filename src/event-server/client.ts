@@ -89,7 +89,8 @@ export async function fetchAdminSnapshot(
   adminToken: string,
 ): Promise<EventAdminSnapshot> {
   return apiFetch<EventAdminSnapshot>(
-    `/api/events/${encodeURIComponent(eventId)}/snapshot?admin=${encodeURIComponent(adminToken)}`,
+    `/api/events/${encodeURIComponent(eventId)}/snapshot`,
+    { adminToken },
   )
 }
 
@@ -205,7 +206,6 @@ export async function uploadServerPhoto(
     },
   )
 }
-
 export async function checkEventApiHealth(): Promise<boolean> {
   const base = getEventApiBaseUrl()
   if (!base) return false

@@ -122,12 +122,16 @@ export interface PublishEventResultsRequest {
   assignments: Array<{
     participantName: string
     costumeId: string
+    /** 決定的最適化エンジンが返した、公開用に整形済みの選定理由 */
+    reasons?: string[]
   }>
 }
 
 export interface PublishedEventAssignment {
   participantName: string
   costume: ServerCostume
+  /** Older published results may omit this field. */
+  reasons?: string[]
 }
 
 export interface PublishedEventResults {

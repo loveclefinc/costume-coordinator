@@ -42,6 +42,10 @@ docs/
 .env
 .env.*
 .env.example
+.dev.vars
+.dev.vars.*
+workers/event-api/.dev.vars
+workers/event-api/.dev.vars.*
 DESIGN_DOCUMENT.md
 architecture.md
 design.md

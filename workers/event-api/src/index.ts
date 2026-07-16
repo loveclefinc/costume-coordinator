@@ -23,6 +23,12 @@ import {
   formatBytes,
   type UploadLimits,
 } from '../../../shared/upload-limits'
+import {
+  PhotoUploadApiError,
+  normalizePhotoMimeType,
+  readBoundedPhotoRequest,
+  validateUploadedPhoto,
+} from './photo-upload-security'
 
 export interface Env {
   DB: D1Database
@@ -83,7 +89,28 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-06-20.1'
+const EVENT_API_VERSION = '2026-07-17.2'
+export const MAX_PUBLISHED_ASSIGNMENT_REASONS = 3
+export const MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH = 120
+
+/** Validate and bound untrusted public result reasons before storing or returning them. */
+export function sanitizePublishedAssignmentReasons(value: unknown): string[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return null
+
+  const reasons: string[] = []
+  const seen = new Set<string>()
+  for (const item of value as string[]) {
+    const normalized = item.trim().replace(/\s+/g, ' ')
+    if (!normalized) continue
+    const bounded = normalized.slice(0, MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH)
+    if (seen.has(bounded)) continue
+    seen.add(bounded)
+    reasons.push(bounded)
+    if (reasons.length >= MAX_PUBLISHED_ASSIGNMENT_REASONS) break
+  }
+  return reasons
+}
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -96,7 +123,11 @@ export default {
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
         return cors(
-          json({ ok: true, apiVersion: EVENT_API_VERSION, uploadLimits: parseUploadLimits(env) }),
+          json({
+            ok: true,
+            apiVersion: EVENT_API_VERSION,
+            uploadLimits: parseUploadLimits(env),
+          }),
           request,
           env,
         )
@@ -176,6 +207,9 @@ export default {
 
       return cors(json({ error: 'Not found' }, 404), request, env)
     } catch (e) {
+      if (e instanceof PhotoUploadApiError) {
+        return cors(json({ error: e.message, code: e.code }, e.status), request, env)
+      }
       const message = e instanceof Error ? e.message : 'Internal error'
       const status = errorStatus(message)
       return cors(json({ error: message }, status), request, env)
@@ -287,8 +321,16 @@ async function handlePublishResults(
   assertNotExpired(row.expires_at)
   await assertAdminToken(env, eventId, admin, row.admin_token)
 
-  const body = (await request.json()) as PublishEventResultsRequest
-  const assignments = Array.isArray(body.assignments) ? body.assignments : []
+  let body: PublishEventResultsRequest
+  try {
+    body = (await request.json()) as PublishEventResultsRequest
+  } catch {
+    return json({ error: '結果データが正しいJSONではありません' }, 400)
+  }
+  if (!body || typeof body !== 'object' || !Array.isArray(body.assignments)) {
+    return json({ error: 'assignments は配列で指定してください' }, 400)
+  }
+  const assignments = body.assignments
   const available = await env.DB.prepare(
     `SELECT c.id, p.display_name
      FROM costumes c
@@ -299,27 +341,40 @@ async function handlePublishResults(
     .all<{ id: string; display_name: string }>()
   const owners = new Map((available.results ?? []).map((item) => [item.id, item.display_name]))
   const participantNames = new Set<string>()
+  const sanitizedAssignments: Array<{
+    participantName: string
+    costumeId: string
+    reasons: string[]
+  }> = []
 
   for (const assignment of assignments) {
-    const participantName = assignment.participantName?.trim()
-    if (!participantName || !assignment.costumeId) {
+    if (!assignment || typeof assignment !== 'object') {
+      return json({ error: '結果の形式が正しくありません' }, 400)
+    }
+    const participantName =
+      typeof assignment.participantName === 'string' ? assignment.participantName.trim() : ''
+    const costumeId =
+      typeof assignment.costumeId === 'string' ? assignment.costumeId.trim() : ''
+    if (!participantName || !costumeId) {
       return json({ error: '参加者名と衣装IDは必須です' }, 400)
     }
     if (participantNames.has(participantName)) {
       return json({ error: '同じ参加者の結果が重複しています' }, 400)
     }
-    if (owners.get(assignment.costumeId) !== participantName) {
+    if (owners.get(costumeId) !== participantName) {
       return json({ error: '衣装の所有者が参加者と一致しません' }, 400)
     }
+    const reasons = sanitizePublishedAssignmentReasons(assignment.reasons)
+    if (reasons === null) {
+      return json({ error: '選定理由は文字列の配列で指定してください' }, 400)
+    }
     participantNames.add(participantName)
+    sanitizedAssignments.push({ participantName, costumeId, reasons })
   }
 
   const payload = {
     updatedAt: Date.now(),
-    assignments: assignments.map((assignment) => ({
-      participantName: assignment.participantName.trim(),
-      costumeId: assignment.costumeId,
-    })),
+    assignments: sanitizedAssignments,
   }
   await env.DB.prepare(`UPDATE events SET results_json = ? WHERE id = ?`)
     .bind(JSON.stringify(payload), eventId)
@@ -573,23 +628,12 @@ async function handleUploadPhoto(
     )
   }
 
-  const contentType = request.headers.get('Content-Type') ?? 'application/octet-stream'
-  if (!contentType.startsWith('image/')) {
-    return json({ error: '画像ファイルのみアップロードできます' }, 400)
-  }
-
-  const bytes = new Uint8Array(await request.arrayBuffer())
-  if (bytes.byteLength > limits.maxPhotoBytes) {
-    return json(
-      {
-        error: `1枚あたり最大 ${formatBytes(limits.maxPhotoBytes)} までです（現在 ${formatBytes(bytes.byteLength)}）`,
-      },
-      413,
-    )
-  }
-  if (bytes.byteLength === 0) {
-    return json({ error: '空のファイルです' }, 400)
-  }
+  const bytes = await readBoundedPhotoRequest(request, limits.maxPhotoBytes)
+  const contentType = validateUploadedPhoto(
+    request.headers.get('Content-Type'),
+    bytes,
+    limits.maxPhotoBytes,
+  )
 
   const used = await getEventStorageBytes(env, eventId)
   if (used + bytes.byteLength > limits.maxEventStorageBytes) {
@@ -677,8 +721,14 @@ async function handleMedia(photoId: string, url: URL, env: Env): Promise<Respons
   if (!obj) return json({ error: '画像がありません' }, 404)
 
   const headers = new Headers()
-  headers.set('Content-Type', photo.content_type)
-  headers.set('Cache-Control', 'private, max-age=3600')
+  // Legacy rows may predate the strict upload allow-list. Never serve an
+  // active image type such as SVG from stored metadata.
+  headers.set(
+    'Content-Type',
+    normalizePhotoMimeType(photo.content_type) ?? 'application/octet-stream',
+  )
+  headers.set('Cache-Control', 'private, no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
   return new Response(obj.body, { headers })
 }
 
@@ -794,7 +844,7 @@ async function buildPublishedResults(
 
   const stored = JSON.parse(row.results_json) as {
     updatedAt: number
-    assignments: Array<{ participantName: string; costumeId: string }>
+    assignments: Array<{ participantName: string; costumeId: string; reasons?: unknown }>
   }
   const snapshot = await buildAdminSnapshot(env, row, requestUrl)
   const costumes = new Map(snapshot.costumes.map((costume) => [costume.id, costume]))
@@ -804,7 +854,11 @@ async function buildPublishedResults(
     assignments: stored.assignments.flatMap((assignment) => {
       const costume = costumes.get(assignment.costumeId)
       if (!costume || costume.participantName !== assignment.participantName) return []
-      return [{ participantName: assignment.participantName, costume }]
+      return [{
+        participantName: assignment.participantName,
+        costume,
+        reasons: sanitizePublishedAssignmentReasons(assignment.reasons) ?? [],
+      }]
     }),
   }
 }
@@ -1164,7 +1218,7 @@ function cors(response: Response, request: Request, env: Env): Response {
   } else if (allowed.length === 1 && allowed[0]) {
     headers.set('Access-Control-Allow-Origin', allowed[0])
   }
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   headers.set(
     'Access-Control-Allow-Headers',
     'Content-Type, X-Participant-Token, X-Admin-Token',
