@@ -48,7 +48,25 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>4. 情報の保護</h2>
+          <h2>4. 写真解析とオンライン提出について</h2>
+          <p>
+            衣装写真から色・トーン・柄の入力候補を作る処理は、ユーザーのブラウザ内で行います。
+            この端末内解析のために写真を外部のAIサービスへ送信することはありません。
+            入力候補はユーザーが確認・修正でき、解析を使わず手入力することもできます。
+          </p>
+          <p>
+            ユーザーがオンライン提出を利用する場合、Cloudflare Workers が通信とアクセス確認を担い、
+            D1 にイベント・参加者・衣装属性などの構造化データ、R2 に提出写真を一時保管します。
+            データへのアクセスは、管理用または参加者用のトークン等を確認する Worker 経由に限定します。
+          </p>
+          <p>
+            オンライン提出データは、イベントの保存期限まで（作成から最大14日）一時保管し、
+            期限後は定期処理で D1 と R2 から削除します。管理者が期限前にイベントを削除した場合も対象データを削除します。
+          </p>
+        </section>
+
+        <section>
+          <h2>5. 情報の保護</h2>
           <p>
             本アプリは、ユーザーの情報を保護するため、以下の対策を実施しています：
           </p>
@@ -61,7 +79,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>5. 第三者との情報共有</h2>
+          <h2>6. 第三者との情報共有</h2>
           <p>
             本アプリは、以下の場合を除き、ユーザーの情報を第三者と共有しません：
           </p>
@@ -69,11 +87,12 @@ export default function PrivacyPolicy() {
             <li>ユーザーが明示的に同意した場合</li>
             <li>法律により要求された場合</li>
             <li>バックアップサービス（Dropbox、Google Drive）の提供のため</li>
+            <li>オンライン提出基盤（Cloudflare）の提供のため</li>
           </ul>
         </section>
 
         <section>
-          <h2>6. バックアップサービスについて</h2>
+          <h2>7. バックアップサービスについて</h2>
           <p>
             ユーザーがバックアップサービス（Dropbox または Google Drive）を有効にした場合、
             イベントと衣装データは選択されたサービスにバックアップされます。
@@ -82,7 +101,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>7. ユーザーの権利</h2>
+          <h2>8. ユーザーの権利</h2>
           <p>ユーザーは、以下の権利を有します：</p>
           <ul>
             <li>自分の個人情報へのアクセス権</li>
@@ -93,7 +112,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>8. クッキーとローカルストレージ</h2>
+          <h2>9. クッキーとローカルストレージ</h2>
           <p>
             本アプリは、ブラウザのローカルストレージを使用して、
             ユーザーの設定情報やセッション情報を保存します。
@@ -102,7 +121,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>9. ポリシーの変更</h2>
+          <h2>10. ポリシーの変更</h2>
           <p>
             本プライバシーポリシーは、予告なく変更される場合があります。
             変更があった場合、本アプリ内で通知します。
@@ -110,7 +129,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <section>
-          <h2>10. お問い合わせ</h2>
+          <h2>11. お問い合わせ</h2>
           <p>
             本プライバシーポリシーに関するご質問やご不明な点がある場合は、
             本アプリのお問い合わせフォームからご連絡ください。
@@ -118,7 +137,7 @@ export default function PrivacyPolicy() {
         </section>
 
         <div className="last-updated">
-          <p>最終更新日：2026年5月1日</p>
+          <p>最終更新日：2026年7月17日</p>
         </div>
         <PublicLegalFooter />
       </div>

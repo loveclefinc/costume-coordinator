@@ -92,7 +92,7 @@ export default function TermsOfService() {
           <p>
             本アプリは、Google Drive、Dropbox、Cloudflare など第三者のサービスと連携する場合があります。
             これらのサービスの利用には、各提供者の利用規約・プライバシーポリシーが適用されます。
-            連携の有無はユーザーの選択によります。
+            Cloudflare はオンライン提出を選んだ場合に利用し、その他の連携の有無はユーザーの選択によります。
           </p>
         </section>
 
@@ -155,7 +155,7 @@ export default function TermsOfService() {
         </section>
 
         <div className="last-updated">
-          <p>制定日：2026年6月9日</p>
+          <p>制定日：2026年6月9日／最終改定日：2026年7月17日</p>
         </div>
         <PublicLegalFooter />
       </div>
