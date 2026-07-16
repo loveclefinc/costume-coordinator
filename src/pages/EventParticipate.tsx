@@ -216,7 +216,7 @@ export default function EventParticipate() {
       setError(
         costumes.length === 0
           ? ''
-          : 'テーマ条件または使用履歴の設定により、提出できる衣装候補がありません。衣装の内容を見直すか、設定の使用履歴除外日数を確認してください。',
+          : 'テーマ条件または使用履歴の設定により、提出できる衣装・コーデ候補がありません。登録内容を見直すか、設定の使用履歴除外日数を確認してください。',
       )
       return
     }
@@ -373,7 +373,7 @@ export default function EventParticipate() {
         <section className="participate-section">
           <h3>1. 参加者名</h3>
           <p className="participate-name-hint">
-            参加後、登録済みの衣装からテーマに合う候補を複数自動選出し、代表者へ提出します（組み合わせは全員提出後にシステムが決定）。
+            参加後、登録済みの単品衣装とお気に入りコーデからテーマに合う候補を複数自動選出し、代表者へ提出します（最終結果は全員提出後にシステムが決定）。
           </p>
           {profileName && !editingName ? (
             <div className="participate-profile-choice">
@@ -446,7 +446,7 @@ export default function EventParticipate() {
             別の名前で参加し直す
           </button>
 
-          <h3>2. 衣装の自動選出</h3>
+          <h3>2. 衣装・コーデの自動選出</h3>
 
           {(!wardrobeReady || pickedMatches.length > 0) && (
             <EventCostumeMatcher
@@ -483,11 +483,11 @@ export default function EventParticipate() {
               <p>
                 {resultsPublished
                   ? '組み合わせが決定しました。'
-                  : '候補衣装の提出は完了しています。代表者の確認待ちです。'}
+                  : '衣装・コーデ候補の提出は完了しています。代表者の確認待ちです。'}
               </p>
               {resultsPublished && eventId && (
                 <Link to={`/events/${eventId}`} className="participate-btn primary">
-                  決定衣装を見る
+                  決定結果を見る
                 </Link>
               )}
             </div>

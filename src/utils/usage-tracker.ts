@@ -1,16 +1,24 @@
-import { storage, UsageHistory } from './storage'
+import { storage, type Costume, type UsageHistory } from './storage'
 
 /**
  * Record costume usage for an event (all participants at once)
  */
 export async function recordCostumeUsage(
   eventId: string,
-  assignments: { [participantId: string]: string }
+  assignments: { [participantId: string]: string },
+  assignedCostumes: Costume[] = [],
 ): Promise<void> {
   const now = Date.now()
+  const costumesById = new Map(assignedCostumes.map((costume) => [costume.id, costume]))
 
   for (const [participantName, costumeId] of Object.entries(assignments)) {
-    await recordSingleCostumeUsage(eventId, participantName, costumeId, now)
+    const costume = costumesById.get(costumeId)
+    const usedItemIds = costume?.componentCostumeIds?.length
+      ? costume.componentCostumeIds
+      : [costumeId]
+    for (const usedItemId of new Set(usedItemIds)) {
+      await recordSingleCostumeUsage(eventId, participantName, usedItemId, now)
+    }
   }
 }
 

@@ -35,6 +35,54 @@ const eventCostume: Costume = {
   updatedAt: 1,
 }
 
+const personalOutfitWardrobe: Costume[] = [
+  {
+    id: 'suit-1',
+    name: 'スーツ',
+    image: 'data:image/jpeg;base64,suit',
+    colors: ['navy'],
+    tone: 'dark',
+    pattern: 'plain',
+    season: [],
+    type: 'suit',
+    favoriteCombinations: [
+      {
+        id: 'set-1',
+        name: '本番コーデ',
+        pieceIds: ['shirt-1', 'tie-1'],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ],
+    createdAt: 1,
+    updatedAt: 1,
+  },
+  {
+    id: 'shirt-1',
+    name: '白シャツ',
+    image: 'data:image/jpeg;base64,shirt',
+    colors: ['white'],
+    tone: 'neutral',
+    pattern: 'plain',
+    season: [],
+    type: 'shirt',
+    createdAt: 1,
+    updatedAt: 1,
+  },
+  {
+    id: 'tie-1',
+    name: '赤ネクタイ',
+    image: 'data:image/jpeg;base64,tie',
+    colors: ['red'],
+    tone: 'vivid',
+    pattern: 'dot',
+    season: [],
+    type: 'necktie',
+    createdAt: 1,
+    updatedAt: 1,
+  },
+]
+
 describe('costume-scope', () => {
   it('separates personal wardrobe from event submissions', () => {
     const all = [personal, eventCostume]
@@ -58,6 +106,46 @@ describe('costume-scope', () => {
   it('finds costumes in event catalog first', () => {
     expect(findCostumeById('c2', [personal], [eventCostume])).toEqual(eventCostume)
     expect(findCostumeById('c1', [personal], [eventCostume])).toEqual(personal)
+  })
+
+  it('materializes complete outfits for the personal fallback catalog', () => {
+    const resolved = resolveEventCostumeCatalog(personalOutfitWardrobe, [])
+    const ids = resolved.map((costume) => costume.id)
+
+    expect(ids).toContain('favorite-outfit:set-1')
+    expect(ids).not.toContain('suit-1')
+    expect(ids).not.toContain('tie-1')
+    expect(findCostumeById(
+      'favorite-outfit:set-1',
+      personalOutfitWardrobe,
+      [],
+    )?.componentCostumeIds).toEqual(['suit-1', 'shirt-1', 'tie-1'])
+  })
+
+  it('removes accessory-only legacy submissions from an event catalog', () => {
+    const legacyTie: Costume = {
+      ...eventCostume,
+      id: 'event-tie',
+      name: '単品ネクタイ',
+      type: 'necktie',
+    }
+    const legacyBowtie: Costume = {
+      ...eventCostume,
+      id: 'event-bowtie',
+      name: '単品蝶ネクタイ',
+      type: 'bowtie',
+    }
+    const legacyAccessory: Costume = {
+      ...eventCostume,
+      id: 'event-accessory',
+      name: '単品ブローチ',
+      type: 'accessory',
+    }
+
+    expect(resolveEventCostumeCatalog(
+      [personal],
+      [eventCostume, legacyTie, legacyBowtie, legacyAccessory],
+    )).toEqual([eventCostume])
   })
 
   it('detects an assignment using another participant costume', () => {

@@ -7,7 +7,7 @@ export function hasStartedSubmission(participant: ServerParticipant): boolean {
 export function hasCompletedSubmission(participant: ServerParticipant): boolean {
   if (!hasStartedSubmission(participant)) return false
   if (participant.photoCount != null) {
-    return participant.photoCount >= participant.costumeCount
+    return participant.photoCount >= (participant.expectedPhotoCount ?? participant.costumeCount)
   }
   return participant.submittedAt != null
 }

@@ -40,8 +40,18 @@ export async function importAdminSnapshotToLocal(
   }
 
   for (const sc of snapshot.costumes) {
-    const primaryPhoto = sc.photos.sort((a, b) => a.sortOrder - b.sortOrder)[0]
+    const photos = [...sc.photos].sort((a, b) => a.sortOrder - b.sortOrder)
+    const primaryPhoto = photos[0]
     const image = primaryPhoto?.viewUrl ?? ''
+    const components = sc.components ?? []
+
+    // 完成コーデは、構成品すべての写真が揃うまで最適化候補へ入れない。
+    if (
+      components.length > 0 &&
+      components.some((_, index) => !photos.some((photo) => photo.sortOrder === index))
+    ) {
+      continue
+    }
 
     incomingCostumes.push(
       normalizeCostume({
@@ -57,6 +67,9 @@ export async function importAdminSnapshotToLocal(
         suitStyle: sc.suitStyle,
         suitBreasting: sc.suitBreasting,
         suitLapel: sc.suitLapel,
+        wearingPhotos: photos.slice(1).map((photo) => photo.viewUrl),
+        componentCostumeIds: components.map((component) => component.sourceCostumeId),
+        componentCostumeNames: components.map((component) => component.name),
         sourceParticipantName: sc.participantName,
         createdAt: sc.createdAt,
         updatedAt: sc.updatedAt,

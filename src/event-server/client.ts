@@ -195,9 +195,13 @@ export async function uploadServerPhoto(
   participantToken: string,
   file: Blob,
   contentType: string,
+  componentIndex?: number,
 ): Promise<UploadPhotoResponse> {
+  const componentQuery = typeof componentIndex === 'number'
+    ? `?componentIndex=${encodeURIComponent(String(componentIndex))}`
+    : ''
   return apiFetch<UploadPhotoResponse>(
-    `/api/events/${encodeURIComponent(eventId)}/costumes/${encodeURIComponent(costumeId)}/photos`,
+    `/api/events/${encodeURIComponent(eventId)}/costumes/${encodeURIComponent(costumeId)}/photos${componentQuery}`,
     {
       method: 'POST',
       participantToken,

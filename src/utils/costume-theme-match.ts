@@ -18,14 +18,17 @@ export interface CostumeThemeMatch {
 
 /** 直近使用の衣装か（クリーニング中などで候補から除外） */
 export function isCostumeRecentlyUsed(
-  costumeId: string,
+  costume: string | Pick<Costume, 'id' | 'componentCostumeIds'>,
   usageHistory: UsageHistory[],
   excludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
 ): boolean {
   if (excludeDays <= 0) return false
 
   const cutoff = Date.now() - excludeDays * 24 * 60 * 60 * 1000
-  return usageHistory.some((h) => h.costumeId === costumeId && h.usedAt > cutoff)
+  const usageIds = typeof costume === 'string'
+    ? new Set([costume])
+    : new Set([costume.id, ...(costume.componentCostumeIds ?? [])])
+  return usageHistory.some((history) => usageIds.has(history.costumeId) && history.usedAt > cutoff)
 }
 
 /** 使用可能な衣装だけに絞る（excludeDays=0 のときは全件） */
@@ -35,7 +38,7 @@ export function filterCostumesByUsageAvailability(
   excludeDays: number = DEFAULT_RECENT_USAGE_EXCLUDE_DAYS,
 ): Costume[] {
   if (excludeDays <= 0) return costumes
-  return costumes.filter((costume) => !isCostumeRecentlyUsed(costume.id, usageHistory, excludeDays))
+  return costumes.filter((costume) => !isCostumeRecentlyUsed(costume, usageHistory, excludeDays))
 }
 
 /** テーマ色との一致度（0〜1） */

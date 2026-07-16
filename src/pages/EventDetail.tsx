@@ -21,6 +21,7 @@ import {
   type ClientReportAssignment,
 } from '../utils/client-costume-report'
 import CollaborationFileImport from '../components/CollaborationFileImport'
+import CostumePhotoMosaic from '../components/CostumePhotoMosaic'
 import {
   createEventInviteBundle,
   createParticipantSubmissionBundle,
@@ -279,12 +280,36 @@ export default function EventDetail() {
           return
         }
 
-        const incomingCostumes = published.assignments.map(({ participantName, costume }) => {
-          const primaryPhoto = [...costume.photos].sort((a, b) => a.sortOrder - b.sortOrder)[0]
+        const completeAssignments = published.assignments.filter(({ costume }) => {
+          const components = costume.components ?? []
+          if (components.length === 0) return true
+          return components.every((_, index) =>
+            costume.photos.some((photo) => photo.sortOrder === index),
+          )
+        })
+        if (completeAssignments.length !== published.assignments.length) {
+          if (Object.keys(event.costumes ?? {}).length > 0 || event.confirmed) {
+            const reset = await updateEvent(event.id, {
+              costumes: {},
+              assignmentReasons: {},
+              confirmed: false,
+            })
+            if (!cancelled) setEvent(reset)
+          }
+          return
+        }
+
+        const incomingCostumes = completeAssignments.map(({ participantName, costume }) => {
+          const photos = [...costume.photos].sort((a, b) => a.sortOrder - b.sortOrder)
+          const primaryPhoto = photos[0]
+          const components = costume.components ?? []
           return normalizeCostume({
             id: costume.id,
             name: costume.name,
             image: primaryPhoto?.viewUrl ?? '',
+            wearingPhotos: photos.slice(1).map((photo) => photo.viewUrl),
+            componentCostumeIds: components.map((component) => component.sourceCostumeId),
+            componentCostumeNames: components.map((component) => component.name),
             colors: costume.colors,
             tone: costume.tone,
             pattern: costume.pattern,
@@ -301,17 +326,17 @@ export default function EventDetail() {
           })
         })
         const costumes = Object.fromEntries(
-          published.assignments.map(({ participantName, costume }) => [participantName, costume.id]),
+          completeAssignments.map(({ participantName, costume }) => [participantName, costume.id]),
         )
         const assignmentReasons = buildAssignmentReasonMap(
-          published.assignments.map(({ participantName, reasons }) => ({
+          completeAssignments.map(({ participantName, reasons }) => ({
             participantName,
             reason: reasons,
           })),
         )
         const participants = Array.from(new Set([
           ...event.participants,
-          ...published.assignments.map((assignment) => assignment.participantName),
+          ...completeAssignments.map((assignment) => assignment.participantName),
         ]))
         const importedCostumes = mergeEventImportedCostumes(event.importedCostumes, incomingCostumes)
         const updated = await updateEvent(event.id, {
@@ -587,7 +612,11 @@ export default function EventDetail() {
 
     await updateEvent(eventSnapshot.id, updatedEvent)
 
-    await recordCostumeUsage(eventSnapshot.id, costumesMap)
+    await recordCostumeUsage(
+      eventSnapshot.id,
+      costumesMap,
+      assignments.map((result) => result.costume),
+    )
 
     setEvent(updatedEvent)
     setIsConfirmed(true)
@@ -1170,6 +1199,15 @@ export default function EventDetail() {
     })),
     stageArrangementMode,
   )
+  const displayCostumeByParticipant = new Map<string, Costume>()
+  optimizationResults.forEach((result) => {
+    displayCostumeByParticipant.set(result.participantName, result.costume)
+  })
+  Object.entries(event.costumes ?? {}).forEach(([participantName, costumeId]) => {
+    if (displayCostumeByParticipant.has(participantName) || typeof costumeId !== 'string') return
+    const costume = findCostume(costumeId)
+    if (costume) displayCostumeByParticipant.set(participantName, costume)
+  })
   const displayedOptimizationResults = arrangeAssignmentsForStage(
     optimizationResults.map((result) => ({
       ...result,
@@ -1243,38 +1281,53 @@ export default function EventDetail() {
 
       {displayAssignments.length > 0 && (
         <section className="section confirmed-assignments-panel confirmed-assignments-panel--primary">
-          <h2>👗 決定済みの衣装</h2>
+          <h2>👗 決定済みの衣装・コーデ</h2>
           <div className="confirmed-assignments-grid">
-            {displayAssignments.map((assignment) => (
-              <article
-                key={assignment.participantName}
-                className={`confirmed-assignment-card ${assignment.participantName === eventSession?.displayName ? 'confirmed-assignment-card--self' : ''}`}
-                aria-current={assignment.participantName === eventSession?.displayName ? 'true' : undefined}
-              >
-                {assignment.costumeImage ? (
-                  <img src={assignment.costumeImage} alt={assignment.costumeName} />
-                ) : (
-                  <div className="confirmed-assignment-placeholder">写真なし</div>
-                )}
-                <div className="confirmed-assignment-text">
-                  <div className="confirmed-assignment-name">
-                    <strong>{assignment.participantName}</strong>
-                    {assignment.participantName === eventSession?.displayName && (
-                      <span className="confirmed-self-badge">自分</span>
+            {displayAssignments.map((assignment) => {
+              const assignedCostume = displayCostumeByParticipant.get(assignment.participantName)
+              const displayCostume = assignedCostume ?? {
+                id: `confirmed-${assignment.participantName}`,
+                name: assignment.costumeName,
+                image: assignment.costumeImage ?? '',
+              }
+              const componentNames = assignedCostume?.componentCostumeNames ?? []
+              return (
+                <article
+                  key={assignment.participantName}
+                  className={`confirmed-assignment-card ${assignment.participantName === eventSession?.displayName ? 'confirmed-assignment-card--self' : ''}`}
+                  aria-current={assignment.participantName === eventSession?.displayName ? 'true' : undefined}
+                >
+                  <CostumePhotoMosaic
+                    costume={displayCostume}
+                    compact
+                    showItemNames={false}
+                    className="confirmed-assignment-mosaic"
+                  />
+                  <div className="confirmed-assignment-text">
+                    <div className="confirmed-assignment-name">
+                      <strong>{assignment.participantName}</strong>
+                      {assignment.participantName === eventSession?.displayName && (
+                        <span className="confirmed-self-badge">自分</span>
+                      )}
+                    </div>
+                    <span className="confirmed-costume-name">{assignment.costumeName}</span>
+                    {componentNames.length > 1 && (
+                      <span className="confirmed-component-names">
+                        {componentNames.join('・')}
+                      </span>
                     )}
+                    <div className="confirmed-assignment-reasons">
+                      <span className="confirmed-assignment-reasons-label">選定理由</span>
+                      <ul>
+                        {assignment.reasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <span className="confirmed-costume-name">{assignment.costumeName}</span>
-                  <div className="confirmed-assignment-reasons">
-                    <span className="confirmed-assignment-reasons-label">選定理由</span>
-                    <ul>
-                      {assignment.reasons.map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         </section>
       )}
@@ -1295,11 +1348,11 @@ export default function EventDetail() {
             <p className="participant-submitted-note">
               {displayAssignments.length > 0
                 ? '組み合わせが決定しました。'
-                : '候補衣装の提出は完了しています。代表者の確認待ちです。'}
+                : '衣装・コーデ候補の提出は完了しています。代表者の確認待ちです。'}
             </p>
           ) : (
             <p className="participant-submitted-note">
-              登録済みの衣装から候補を自動選出して提出してください。
+              登録済みの単品衣装とお気に入りコーデから候補を自動選出して提出してください。
             </p>
           )}
           <div className="server-action-stack">
@@ -1845,7 +1898,7 @@ export default function EventDetail() {
                 </div>
 
                 <p className="system-optimization-lead">
-                  テーマ・使用履歴・色味方針から、全員分をまとめて計算し、最適な1着ずつの組み合わせを自動選定しました（先着順ではありません）。
+                  テーマ・使用履歴・色味方針から、全員分をまとめて計算し、1人につき最適な1組（単品衣装または完成コーデ）を自動選定しました（先着順ではありません）。
                   調整しやすいように、イベント全体の着用イメージを第3候補まで表示します。
                   ステージ配置: {STAGE_ARRANGEMENT_LABELS[stageArrangementMode]}
                 </p>
@@ -1870,7 +1923,7 @@ export default function EventDetail() {
                 )}
 
                 <div className="optimization-results">
-                  {displayedOptimizationResults.map((result) => (
+                  {displayedOptimizationResults.map((result, index) => (
                     <div key={result.participantId} className="result-card result-card--selected">
                       <div className="result-header">
                         <h4>{result.participantName}</h4>
@@ -1878,9 +1931,11 @@ export default function EventDetail() {
                       </div>
 
                       <div className="result-costume">
-                        {result.costume.image && (
-                          <img src={result.costume.image} alt={result.costume.name} />
-                        )}
+                        <CostumePhotoMosaic
+                          costume={result.costume}
+                          className="result-costume-photos"
+                          priority={index === 0}
+                        />
                         <div className="costume-details">
                           <h5>{result.costume.name}</h5>
                           <div className="colors">
@@ -1971,9 +2026,12 @@ export default function EventDetail() {
                             const renderAssignment = (row: any, absoluteIndex: number) => (
                               <div key={`${candidate.id}-${row.participantId}`} className="stage-image-assignment-with-break">
                                 <div className="stage-image-assignment">
-                                  {row.costume.image && (
-                                    <img src={row.costume.image} alt={row.costume.name} />
-                                  )}
+                                  <CostumePhotoMosaic
+                                    costume={row.costume}
+                                    compact
+                                    showItemNames={false}
+                                    className="stage-image-assignment-mosaic"
+                                  />
                                   <div>
                                     <strong>{row.participantName}</strong>
                                     <span>{row.costume.name}</span>

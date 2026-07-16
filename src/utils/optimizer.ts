@@ -270,7 +270,7 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
       if (assignedCostumes.has(costume.id)) continue
 
       // Skip recently used costumes (cleaning / unavailable)
-      if (isCostumeRecentlyUsed(costume.id, usageHistory, recentUsageExcludeDays)) continue
+      if (isCostumeRecentlyUsed(costume, usageHistory, recentUsageExcludeDays)) continue
 
       let score = 0
 

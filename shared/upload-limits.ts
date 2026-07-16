@@ -9,6 +9,8 @@ export type UploadLimits = {
   maxCostumesPerParticipant: number
   /** 1イベントあたりの R2 合計上限（全参加者） */
   maxEventStorageBytes: number
+  /** 一つの「完成した装い」に含められる構成品数。旧Workerは省略する。 */
+  maxOutfitComponents?: number
 }
 
 export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
@@ -17,6 +19,7 @@ export const DEFAULT_UPLOAD_LIMITS: UploadLimits = {
   maxCostumesPerParticipant: 5,
   /** 10GB アカウントでも余裕を残すため 1 イベント 500MB 上限 */
   maxEventStorageBytes: 500 * 1024 * 1024,
+  maxOutfitComponents: 3,
 }
 
 export function formatBytes(bytes: number): string {

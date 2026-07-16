@@ -138,7 +138,7 @@ export function generateMultipleProposals(input: OptimizationInput, proposalCoun
         // Skip if already assigned to another participant in this proposal
         if (assignments.some(a => a.costumeId === costume.id)) continue
 
-        if (isCostumeRecentlyUsed(costume.id, usageHistory, recentUsageExcludeDays)) continue
+        if (isCostumeRecentlyUsed(costume, usageHistory, recentUsageExcludeDays)) continue
 
         const score = calculateAssignmentScore(
           costume,

@@ -73,6 +73,12 @@ export interface ServerPhoto {
   viewUrl: string
 }
 
+export interface CostumeComponentPayload {
+  sourceCostumeId: string
+  name: string
+  type?: string
+}
+
 export interface ServerCostume {
   id: string
   participantId: string
@@ -87,6 +93,8 @@ export interface ServerCostume {
   suitStyle?: string
   suitBreasting?: string
   suitLapel?: string
+  /** 完成した装いを構成する衣装。未指定の旧データは単品衣装として扱う。 */
+  components?: CostumeComponentPayload[]
   preferences: string[]
   photos: ServerPhoto[]
   createdAt: number
@@ -100,6 +108,8 @@ export interface ServerParticipant {
   costumeCount: number
   /** Older Worker responses may omit this field. */
   photoCount?: number
+  /** 構成品スロットを含めた必要写真数。旧Workerは省略する。 */
+  expectedPhotoCount?: number
 }
 
 export interface EventPublicInfo {
@@ -179,11 +189,14 @@ export interface CreateCostumeRequest {
   suitStyle?: string
   suitBreasting?: string
   suitLapel?: string
+  components?: CostumeComponentPayload[]
   preferences?: string[]
 }
 
 export interface CreateCostumeResponse {
   costumeId: string
+  /** 同じ端末衣装IDの属性変更により、既存写真スロットをリセットした。旧Workerは省略する。 */
+  photosReset?: boolean
 }
 
 export interface UploadPhotoResponse {
@@ -196,6 +209,10 @@ export interface ParticipantSubmissionCostume {
   sourceCostumeId?: string
   name: string
   photoCount: number
+  /** Older Worker responses may omit this field;その場合は1枚として扱う。 */
+  expectedPhotoCount?: number
+  /** 完成した装いの構成品と、各写真スロットの提出状態。配列順が componentIndex。 */
+  components?: Array<CostumeComponentPayload & { photoUploaded: boolean }>
 }
 
 export interface ParticipantSubmissionStatus {

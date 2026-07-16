@@ -1,4 +1,5 @@
 import type { Costume, Event } from './storage'
+import { buildCompleteOutfitCandidates, isAccessoryOnlyCostume } from './favorite-combinations'
 
 /** イベント取り込み衣装の ID 一覧 */
 export function collectEventImportedCostumeIds(events: Pick<Event, 'importedCostumes'>[]): Set<string> {
@@ -42,7 +43,9 @@ export function resolveEventCostumeCatalog(
   personalCostumes: Costume[],
   eventCostumes: Costume[],
 ): Costume[] {
-  return eventCostumes.length > 0 ? eventCostumes : personalCostumes
+  return eventCostumes.length > 0
+    ? eventCostumes.filter((costume) => !isAccessoryOnlyCostume(costume))
+    : buildCompleteOutfitCandidates(personalCostumes)
 }
 
 export function findCostumeById(
@@ -52,6 +55,7 @@ export function findCostumeById(
 ): Costume | undefined {
   return (
     eventCostumes.find((costume) => costume.id === costumeId)
+    ?? buildCompleteOutfitCandidates(personalCostumes).find((costume) => costume.id === costumeId)
     ?? personalCostumes.find((costume) => costume.id === costumeId)
   )
 }

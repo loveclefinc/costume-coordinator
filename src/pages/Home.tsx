@@ -65,13 +65,13 @@ export default function Home() {
         <div className="feature-card no-hover">
           <div className="feature-icon">🎨</div>
           <h3>テーマに合う候補を自動選出</h3>
-          <p>参加者ごとに、登録済み衣装の中から色・トーン・柄がイベントテーマに合う候補を自動で選びます（提出前の第1段階）</p>
+          <p>参加者ごとに、登録済みの単品衣装とお気に入りコーデから、色・トーン・柄がイベントテーマに合う候補を自動で選びます（提出前の第1段階）</p>
         </div>
 
         <div className="feature-card no-hover">
           <div className="feature-icon">👗</div>
           <h3>グループ全体の組み合わせ決定</h3>
-          <p>全員の候補を集め、色味方針や相互の調和を考慮して、参加者1人につき1着の組み合わせを自動決定します（第2段階）</p>
+          <p>全員の候補を集め、色味方針や相互の調和を考慮して、参加者1人につき1組（単品衣装または完成コーデ）を自動決定します（第2段階）</p>
         </div>
 
         <div className="feature-card no-hover">
@@ -83,13 +83,13 @@ export default function Home() {
         <div className="feature-card no-hover">
           <div className="feature-icon">👥</div>
           <h3>イベント管理</h3>
-          <p>複数のイベントを管理。オンライン提出では参加者が候補衣装をサーバーへ提出し、全員提出後にシステムが組み合わせを自動決定します</p>
+          <p>複数のイベントを管理。オンライン提出では参加者が衣装・コーデ候補をサーバーへ提出し、全員提出後にシステムが組み合わせを自動決定します</p>
         </div>
       </div>
 
       <div className="cta-section">
         <Link to="/costumes" className="cta-button primary">
-          衣装を追加する
+          所有衣装を見る・追加する
         </Link>
         <Link to="/events" className="cta-button secondary">
           イベントを作成する

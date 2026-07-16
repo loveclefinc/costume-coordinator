@@ -1,4 +1,5 @@
 import type {
+  CostumeComponentPayload,
   CreateEventRequest,
   CreateEventResponse,
   CreateCostumeRequest,
@@ -49,12 +50,13 @@ function parseUploadLimits(env: Env): UploadLimits {
     const n = parseInt(v ?? '', 10)
     return Number.isFinite(n) && n > 0 ? n : fallback
   }
+  const maxPhotosPerCostume = int(
+    env.MAX_PHOTOS_PER_COSTUME,
+    DEFAULT_UPLOAD_LIMITS.maxPhotosPerCostume,
+  )
   return {
     maxPhotoBytes: int(env.MAX_PHOTO_BYTES, DEFAULT_UPLOAD_LIMITS.maxPhotoBytes),
-    maxPhotosPerCostume: int(
-      env.MAX_PHOTOS_PER_COSTUME,
-      DEFAULT_UPLOAD_LIMITS.maxPhotosPerCostume,
-    ),
+    maxPhotosPerCostume,
     maxCostumesPerParticipant: int(
       env.MAX_COSTUMES_PER_PARTICIPANT,
       DEFAULT_UPLOAD_LIMITS.maxCostumesPerParticipant,
@@ -63,6 +65,7 @@ function parseUploadLimits(env: Env): UploadLimits {
       env.MAX_EVENT_STORAGE_BYTES,
       DEFAULT_UPLOAD_LIMITS.maxEventStorageBytes,
     ),
+    maxOutfitComponents: Math.min(MAX_OUTFIT_COMPONENTS, maxPhotosPerCostume),
   }
 }
 
@@ -89,9 +92,193 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-07-17.2'
+const EVENT_API_VERSION = '2026-07-17.3'
 export const MAX_PUBLISHED_ASSIGNMENT_REASONS = 3
 export const MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH = 120
+export const MAX_OUTFIT_COMPONENTS = 3
+export const MAX_COSTUME_COMPONENT_ID_LENGTH = 200
+export const MAX_COSTUME_COMPONENT_NAME_LENGTH = 100
+export const MAX_COSTUME_COMPONENT_TYPE_LENGTH = 40
+const FAVORITE_OUTFIT_SOURCE_PREFIX = 'favorite-outfit:'
+
+/**
+ * Validate an untrusted complete-outfit component list.
+ * Empty means the backwards-compatible single-item model; a composed outfit
+ * currently has an owner plus one or two additional pieces.
+ */
+export function sanitizeCostumeComponents(
+  value: unknown,
+  maxComponents = MAX_OUTFIT_COMPONENTS,
+): CostumeComponentPayload[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+  if (value.length === 0) return []
+  if (value.length < 2 || value.length > Math.min(MAX_OUTFIT_COMPONENTS, maxComponents)) {
+    return null
+  }
+
+  const components: CostumeComponentPayload[] = []
+  const sourceIds = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null
+    const candidate = item as Record<string, unknown>
+    if (typeof candidate.sourceCostumeId !== 'string' || typeof candidate.name !== 'string') {
+      return null
+    }
+    if (candidate.type !== undefined && typeof candidate.type !== 'string') return null
+
+    const sourceCostumeId = candidate.sourceCostumeId.trim()
+    const name = candidate.name.trim().replace(/\s+/g, ' ')
+    const type = typeof candidate.type === 'string' ? candidate.type.trim() : ''
+    if (
+      !sourceCostumeId ||
+      sourceCostumeId.length > MAX_COSTUME_COMPONENT_ID_LENGTH ||
+      !name ||
+      name.length > MAX_COSTUME_COMPONENT_NAME_LENGTH ||
+      type.length > MAX_COSTUME_COMPONENT_TYPE_LENGTH ||
+      sourceIds.has(sourceCostumeId)
+    ) {
+      return null
+    }
+    sourceIds.add(sourceCostumeId)
+    components.push({ sourceCostumeId, name, ...(type ? { type } : {}) })
+  }
+  return components
+}
+
+function parseStoredCostumeComponents(value: string | null | undefined): CostumeComponentPayload[] {
+  if (!value) return []
+  try {
+    return sanitizeCostumeComponents(JSON.parse(value), MAX_OUTFIT_COMPONENTS) ?? []
+  } catch {
+    return []
+  }
+}
+
+function parsePhotoSortOrders(value: string | null | undefined): number[] {
+  if (!value) return []
+  return value
+    .split(',')
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0)
+}
+
+export function expectedPhotoCountForComponents(
+  components: readonly CostumeComponentPayload[],
+): number {
+  return components.length || 1
+}
+
+export function areCostumePhotoSlotsComplete(
+  components: readonly CostumeComponentPayload[],
+  photoSortOrders: readonly number[],
+): boolean {
+  if (components.length === 0) return photoSortOrders.length > 0
+  const uploaded = new Set(photoSortOrders)
+  return components.every((_, componentIndex) => uploaded.has(componentIndex))
+}
+
+type CostumeMetadata = {
+  name: string
+  colorsJson: string
+  tone: string
+  pattern: string
+  seasonJson: string
+  type: string | null
+  silhouette: string | null
+  suitStyle: string | null
+  suitBreasting: string | null
+  suitLapel: string | null
+  componentsJson: string
+  preferencesJson: string
+}
+
+type ExistingCostumeMetadataRow = {
+  id: string
+  name: string
+  colors_json: string
+  tone: string
+  pattern: string
+  season_json: string
+  type: string | null
+  silhouette: string | null
+  suit_style: string | null
+  suit_breasting: string | null
+  suit_lapel: string | null
+  components_json: string | null
+  preferences_json: string
+}
+
+function normalizedOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function normalizedStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    if (typeof item !== 'string') return []
+    const normalized = item.trim()
+    return normalized ? [normalized] : []
+  })
+}
+
+function costumeMetadataFromRequest(
+  body: CreateCostumeRequest,
+  components: CostumeComponentPayload[],
+): CostumeMetadata {
+  return {
+    name: body.name.trim(),
+    colorsJson: JSON.stringify(normalizedStringArray(body.colors)),
+    tone: normalizedOptionalString(body.tone) ?? 'neutral',
+    pattern: normalizedOptionalString(body.pattern) ?? 'plain',
+    seasonJson: JSON.stringify(normalizedStringArray(body.season)),
+    type: normalizedOptionalString(body.type),
+    silhouette: normalizedOptionalString(body.silhouette),
+    suitStyle: normalizedOptionalString(body.suitStyle),
+    suitBreasting: normalizedOptionalString(body.suitBreasting),
+    suitLapel: normalizedOptionalString(body.suitLapel),
+    componentsJson: JSON.stringify(components),
+    preferencesJson: JSON.stringify(normalizedStringArray(body.preferences)),
+  }
+}
+
+function canonicalStoredArrayJson(value: string): string | null {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return Array.isArray(parsed) ? JSON.stringify(parsed) : null
+  } catch {
+    return null
+  }
+}
+
+function canonicalStoredComponentsJson(value: string | null): string | null {
+  try {
+    const parsed = sanitizeCostumeComponents(JSON.parse(value ?? '[]'), MAX_OUTFIT_COMPONENTS)
+    return parsed === null ? null : JSON.stringify(parsed)
+  } catch {
+    return null
+  }
+}
+
+function costumeMetadataMatches(
+  existing: ExistingCostumeMetadataRow,
+  metadata: CostumeMetadata,
+): boolean {
+  return (
+    existing.name === metadata.name &&
+    canonicalStoredArrayJson(existing.colors_json) === metadata.colorsJson &&
+    existing.tone === metadata.tone &&
+    existing.pattern === metadata.pattern &&
+    canonicalStoredArrayJson(existing.season_json) === metadata.seasonJson &&
+    existing.type === metadata.type &&
+    existing.silhouette === metadata.silhouette &&
+    existing.suit_style === metadata.suitStyle &&
+    existing.suit_breasting === metadata.suitBreasting &&
+    existing.suit_lapel === metadata.suitLapel &&
+    canonicalStoredComponentsJson(existing.components_json) === metadata.componentsJson &&
+    canonicalStoredArrayJson(existing.preferences_json) === metadata.preferencesJson
+  )
+}
 
 /** Validate and bound untrusted public result reasons before storing or returning them. */
 export function sanitizePublishedAssignmentReasons(value: unknown): string[] | null {
@@ -424,41 +611,55 @@ async function handleParticipantStatus(
   const row = await getEventRow(env, eventId)
   assertNotExpired(row.expires_at)
 
-  const counts = await env.DB.prepare(
-    `SELECT
-      (SELECT COUNT(*) FROM costumes c WHERE c.event_id = ? AND c.participant_id = ?) as costume_count,
-      (SELECT COUNT(*) FROM photos ph
-        JOIN costumes c ON c.id = ph.costume_id
-        WHERE c.event_id = ? AND c.participant_id = ?) as photo_count`,
-  )
-    .bind(eventId, participant.id, eventId, participant.id)
-    .first<{ costume_count: number; photo_count: number }>()
-
   const costumeRows = await env.DB.prepare(
-    `SELECT c.id, c.source_costume_id, c.name,
-      (SELECT COUNT(*) FROM photos ph WHERE ph.costume_id = c.id) as photo_count
+    `SELECT c.id, c.source_costume_id, c.name, c.components_json,
+      (SELECT COUNT(*) FROM photos ph WHERE ph.costume_id = c.id) as photo_count,
+      (SELECT GROUP_CONCAT(ph.sort_order) FROM photos ph WHERE ph.costume_id = c.id) as uploaded_slots
      FROM costumes c
      WHERE c.event_id = ? AND c.participant_id = ?
      ORDER BY c.created_at ASC`,
   )
     .bind(eventId, participant.id)
-    .all<{ id: string; source_costume_id: string | null; name: string; photo_count: number }>()
+    .all<{
+      id: string
+      source_costume_id: string | null
+      name: string
+      components_json: string
+      photo_count: number
+      uploaded_slots: string | null
+    }>()
 
-  const costumeCount = counts?.costume_count ?? 0
-  const photoCount = counts?.photo_count ?? 0
+  const costumes = (costumeRows.results ?? []).map((costume) => {
+    const components = parseStoredCostumeComponents(costume.components_json)
+    const uploadedSlots = parsePhotoSortOrders(costume.uploaded_slots)
+    const uploaded = new Set(uploadedSlots)
+    return {
+      id: costume.id,
+      ...(costume.source_costume_id ? { sourceCostumeId: costume.source_costume_id } : {}),
+      name: costume.name,
+      photoCount: Number(costume.photo_count) || 0,
+      expectedPhotoCount: expectedPhotoCountForComponents(components),
+      ...(components.length > 0
+        ? {
+            components: components.map((component, componentIndex) => ({
+              ...component,
+              photoUploaded: uploaded.has(componentIndex),
+            })),
+          }
+        : {}),
+      complete: areCostumePhotoSlotsComplete(components, uploadedSlots),
+    }
+  })
+  const costumeCount = costumes.length
+  const photoCount = costumes.reduce((sum, costume) => sum + costume.photoCount, 0)
 
   const res: ParticipantSubmissionStatus = {
     participantId: participant.id,
     displayName: participant.display_name,
     costumeCount,
     photoCount,
-    costumes: (costumeRows.results ?? []).map((row) => ({
-      id: row.id,
-      ...(row.source_costume_id ? { sourceCostumeId: row.source_costume_id } : {}),
-      name: row.name,
-      photoCount: row.photo_count,
-    })),
-    submitted: costumeCount > 0 && photoCount >= costumeCount,
+    costumes: costumes.map(({ complete: _complete, ...costume }) => costume),
+    submitted: costumeCount > 0 && costumes.every((costume) => costume.complete),
   }
   return json(res)
 }
@@ -526,24 +727,111 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   const row = await getEventRow(env, eventId)
   assertNotExpired(row.expires_at)
 
-  const body = (await request.json()) as CreateCostumeRequest
-  if (!body.name?.trim()) return json({ error: 'name は必須です' }, 400)
+  let body: CreateCostumeRequest
+  try {
+    body = (await request.json()) as CreateCostumeRequest
+  } catch {
+    return json({ error: '衣装データが正しいJSONではありません' }, 400)
+  }
+  if (!body || typeof body !== 'object' || typeof body.name !== 'string' || !body.name.trim()) {
+    return json({ error: 'name は必須です' }, 400)
+  }
+  if (body.sourceCostumeId !== undefined && typeof body.sourceCostumeId !== 'string') {
+    return json({ error: 'sourceCostumeId の形式が正しくありません' }, 400)
+  }
 
   const sourceCostumeId = body.sourceCostumeId?.trim() || null
-  if (sourceCostumeId && sourceCostumeId.length > 200) {
+  if (sourceCostumeId && sourceCostumeId.length > MAX_COSTUME_COMPONENT_ID_LENGTH) {
     return json({ error: 'sourceCostumeId が長すぎます' }, 400)
   }
 
-  if (sourceCostumeId) {
-    const existing = await env.DB.prepare(
-      `SELECT id FROM costumes WHERE event_id = ? AND participant_id = ? AND source_costume_id = ?`,
+  const limits = parseUploadLimits(env)
+  const components = sanitizeCostumeComponents(
+    body.components,
+    limits.maxOutfitComponents ?? MAX_OUTFIT_COMPONENTS,
+  )
+  if (components === null) {
+    return json(
+      {
+        error: `組み合わせ衣装は、重複しない2〜${limits.maxOutfitComponents ?? MAX_OUTFIT_COMPONENTS}点で指定してください`,
+      },
+      400,
     )
-      .bind(eventId, participant.id, sourceCostumeId)
-      .first<{ id: string }>()
-    if (existing) return json({ costumeId: existing.id } satisfies CreateCostumeResponse)
+  }
+  const usesFavoriteOutfitPrefix = sourceCostumeId?.startsWith(FAVORITE_OUTFIT_SOURCE_PREFIX) ?? false
+  const validFavoriteOutfitSource =
+    usesFavoriteOutfitPrefix && sourceCostumeId!.length > FAVORITE_OUTFIT_SOURCE_PREFIX.length
+  if ((components.length > 0 && !validFavoriteOutfitSource) ||
+      (components.length === 0 && usesFavoriteOutfitPrefix)) {
+    return json(
+      { error: '組み合わせ衣装の sourceCostumeId と components が一致しません' },
+      400,
+    )
   }
 
-  const limits = parseUploadLimits(env)
+  const now = Date.now()
+  const metadata = costumeMetadataFromRequest(body, components)
+
+  if (sourceCostumeId) {
+    const existing = await env.DB.prepare(
+      `SELECT id, name, colors_json, tone, pattern, season_json, type, silhouette,
+        suit_style, suit_breasting, suit_lapel, components_json, preferences_json
+       FROM costumes
+       WHERE event_id = ? AND participant_id = ? AND source_costume_id = ?`,
+    )
+      .bind(eventId, participant.id, sourceCostumeId)
+      .first<ExistingCostumeMetadataRow>()
+    if (existing) {
+      let photosReset = false
+      if (!costumeMetadataMatches(existing, metadata)) {
+        const storedPhotos = await env.DB.prepare(
+          `SELECT r2_key FROM photos WHERE event_id = ? AND costume_id = ?`,
+        )
+          .bind(eventId, existing.id)
+          .all<{ r2_key: string }>()
+
+        // Delete inaccessible binary objects first. If the following D1 batch
+        // fails, the same authenticated retry repeats this idempotently and
+        // then clears the stale photo rows before updating the metadata.
+        for (const photo of storedPhotos.results ?? []) {
+          await env.PHOTOS.delete(photo.r2_key)
+        }
+
+        await env.DB.batch([
+          env.DB.prepare(
+            `DELETE FROM photos WHERE event_id = ? AND costume_id = ?`,
+          ).bind(eventId, existing.id),
+          env.DB.prepare(
+            `UPDATE costumes SET
+              name = ?, colors_json = ?, tone = ?, pattern = ?, season_json = ?,
+              type = ?, silhouette = ?, suit_style = ?, suit_breasting = ?, suit_lapel = ?,
+              components_json = ?, preferences_json = ?, updated_at = ?
+             WHERE id = ? AND event_id = ? AND participant_id = ?`,
+          ).bind(
+            metadata.name,
+            metadata.colorsJson,
+            metadata.tone,
+            metadata.pattern,
+            metadata.seasonJson,
+            metadata.type,
+            metadata.silhouette,
+            metadata.suitStyle,
+            metadata.suitBreasting,
+            metadata.suitLapel,
+            metadata.componentsJson,
+            metadata.preferencesJson,
+            now,
+            existing.id,
+            eventId,
+            participant.id,
+          ),
+        ])
+        photosReset = true
+      }
+      return json({ costumeId: existing.id, photosReset } satisfies CreateCostumeResponse)
+    }
+  }
+
   const costumeCount = await env.DB.prepare(
     `SELECT COUNT(*) as c FROM costumes WHERE event_id = ? AND participant_id = ?`,
   )
@@ -559,37 +847,34 @@ async function handleCreateCostume(eventId: string, request: Request, env: Env):
   }
 
   const costumeId = `cos_${Date.now()}_${randomId()}`
-  const now = Date.now()
-  const colors = JSON.stringify(Array.isArray(body.colors) ? body.colors : [])
-  const season = JSON.stringify(Array.isArray(body.season) ? body.season : [])
-  const preferences = JSON.stringify(Array.isArray(body.preferences) ? body.preferences : [])
 
   await env.DB.prepare(
-    `INSERT INTO costumes (id, event_id, participant_id, source_costume_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, suit_lapel, preferences_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO costumes (id, event_id, participant_id, source_costume_id, name, colors_json, tone, pattern, season_json, type, silhouette, suit_style, suit_breasting, suit_lapel, components_json, preferences_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       costumeId,
       eventId,
       participant.id,
       sourceCostumeId,
-      body.name.trim(),
-      colors,
-      body.tone ?? 'neutral',
-      body.pattern ?? 'plain',
-      season,
-      body.type ?? null,
-      body.silhouette ?? null,
-      body.suitStyle ?? null,
-      body.suitBreasting ?? null,
-      body.suitLapel ?? null,
-      preferences,
+      metadata.name,
+      metadata.colorsJson,
+      metadata.tone,
+      metadata.pattern,
+      metadata.seasonJson,
+      metadata.type,
+      metadata.silhouette,
+      metadata.suitStyle,
+      metadata.suitBreasting,
+      metadata.suitLapel,
+      metadata.componentsJson,
+      metadata.preferencesJson,
       now,
       now,
     )
     .run()
 
-  const res: CreateCostumeResponse = { costumeId }
+  const res: CreateCostumeResponse = { costumeId, photosReset: false }
   return json(res, 201)
 }
 
@@ -605,10 +890,10 @@ async function handleUploadPhoto(
   assertNotExpired(row.expires_at)
 
   const costume = await env.DB.prepare(
-    `SELECT id, participant_id FROM costumes WHERE id = ? AND event_id = ?`,
+    `SELECT id, participant_id, components_json FROM costumes WHERE id = ? AND event_id = ?`,
   )
     .bind(costumeId, eventId)
-    .first<{ id: string; participant_id: string }>()
+    .first<{ id: string; participant_id: string; components_json: string | null }>()
 
   if (!costume) return json({ error: '衣装が見つかりません' }, 404)
   if (costume.participant_id !== participant.id) {
@@ -616,14 +901,48 @@ async function handleUploadPhoto(
   }
 
   const limits = parseUploadLimits(env)
+  const components = parseStoredCostumeComponents(costume.components_json)
+  const componentIndexParam = url.searchParams.get('componentIndex')
+  if (components.length > 0 && componentIndexParam === null) {
+    return json({ error: '組み合わせ衣装の写真には componentIndex が必要です' }, 400)
+  }
+  if (components.length === 0 && componentIndexParam !== null) {
+    return json({ error: '単品衣装の写真に componentIndex は指定できません' }, 400)
+  }
+  if (componentIndexParam !== null && !/^(0|[1-9]\d*)$/.test(componentIndexParam)) {
+    return json({ error: 'componentIndex は0以上の整数で指定してください' }, 400)
+  }
+  const requestedComponentIndex =
+    componentIndexParam === null ? null : Number(componentIndexParam)
+  const slotLimit = components.length || limits.maxPhotosPerCostume
+  if (requestedComponentIndex !== null && requestedComponentIndex >= slotLimit) {
+    return json({ error: 'componentIndex が衣装の構成品数を超えています' }, 400)
+  }
+
+  if (requestedComponentIndex !== null) {
+    const existingPhoto = await findPhotoInSlot(
+      env,
+      eventId,
+      costumeId,
+      requestedComponentIndex,
+    )
+    if (existingPhoto) {
+      const res: UploadPhotoResponse = {
+        photoId: existingPhoto.id,
+        viewUrl: mediaUrl(request.url, existingPhoto.id),
+      }
+      return json(res)
+    }
+  }
+
   const countRow = await env.DB.prepare(
     `SELECT COUNT(*) as c FROM photos WHERE costume_id = ?`,
   )
     .bind(costumeId)
     .first<{ c: number }>()
-  if ((countRow?.c ?? 0) >= limits.maxPhotosPerCostume) {
+  if ((countRow?.c ?? 0) >= slotLimit) {
     return json(
-      { error: `写真は1衣装あたり最大 ${limits.maxPhotosPerCostume} 枚までです` },
+      { error: `写真はこの衣装あたり最大 ${slotLimit} 枚までです` },
       400,
     )
   }
@@ -651,26 +970,59 @@ async function handleUploadPhoto(
     httpMetadata: { contentType },
   })
 
-  const sortOrder = countRow?.c ?? 0
-  await env.DB.prepare(
-    `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, size_bytes, sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      photoId,
-      eventId,
-      costumeId,
-      r2Key,
-      contentType,
-      bytes.byteLength,
-      sortOrder,
-      Date.now(),
+  const sortOrder = requestedComponentIndex ?? (countRow?.c ?? 0)
+  try {
+    await env.DB.prepare(
+      `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, size_bytes, sort_order, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run()
+      .bind(
+        photoId,
+        eventId,
+        costumeId,
+        r2Key,
+        contentType,
+        bytes.byteLength,
+        sortOrder,
+        Date.now(),
+      )
+      .run()
+  } catch (insertError) {
+    // If a retry committed the requested slot first, remove this request's
+    // unreferenced object and return the already committed photo.
+    try {
+      await env.PHOTOS.delete(r2Key)
+    } catch {
+      /* Scheduled/event cleanup remains a final safety net for rare R2 failures. */
+    }
+    const existingPhoto = await findPhotoInSlot(env, eventId, costumeId, sortOrder)
+    if (existingPhoto) {
+      const res: UploadPhotoResponse = {
+        photoId: existingPhoto.id,
+        viewUrl: mediaUrl(request.url, existingPhoto.id),
+      }
+      return json(res)
+    }
+    throw insertError
+  }
 
   const viewUrl = mediaUrl(request.url, photoId, url.searchParams.get('invite') ?? undefined)
   const res: UploadPhotoResponse = { photoId, viewUrl }
   return json(res, 201)
+}
+
+async function findPhotoInSlot(
+  env: Env,
+  eventId: string,
+  costumeId: string,
+  sortOrder: number,
+): Promise<{ id: string } | null> {
+  return env.DB.prepare(
+    `SELECT id FROM photos
+     WHERE event_id = ? AND costume_id = ? AND sort_order = ? LIMIT 1`,
+  )
+    .bind(eventId, costumeId, sortOrder)
+    .first<{ id: string }>()
 }
 
 async function handleMedia(photoId: string, url: URL, env: Env): Promise<Response> {
@@ -758,14 +1110,6 @@ async function buildAdminSnapshot(
       last_submit: number | null
     }>()
 
-  const participants: ServerParticipant[] = (participantsResult.results ?? []).map((p) => ({
-    id: p.id,
-    displayName: p.display_name,
-    submittedAt: p.costume_count > 0 && p.photo_count >= p.costume_count ? p.last_submit : null,
-    costumeCount: p.costume_count,
-    photoCount: p.photo_count,
-  }))
-
   const costumesResult = await env.DB.prepare(
     `SELECT c.*, p.display_name as participant_name FROM costumes c
      JOIN participants p ON p.id = c.participant_id
@@ -783,6 +1127,7 @@ async function buildAdminSnapshot(
 
   const costumes: ServerCostume[] = []
   for (const c of costumesResult.results ?? []) {
+    const components = parseStoredCostumeComponents(c.components_json)
     const photosRows = await env.DB.prepare(
       `SELECT id, costume_id, content_type, sort_order FROM photos
        WHERE costume_id = ? AND event_id = ? ORDER BY sort_order`,
@@ -816,6 +1161,7 @@ async function buildAdminSnapshot(
       suitStyle: c.suit_style ?? undefined,
       suitBreasting: c.suit_breasting ?? undefined,
       suitLapel: c.suit_lapel ?? undefined,
+      ...(components.length > 0 ? { components } : {}),
       preferences: (() => {
         const saved = JSON.parse(c.preferences_json) as string[]
         return saved.length > 0
@@ -827,6 +1173,37 @@ async function buildAdminSnapshot(
       updatedAt: c.updated_at,
     })
   }
+
+  const costumesByParticipant = new Map<string, ServerCostume[]>()
+  for (const costume of costumes) {
+    const participantCostumes = costumesByParticipant.get(costume.participantId) ?? []
+    participantCostumes.push(costume)
+    costumesByParticipant.set(costume.participantId, participantCostumes)
+  }
+  const participants: ServerParticipant[] = (participantsResult.results ?? []).map((p) => {
+    const participantCostumes = costumesByParticipant.get(p.id) ?? []
+    const complete =
+      participantCostumes.length > 0 &&
+      participantCostumes.every((costume) =>
+        areCostumePhotoSlotsComplete(
+          costume.components ?? [],
+          costume.photos.map((photo) => photo.sortOrder),
+        ),
+      )
+    const expectedPhotoCount = participantCostumes.reduce(
+      (total, costume) =>
+        total + expectedPhotoCountForComponents(costume.components ?? []),
+      0,
+    )
+    return {
+      id: p.id,
+      displayName: p.display_name,
+      submittedAt: complete ? p.last_submit : null,
+      costumeCount: p.costume_count,
+      photoCount: p.photo_count,
+      expectedPhotoCount,
+    }
+  })
 
   return {
     event: rowToPublic(row, env),
@@ -963,6 +1340,7 @@ type CostumeRow = {
   id: string
   event_id: string
   participant_id: string
+  source_costume_id: string | null
   name: string
   colors_json: string
   tone: string
@@ -973,6 +1351,7 @@ type CostumeRow = {
   suit_style: string | null
   suit_breasting: string | null
   suit_lapel: string | null
+  components_json: string
   preferences_json: string
   created_at: number
   updated_at: number

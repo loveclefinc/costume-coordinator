@@ -5,6 +5,7 @@ import {
   type CostumeThemeMatch,
 } from './costume-theme-match'
 import type { Costume } from './storage'
+import { buildCompleteOutfitCandidates } from './favorite-combinations'
 
 /** 参加者提出用: 使用履歴で全件除外された場合はフォールバックして必ず候補を返す */
 export function autoPickCostumesForParticipation(
@@ -14,10 +15,11 @@ export function autoPickCostumesForParticipation(
   maxCount: number,
   recentUsageExcludeDays: number,
 ): CostumeThemeMatch[] {
-  if (costumes.length === 0) return []
+  const outfitCandidates = buildCompleteOutfitCandidates(costumes)
+  if (outfitCandidates.length === 0) return []
 
   let picked = autoPickCostumesForEventTheme(
-    costumes,
+    outfitCandidates,
     themePreferences,
     usageHistory,
     maxCount,
@@ -27,7 +29,7 @@ export function autoPickCostumesForParticipation(
 
   if (picked.length === 0 && recentUsageExcludeDays > 0) {
     picked = autoPickCostumesForEventTheme(
-      costumes,
+      outfitCandidates,
       themePreferences,
       usageHistory,
       maxCount,

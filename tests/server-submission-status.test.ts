@@ -11,12 +11,14 @@ const participant = (
   costumeCount: number,
   submittedAt: number | null,
   photoCount?: number,
+  expectedPhotoCount?: number,
 ): ServerParticipant => ({
   id: displayName,
   displayName,
   costumeCount,
   submittedAt,
   photoCount,
+  expectedPhotoCount,
 })
 
 describe('server submission status', () => {
@@ -46,5 +48,17 @@ describe('server submission status', () => {
 
     expect(pendingServerParticipants(rows).map((row) => row.displayName)).toEqual(['送信途中'])
     expect(areActiveSubmissionsComplete(rows)).toBe(false)
+  })
+
+  it('requires every component photo for a complete outfit', () => {
+    const rows = [participant('コーデ送信途中', 1, null, 1, 3)]
+
+    expect(pendingServerParticipants(rows).map((row) => row.displayName)).toEqual([
+      'コーデ送信途中',
+    ])
+    expect(areActiveSubmissionsComplete(rows)).toBe(false)
+    expect(areActiveSubmissionsComplete([
+      participant('コーデ提出済み', 1, 1, 3, 3),
+    ])).toBe(true)
   })
 })

@@ -108,4 +108,110 @@ describe('importAdminSnapshotToLocal', () => {
       expect.objectContaining({ participants: ['代表者'] }),
     )
   })
+
+  it('imports a complete outfit as one optimizer candidate with ordered component photos', async () => {
+    const snapshot: EventAdminSnapshot = {
+      event: {
+        id: 'evt_1',
+        name: 'テスト',
+        date: '2026-04-01',
+        description: '',
+        expiresAt: Date.now() + 86400000,
+        uploadLimits: {
+          maxPhotoBytes: 1,
+          maxPhotosPerCostume: 3,
+          maxCostumesPerParticipant: 3,
+          maxEventStorageBytes: 1,
+          maxOutfitComponents: 3,
+        },
+      },
+      participants: [{
+        id: 'p1',
+        displayName: '花子',
+        submittedAt: 1,
+        costumeCount: 1,
+        photoCount: 3,
+      }],
+      costumes: [{
+        id: 'cos_outfit',
+        participantId: 'p1',
+        participantName: '花子',
+        name: 'ネイビー本番コーデ',
+        colors: ['navy', 'white', 'red'],
+        tone: 'dark',
+        pattern: 'dot',
+        season: [],
+        type: 'suit',
+        components: [
+          { sourceCostumeId: 'suit-1', name: '紺スーツ', type: 'suit' },
+          { sourceCostumeId: 'shirt-1', name: '白シャツ', type: 'shirt' },
+          { sourceCostumeId: 'tie-1', name: '赤ネクタイ', type: 'necktie' },
+        ],
+        preferences: [],
+        photos: [
+          {
+            id: 'ph-tie', costumeId: 'cos_outfit', contentType: 'image/jpeg',
+            sortOrder: 2, viewUrl: 'https://example.com/tie.jpg',
+          },
+          {
+            id: 'ph-suit', costumeId: 'cos_outfit', contentType: 'image/jpeg',
+            sortOrder: 0, viewUrl: 'https://example.com/suit.jpg',
+          },
+          {
+            id: 'ph-shirt', costumeId: 'cos_outfit', contentType: 'image/jpeg',
+            sortOrder: 1, viewUrl: 'https://example.com/shirt.jpg',
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      }],
+    }
+
+    const result = await importAdminSnapshotToLocal(snapshot, 'evt_1')
+
+    expect(result.importedCostumes).toHaveLength(1)
+    expect(result.importedCostumes[0]).toEqual(expect.objectContaining({
+      id: 'cos_outfit',
+      image: 'https://example.com/suit.jpg',
+      wearingPhotos: [
+        'https://example.com/shirt.jpg',
+        'https://example.com/tie.jpg',
+      ],
+      componentCostumeIds: ['suit-1', 'shirt-1', 'tie-1'],
+      componentCostumeNames: ['紺スーツ', '白シャツ', '赤ネクタイ'],
+    }))
+  })
+
+  it('does not import an incomplete complete-outfit candidate', async () => {
+    const snapshot: EventAdminSnapshot = {
+      event: {
+        id: 'evt_1', name: 'テスト', date: '2026-04-01', description: '',
+        expiresAt: Date.now() + 86400000,
+        uploadLimits: {
+          maxPhotoBytes: 1, maxPhotosPerCostume: 3,
+          maxCostumesPerParticipant: 3, maxEventStorageBytes: 1,
+          maxOutfitComponents: 3,
+        },
+      },
+      participants: [{ id: 'p1', displayName: '花子', submittedAt: null, costumeCount: 1 }],
+      costumes: [{
+        id: 'cos_partial', participantId: 'p1', participantName: '花子',
+        name: '途中コーデ', colors: ['navy'], tone: 'dark', pattern: 'plain',
+        season: [], preferences: [],
+        components: [
+          { sourceCostumeId: 'suit-1', name: '紺スーツ' },
+          { sourceCostumeId: 'shirt-1', name: '白シャツ' },
+        ],
+        photos: [{
+          id: 'ph-suit', costumeId: 'cos_partial', contentType: 'image/jpeg',
+          sortOrder: 0, viewUrl: 'https://example.com/suit.jpg',
+        }],
+        createdAt: 1, updatedAt: 1,
+      }],
+    }
+
+    const result = await importAdminSnapshotToLocal(snapshot, 'evt_1')
+
+    expect(result.importedCostumes).toEqual([])
+  })
 })

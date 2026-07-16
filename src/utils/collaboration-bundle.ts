@@ -8,6 +8,7 @@ import {
   countImportCostumeChanges,
   mergeEventImportedCostumes,
 } from './event-imported-costumes'
+import { buildCompleteOutfitCandidates } from './favorite-combinations'
 
 export const COLLABORATION_BUNDLE_VERSION = 1
 
@@ -49,6 +50,16 @@ export function createParticipantSubmissionBundle(params: {
   costumes: Costume[]
   preferences: string[]
 }): ParticipantSubmissionBundle {
+  const submittedCostumes = buildCompleteOutfitCandidates(params.costumes)
+  const submittedIds = new Set(submittedCostumes.map((costume) => costume.id))
+  const preferences = Array.from(new Set(params.preferences.flatMap((preferenceId) => {
+    if (submittedIds.has(preferenceId)) return [preferenceId]
+    const completeOutfit = submittedCostumes.find(
+      (costume) => costume.componentCostumeIds?.includes(preferenceId),
+    )
+    return completeOutfit ? [completeOutfit.id] : []
+  })))
+
   return {
     type: 'participant-submission',
     version: COLLABORATION_BUNDLE_VERSION,
@@ -56,8 +67,13 @@ export function createParticipantSubmissionBundle(params: {
     eventId: params.event.id,
     eventName: params.event.name,
     participantName: params.participantName.trim(),
-    costumes: params.costumes.map((c) => normalizeCostume(c)),
-    preferences: params.preferences.filter(Boolean),
+    costumes: submittedCostumes.map((costume) => {
+      // 保存中のお気に入り編集情報は個人ワードローブだけに残す。
+      // 提出する完成コーデには、表示と最適化に必要な構成品情報だけを含める。
+      const normalized = normalizeCostume(costume)
+      return { ...normalized, favoriteCombinations: undefined }
+    }),
+    preferences,
   }
 }
 

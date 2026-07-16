@@ -20,6 +20,7 @@ function costume(overrides: Partial<Costume>): Costume {
     suitStyle: overrides.suitStyle,
     suitBreasting: overrides.suitBreasting,
     suitLapel: overrides.suitLapel,
+    tags: overrides.tags,
     createdAt: overrides.createdAt ?? 1,
     updatedAt: overrides.updatedAt ?? 1,
   }
@@ -57,6 +58,7 @@ describe('Costume wardrobe search', () => {
       pattern: 'plain',
       type: 'dress',
       silhouette: 'princess',
+      tags: ['千秋楽', 'アンコール'],
       updatedAt: 30,
     }),
   ]
@@ -95,11 +97,31 @@ describe('Costume wardrobe search', () => {
     expect(results.map((result) => result.costume.id)).toEqual(['floral-blue'])
   })
 
-  it('returns all costumes when the query is empty', () => {
+  it('returns all costumes newest first when the query is empty', () => {
     expect(searchWardrobeCostumes(wardrobe, '').map((result) => result.costume.id)).toEqual([
-      'floral-blue',
-      'black-tuxedo',
       'red-dress',
+      'black-tuxedo',
+      'floral-blue',
+    ])
+  })
+
+  it('searches user-defined wardrobe tags', () => {
+    expect(searchWardrobeCostumes(wardrobe, '千秋楽').map((result) => result.costume.id)).toEqual([
+      'red-dress',
+    ])
+    expect(costumeSearchLabels(wardrobe[2])).toEqual(
+      expect.arrayContaining(['千秋楽', 'アンコール']),
+    )
+  })
+
+  it('uses id as a stable tie-breaker for equally recent costumes', () => {
+    const tied = [
+      costume({ id: 'z-last', name: 'Z', updatedAt: 50 }),
+      costume({ id: 'a-first', name: 'A', updatedAt: 50 }),
+    ]
+    expect(searchWardrobeCostumes(tied, '').map((result) => result.costume.id)).toEqual([
+      'a-first',
+      'z-last',
     ])
   })
 

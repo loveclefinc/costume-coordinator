@@ -3,6 +3,7 @@ import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
 import type { CostumeThemeMatch } from '../utils/costume-theme-match'
 import { formatThemeSummary } from '../utils/event-theme-ui'
 import { COLOR_LABELS, PATTERN_LABELS, TONE_LABELS } from '../utils/event-theme-ui'
+import CostumePhotoMosaic from './CostumePhotoMosaic'
 import './EventCostumeMatcher.css'
 
 interface EventCostumeMatcherProps {
@@ -21,11 +22,11 @@ export default function EventCostumeMatcher({
   status = 'idle',
 }: EventCostumeMatcherProps) {
   if (costumesLoading && picked.length === 0) {
-    return <p className="event-costume-matcher-loading">登録衣装からイベントに合う衣装を選出しています…</p>
+    return <p className="event-costume-matcher-loading">登録衣装とコーデからイベントに合う候補を選出しています…</p>
   }
 
   if (status === 'picking' && picked.length === 0) {
-    return <p className="event-costume-matcher-loading">登録衣装からイベントに合う衣装を選出しています…</p>
+    return <p className="event-costume-matcher-loading">登録衣装とコーデからイベントに合う候補を選出しています…</p>
   }
 
   if (picked.length === 0) {
@@ -67,18 +68,19 @@ export default function EventCostumeMatcher({
 
       <p className="event-costume-matcher-lead">
         {status === 'done'
-          ? `テーマに合う候補 ${picked.length} 件を提出しました。これは仮の候補で、全員提出後にシステムが1着を正式決定します。`
+          ? `テーマに合う候補 ${picked.length} 件を提出しました。これは仮の候補で、全員提出後にシステムが1組（単品または完成コーデ）を正式決定します。`
           : status === 'submitting'
             ? `候補 ${picked.length} 件を提出しています…`
-            : `登録衣装の中から、テーマに合う候補を ${picked.length} 件自動選出しました（正式決定までは使用済み扱いにしません）。`}
+            : `登録衣装とお気に入りコーデから、テーマに合う候補を ${picked.length} 件自動選出しました（正式決定までは使用済み扱いにしません）。`}
       </p>
       <p className="event-costume-matcher-note">
-        衣装が正式決定されると使用履歴に記録され、設定した直近使用除外日数の間は次回候補から外れます。
+        正式決定された単品またはコーデは使用履歴に記録され、設定した期間は次回候補から外れます。
       </p>
 
       <div className="event-costume-matcher-grid">
         {picked.map((match, index) => {
           const { costume, scorePercent, reasons } = match
+          const isCompleteOutfit = (costume.componentCostumeNames?.length ?? 0) > 1
           const colorLabel = costume.colors
             .map((c) => COLOR_LABELS[c] ?? c)
             .slice(0, 2)
@@ -90,13 +92,16 @@ export default function EventCostumeMatcher({
                 {`候補 ${index + 1}`}
                 <span className="event-costume-card-score">{scorePercent}%</span>
               </div>
-              {costume.image ? (
-                <img src={costume.image} alt={costume.name} className="event-costume-card-image" />
-              ) : (
-                <div className="event-costume-card-image placeholder">写真なし</div>
-              )}
+              <CostumePhotoMosaic
+                costume={costume}
+                className="event-costume-card-image"
+                priority={index === 0}
+              />
               <div className="event-costume-card-body">
-                <strong>{costume.name}</strong>
+                <div className="event-costume-card-title">
+                  <strong>{costume.name}</strong>
+                  {isCompleteOutfit && <span>完成コーデ</span>}
+                </div>
                 <p className="event-costume-card-meta">
                   {colorLabel && `${colorLabel} / `}
                   {TONE_LABELS[costume.tone] ?? costume.tone}

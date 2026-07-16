@@ -158,6 +158,7 @@ export function costumeSearchLabels(costume: Costume): string[] {
     costume.suitBreasting ? suitBreastingLabel(costume.suitBreasting) : '',
     costume.suitLapel ? suitLapelLabel(costume.suitLapel) : '',
     ...(Array.isArray(costume.season) ? costume.season.map((s) => labelFor(SEASON_LABELS, s)) : []),
+    ...(Array.isArray(costume.tags) ? costume.tags : []),
     ...normalizeCostumeColors(costume.colors).flatMap((color) => [
       color,
       labelFor(COLOR_LABELS, color),
@@ -165,6 +166,26 @@ export function costumeSearchLabels(costume: Costume): string[] {
   ]
 
   return Array.from(new Set(labels.map((label) => label.trim()).filter(Boolean)))
+}
+
+export function costumeFeatureLabels(costume: Costume): string[] {
+  return [
+    costume.silhouette ? silhouetteLabel(costume.silhouette) : '',
+    costume.suitStyle ? suitStyleLabel(costume.suitStyle) : '',
+    costume.suitBreasting ? suitBreastingLabel(costume.suitBreasting) : '',
+    costume.suitLapel ? suitLapelLabel(costume.suitLapel) : '',
+  ].filter(Boolean)
+}
+
+export function wardrobeLabelsMatchQuery(labels: string[], query: string): boolean {
+  const tokenGroups = queryTokens(query)
+  if (tokenGroups.length === 0) return true
+
+  const normalizedLabels = labels.map((label) => normalizeText(label))
+  const searchable = normalizedLabels.join(' ')
+  return tokenGroups.every((group) =>
+    group.some((token) => normalizedLabels.includes(token) || searchable.includes(token)),
+  )
 }
 
 function scoreCostume(costume: Costume, tokenGroups: string[][]): CostumeSearchResult | null {
@@ -198,7 +219,9 @@ function scoreCostume(costume: Costume, tokenGroups: string[][]): CostumeSearchR
 export function searchWardrobeCostumes(costumes: Costume[], query: string): CostumeSearchResult[] {
   const tokens = queryTokens(query)
   if (tokens.length === 0) {
-    return costumes.map((costume) => ({ costume, score: 0, matchedLabels: [] }))
+    return costumes
+      .map((costume) => ({ costume, score: 0, matchedLabels: [] }))
+      .sort((a, b) => b.costume.updatedAt - a.costume.updatedAt || a.costume.id.localeCompare(b.costume.id))
   }
 
   return costumes

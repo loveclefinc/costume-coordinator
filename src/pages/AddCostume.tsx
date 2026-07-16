@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
-import { normalizeCostumeColors } from '../utils/costume-normalize'
+import { normalizeCostumeColors, normalizeCostumeTags } from '../utils/costume-normalize'
 import { useCloudSync } from '../hooks/useCloudSync'
 import CostumeImageCloudPicker from '../components/CostumeImageCloudPicker'
 import ImageColorEyedropper, { type EyedropperTarget } from '../components/ImageColorEyedropper'
@@ -229,6 +229,7 @@ export default function AddCostume() {
         setName(costume.name)
         setImageUri(costume.image || null)
         setWearingPhotos(Array.isArray(costume.wearingPhotos) ? costume.wearingPhotos : [])
+        setTags(normalizeCostumeTags(costume.tags).join(', '))
 
         if (hexColors[0]) {
           const primary = hexColors[0].startsWith('#') ? hexColors[0] : `#${hexColors[0]}`
@@ -459,6 +460,7 @@ export default function AddCostume() {
         name: name.trim(),
         image: imageUri,
         wearingPhotos,
+        tags: normalizeCostumeTags(tags),
         colors,
         tone,
         pattern: normalizePattern(pattern),

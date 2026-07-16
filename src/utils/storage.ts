@@ -7,11 +7,28 @@ import type { SuitBreasting, SuitLapel, SuitStyle } from './suit-attributes'
 const DB_NAME = 'CostumeCoordinator'
 const DB_VERSION = 2
 
+export interface FavoriteCombination {
+  id: string
+  name: string
+  /** 主衣装と同時に着用する個人ワードローブ内の衣装ID。 */
+  pieceIds: string[]
+  createdAt: number
+  updatedAt: number
+}
+
 export interface Costume {
   id: string
   name: string
   image: string // Base64 encoded image
   wearingPhotos?: string[]
+  /** 利用者が任意で付ける検索用タグ */
+  tags?: string[]
+  /** この衣装を主役にした、利用者が保存したお気に入りコーデ */
+  favoriteCombinations?: FavoriteCombination[]
+  /** 完成した装い候補を構成する、端末内衣装または提出元衣装のID */
+  componentCostumeIds?: string[]
+  /** 結果表示用の構成アイテム名（IDが別端末で解決できない場合にも使用） */
+  componentCostumeNames?: string[]
   colors: string[]
   tone: string // 'warm' | 'cool' | 'neutral'
   pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'
