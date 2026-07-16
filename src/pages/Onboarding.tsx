@@ -113,7 +113,7 @@ export default function Onboarding() {
             <p className="onboarding-highlight">{current.highlight}</p>
           )}
 
-          {current.isCloudStep ? (
+          {'isCloudStep' in current && current.isCloudStep ? (
             <div className="onboarding-cloud-actions">
               <button
                 type="button"

@@ -301,7 +301,7 @@ export async function batchImportCostumes(
     season: string[]
   }>
 > {
-  const costumes = []
+  const costumes: Awaited<ReturnType<typeof importCostumeFromCloudFile>>[] = []
 
   for (const file of files) {
     try {

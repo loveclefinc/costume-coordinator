@@ -12,3 +12,26 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+interface GoogleApiClient {
+  load(name: string, callback: () => void): void
+  client: {
+    init(config: {
+      apiKey: string
+      discoveryDocs: string[]
+    }): Promise<void>
+    drive: {
+      files: {
+        list(params: Record<string, unknown>): Promise<{
+          result: {
+            files?: Array<Record<string, unknown>>
+          }
+        }>
+      }
+    }
+  }
+}
+
+interface Window {
+  gapi: GoogleApiClient
+}

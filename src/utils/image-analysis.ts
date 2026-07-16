@@ -2,7 +2,20 @@
  * Image analysis utility for extracting colors and analyzing costume images
  */
 
-export interface ColorAnalysisResult {
+export type LocalCostumePattern = 'solid' | 'stripe' | 'check' | 'dot' | 'other'
+
+export interface PatternAnalysisResult {
+  /** 端末内の画素統計から推定した柄。衣装種別などは推定しない */
+  pattern: LocalCostumePattern
+  /** 柄推定の信頼度（0〜1） */
+  confidence: number
+  /** 利用者の確認が必要な場合の日本語メッセージ */
+  warnings: string[]
+  /** 判定できなかった項目。現在は pattern のみ */
+  uncertainFields: Array<'pattern'>
+}
+
+export interface ColorAnalysisResult extends PatternAnalysisResult {
   primaryColor: string
   secondaryColor?: string
   colorCategory: 'warm' | 'cool' | 'neutral'
@@ -35,6 +48,11 @@ const CORNER_COLOR_MATCH_DISTANCE = 42
 const CORNER_BACKGROUND_MIN_MATCHES = 3
 /** 類似色をまとめる量子化（チャンネルあたりの段階数） */
 const COLOR_QUANTIZE_LEVELS = 12
+/** 柄解析は端末負荷を抑えるため、この大きさ以下のグリッドへ間引く */
+const PATTERN_GRID_MAX_SIDE = 64
+const MAX_RGB_DISTANCE = Math.sqrt(3 * 255 ** 2)
+/** 隣接画素を柄の境界とみなす RGB 距離（正規化値） */
+const PATTERN_EDGE_THRESHOLD = 0.14
 
 /** 中央領域のサンプル範囲（ピクセル座標） */
 export function getCenterSampleBounds(
@@ -112,6 +130,388 @@ export interface ImageBounds {
   y0: number
   x1: number
   y1: number
+}
+
+export interface AnalyzePatternOptions {
+  /** 解析対象。省略時は画像全体を使う */
+  bounds?: ImageBounds
+}
+
+interface PatternGridPixel {
+  r: number
+  g: number
+  b: number
+}
+
+interface PatternGrid {
+  width: number
+  height: number
+  pixels: Array<PatternGridPixel | null>
+  validCount: number
+}
+
+interface AxisEdgeStats {
+  edgeRate: number
+  meanDifference: number
+  alignedPeakCount: number
+  peakMeanCoverage: number
+  structured: boolean
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
+
+function normalizedRgbDistance(a: PatternGridPixel, b: PatternGridPixel): number {
+  return Math.sqrt(
+    (a.r - b.r) ** 2 +
+    (a.g - b.g) ** 2 +
+    (a.b - b.b) ** 2,
+  ) / MAX_RGB_DISTANCE
+}
+
+function createPatternGrid(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  bounds?: ImageBounds,
+): PatternGrid {
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    data.length < width * height * 4
+  ) {
+    return { width: 0, height: 0, pixels: [], validCount: 0 }
+  }
+
+  const source = bounds ?? { x0: 0, y0: 0, x1: width, y1: height }
+  const x0 = Math.min(width, Math.max(0, Math.floor(source.x0)))
+  const y0 = Math.min(height, Math.max(0, Math.floor(source.y0)))
+  const x1 = Math.min(width, Math.max(x0, Math.ceil(source.x1)))
+  const y1 = Math.min(height, Math.max(y0, Math.ceil(source.y1)))
+  const regionWidth = x1 - x0
+  const regionHeight = y1 - y0
+
+  if (regionWidth <= 0 || regionHeight <= 0) {
+    return { width: 0, height: 0, pixels: [], validCount: 0 }
+  }
+
+  const stepX = Math.max(1, Math.ceil(regionWidth / PATTERN_GRID_MAX_SIDE))
+  const stepY = Math.max(1, Math.ceil(regionHeight / PATTERN_GRID_MAX_SIDE))
+  const gridWidth = Math.ceil(regionWidth / stepX)
+  const gridHeight = Math.ceil(regionHeight / stepY)
+  const pixels: Array<PatternGridPixel | null> = []
+  let validCount = 0
+
+  for (let gy = 0; gy < gridHeight; gy++) {
+    const y = Math.min(y1 - 1, y0 + gy * stepY + Math.floor(stepY / 2))
+    for (let gx = 0; gx < gridWidth; gx++) {
+      const x = Math.min(x1 - 1, x0 + gx * stepX + Math.floor(stepX / 2))
+      const index = (y * width + x) * 4
+
+      if (data[index + 3] < 128) {
+        pixels.push(null)
+        continue
+      }
+
+      pixels.push({ r: data[index], g: data[index + 1], b: data[index + 2] })
+      validCount++
+    }
+  }
+
+  return { width: gridWidth, height: gridHeight, pixels, validCount }
+}
+
+function getPatternDispersion(grid: PatternGrid): number {
+  if (grid.validCount === 0) return 0
+
+  let r = 0
+  let g = 0
+  let b = 0
+  for (const pixel of grid.pixels) {
+    if (!pixel) continue
+    r += pixel.r
+    g += pixel.g
+    b += pixel.b
+  }
+
+  const mean: PatternGridPixel = {
+    r: r / grid.validCount,
+    g: g / grid.validCount,
+    b: b / grid.validCount,
+  }
+  let squaredDistance = 0
+  for (const pixel of grid.pixels) {
+    if (!pixel) continue
+    const distance = normalizedRgbDistance(pixel, mean)
+    squaredDistance += distance * distance
+  }
+  return Math.sqrt(squaredDistance / grid.validCount)
+}
+
+function getAxisEdgeStats(grid: PatternGrid, axis: 'x' | 'y'): AxisEdgeStats {
+  const boundaryCount = axis === 'x' ? grid.width - 1 : grid.height - 1
+  const perpendicularCount = axis === 'x' ? grid.height : grid.width
+  if (boundaryCount <= 0 || perpendicularCount <= 0) {
+    return {
+      edgeRate: 0,
+      meanDifference: 0,
+      alignedPeakCount: 0,
+      peakMeanCoverage: 0,
+      structured: false,
+    }
+  }
+
+  const coverages: number[] = []
+  let totalEdges = 0
+  let totalPairs = 0
+  let totalDifference = 0
+
+  for (let boundary = 0; boundary < boundaryCount; boundary++) {
+    let boundaryEdges = 0
+    let boundaryPairs = 0
+
+    for (let perpendicular = 0; perpendicular < perpendicularCount; perpendicular++) {
+      const x = axis === 'x' ? boundary : perpendicular
+      const y = axis === 'x' ? perpendicular : boundary
+      const first = grid.pixels[y * grid.width + x]
+      const second = axis === 'x'
+        ? grid.pixels[y * grid.width + x + 1]
+        : grid.pixels[(y + 1) * grid.width + x]
+      if (!first || !second) continue
+
+      const difference = normalizedRgbDistance(first, second)
+      totalDifference += difference
+      totalPairs++
+      boundaryPairs++
+      if (difference >= PATTERN_EDGE_THRESHOLD) {
+        totalEdges++
+        boundaryEdges++
+      }
+    }
+
+    coverages.push(boundaryPairs > 0 ? boundaryEdges / boundaryPairs : 0)
+  }
+
+  const peakCoverages = coverages.filter((coverage) => coverage >= 0.62)
+  const nonPeakCoverages = coverages.filter((coverage) => coverage < 0.62)
+  const peakDensity = peakCoverages.length / boundaryCount
+  const nonPeakMean = nonPeakCoverages.length > 0
+    ? nonPeakCoverages.reduce((sum, value) => sum + value, 0) / nonPeakCoverages.length
+    : 1
+
+  return {
+    edgeRate: totalPairs > 0 ? totalEdges / totalPairs : 0,
+    meanDifference: totalPairs > 0 ? totalDifference / totalPairs : 0,
+    alignedPeakCount: peakCoverages.length,
+    peakMeanCoverage: peakCoverages.length > 0
+      ? peakCoverages.reduce((sum, value) => sum + value, 0) / peakCoverages.length
+      : 0,
+    // ランダムノイズは全境界がピークになる。間隔のある境界だけを柄とみなす。
+    structured:
+      peakCoverages.length >= 2 &&
+      peakDensity <= 0.5 &&
+      nonPeakMean <= 0.18,
+  }
+}
+
+function findDotConfidence(grid: PatternGrid): number | null {
+  const clusters = new Map<string, { count: number; r: number; g: number; b: number }>()
+  for (const pixel of grid.pixels) {
+    if (!pixel) continue
+    const key = `${Math.round(pixel.r / 32)},${Math.round(pixel.g / 32)},${Math.round(pixel.b / 32)}`
+    const cluster = clusters.get(key) ?? { count: 0, r: 0, g: 0, b: 0 }
+    cluster.count++
+    cluster.r += pixel.r
+    cluster.g += pixel.g
+    cluster.b += pixel.b
+    clusters.set(key, cluster)
+  }
+
+  const background = [...clusters.values()].sort((a, b) => b.count - a.count)[0]
+  if (!background || background.count / grid.validCount < 0.55) return null
+
+  const backgroundColor: PatternGridPixel = {
+    r: background.r / background.count,
+    g: background.g / background.count,
+    b: background.b / background.count,
+  }
+  const mask = grid.pixels.map((pixel) => (
+    pixel !== null && normalizedRgbDistance(pixel, backgroundColor) >= 0.16
+  ))
+  const minorityCount = mask.filter(Boolean).length
+  const minorityFraction = minorityCount / grid.validCount
+  if (minorityFraction < 0.025 || minorityFraction > 0.35) return null
+
+  const visited = new Uint8Array(mask.length)
+  const components: Array<{ size: number; compactness: number; aspect: number; touchesEdge: boolean }> = []
+  const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const
+
+  for (let start = 0; start < mask.length; start++) {
+    if (!mask[start] || visited[start]) continue
+
+    const queue = [start]
+    visited[start] = 1
+    let cursor = 0
+    let size = 0
+    let minX = grid.width
+    let maxX = 0
+    let minY = grid.height
+    let maxY = 0
+    let touchesEdge = false
+
+    while (cursor < queue.length) {
+      const index = queue[cursor++]
+      const x = index % grid.width
+      const y = Math.floor(index / grid.width)
+      size++
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+      if (x === 0 || y === 0 || x === grid.width - 1 || y === grid.height - 1) {
+        touchesEdge = true
+      }
+
+      for (const [dx, dy] of neighbors) {
+        const nx = x + dx
+        const ny = y + dy
+        if (nx < 0 || ny < 0 || nx >= grid.width || ny >= grid.height) continue
+        const next = ny * grid.width + nx
+        if (!mask[next] || visited[next]) continue
+        visited[next] = 1
+        queue.push(next)
+      }
+    }
+
+    const componentWidth = maxX - minX + 1
+    const componentHeight = maxY - minY + 1
+    components.push({
+      size,
+      compactness: size / (componentWidth * componentHeight),
+      aspect: Math.max(componentWidth / componentHeight, componentHeight / componentWidth),
+      touchesEdge,
+    })
+  }
+
+  const maxComponentSize = grid.width * grid.height * 0.05
+  const dotCandidates = components.filter((component) => (
+    component.size >= 2 &&
+    component.size <= maxComponentSize &&
+    component.compactness >= 0.45 &&
+    component.aspect <= 2.5 &&
+    !component.touchesEdge
+  ))
+  if (dotCandidates.length < 3) return null
+
+  const candidatePixels = dotCandidates.reduce((sum, component) => sum + component.size, 0)
+  if (candidatePixels / minorityCount < 0.7) return null
+
+  const meanSize = candidatePixels / dotCandidates.length
+  const sizeVariance = dotCandidates.reduce(
+    (sum, component) => sum + (component.size - meanSize) ** 2,
+    0,
+  ) / dotCandidates.length
+  const sizeVariation = Math.sqrt(sizeVariance) / meanSize
+  if (sizeVariation > 0.65) return null
+
+  return clamp01(0.7 + Math.min(0.2, dotCandidates.length * 0.015) - sizeVariation * 0.12)
+}
+
+function makePatternResult(
+  pattern: LocalCostumePattern,
+  confidence: number,
+  warnings: string[] = [],
+): PatternAnalysisResult {
+  const normalizedConfidence = Math.round(clamp01(confidence) * 100) / 100
+  return {
+    pattern,
+    confidence: normalizedConfidence,
+    warnings,
+    uncertainFields: pattern === 'other' || normalizedConfidence < 0.7 ? ['pattern'] : [],
+  }
+}
+
+/**
+ * 端末内で完結する保守的な柄推定。
+ * RGB のばらつき、軸方向に揃った境界、反復する小領域だけを使い、
+ * 衣服種別・シルエット・フォーマリティは推定しない。
+ */
+export function analyzePatternFromPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options: AnalyzePatternOptions = {},
+): PatternAnalysisResult {
+  const grid = createPatternGrid(data, width, height, options.bounds)
+  const sampleCount = grid.width * grid.height
+  if (grid.validCount < 16 || sampleCount === 0 || grid.validCount / sampleCount < 0.55) {
+    return makePatternResult(
+      'other',
+      0.12,
+      ['解析できる画素が少ないため、柄を判定できませんでした。'],
+    )
+  }
+
+  const dispersion = getPatternDispersion(grid)
+  const xEdges = getAxisEdgeStats(grid, 'x')
+  const yEdges = getAxisEdgeStats(grid, 'y')
+  const combinedEdgeRate = (xEdges.edgeRate + yEdges.edgeRate) / 2
+  const combinedNeighborDifference = (xEdges.meanDifference + yEdges.meanDifference) / 2
+
+  if (dispersion <= 0.055 && combinedEdgeRate <= 0.02) {
+    return makePatternResult('solid', 0.98 - dispersion * 2.4 - combinedEdgeRate * 2)
+  }
+
+  // なだらかな明暗差は、柄ではなく撮影時の影である可能性が高い。
+  if (combinedEdgeRate <= 0.008 && combinedNeighborDifference <= 0.025) {
+    return makePatternResult(
+      'solid',
+      0.68,
+      ['光や影の影響を含むため、無地かどうか確認してください。'],
+    )
+  }
+
+  if (
+    xEdges.structured &&
+    yEdges.structured &&
+    xEdges.edgeRate >= 0.04 &&
+    yEdges.edgeRate >= 0.04
+  ) {
+    const peakStrength = (xEdges.peakMeanCoverage + yEdges.peakMeanCoverage) / 2
+    return makePatternResult('check', 0.72 + peakStrength * 0.2)
+  }
+
+  const verticalStripe =
+    xEdges.structured &&
+    !yEdges.structured &&
+    xEdges.edgeRate >= 0.04 &&
+    yEdges.edgeRate <= 0.035 &&
+    xEdges.edgeRate >= yEdges.edgeRate * 3
+  const horizontalStripe =
+    yEdges.structured &&
+    !xEdges.structured &&
+    yEdges.edgeRate >= 0.04 &&
+    xEdges.edgeRate <= 0.035 &&
+    yEdges.edgeRate >= xEdges.edgeRate * 3
+
+  if (verticalStripe || horizontalStripe) {
+    const stripeAxis = verticalStripe ? xEdges : yEdges
+    return makePatternResult('stripe', 0.72 + stripeAxis.peakMeanCoverage * 0.22)
+  }
+
+  const dotConfidence = findDotConfidence(grid)
+  if (dotConfidence !== null) {
+    return makePatternResult('dot', dotConfidence)
+  }
+
+  return makePatternResult(
+    'other',
+    0.35 + Math.min(0.18, Math.abs(xEdges.edgeRate - yEdges.edgeRate)),
+    ['柄を安定して判定できませんでした。内容を確認してください。'],
+  )
 }
 
 /** 四隅それぞれのサンプル領域 */
@@ -268,6 +668,30 @@ function buildAnalysisCanvas(
   return { canvas, ctx }
 }
 
+interface AnalysisImageData {
+  data: Uint8ClampedArray
+  width: number
+  height: number
+}
+
+function loadAnalysisImageData(imageUrl: string): Promise<AnalysisImageData> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const { canvas, ctx } = buildAnalysisCanvas(img)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        resolve({ data: imageData.data, width: canvas.width, height: canvas.height })
+      } catch (error) {
+        reject(error)
+      }
+    }
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = imageUrl
+  })
+}
+
 interface AccumulateColorsConfig extends Required<ExtractDominantColorsOptions> {
   excludedColors: string[]
 }
@@ -330,6 +754,53 @@ function sortTopColors(colorMap: Record<string, number>, limit = 5): string[] {
     .map(([color]) => color)
 }
 
+function resolveDominantColorOptions(
+  options: ExtractDominantColorsOptions,
+): Required<ExtractDominantColorsOptions> {
+  return {
+    centerFraction: options.centerFraction ?? DEFAULT_CENTER_FRACTION,
+    radialWeighting: options.radialWeighting ?? true,
+    skipLikelyBackground: options.skipLikelyBackground ?? true,
+    excludeCornerBackground: options.excludeCornerBackground ?? true,
+    useGarmentBounds: options.useGarmentBounds ?? true,
+  }
+}
+
+function extractDominantColorsFromPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  opts: Required<ExtractDominantColorsOptions>,
+): string[] {
+  const cornerBackground = opts.excludeCornerBackground
+    ? detectCornerBackgroundColors(data, width, height)
+    : []
+
+  const colorMap = accumulateColorsFromImageData(data, width, height, {
+    ...opts,
+    excludedColors: cornerBackground,
+  })
+  const sortedColors = sortTopColors(colorMap)
+  if (sortedColors.length > 0) return sortedColors
+
+  // 除外しすぎた場合: 四隅除外だけ外して再試行
+  const relaxedMap = accumulateColorsFromImageData(data, width, height, {
+    ...opts,
+    excludedColors: [],
+  })
+  const relaxed = sortTopColors(relaxedMap)
+  if (relaxed.length > 0) return relaxed
+
+  // 最後の手段: ヒューリスティック除外も外す
+  const fallbackMap = accumulateColorsFromImageData(data, width, height, {
+    ...opts,
+    skipLikelyBackground: false,
+    excludedColors: [],
+  })
+  const fallback = sortTopColors(fallbackMap)
+  return fallback.length > 0 ? fallback : ['#808080']
+}
+
 /**
  * Extract dominant colors — 中央領域を優先（背景色の影響を抑える）
  */
@@ -337,70 +808,13 @@ export async function extractDominantColors(
   imageUrl: string,
   options: ExtractDominantColorsOptions = {},
 ): Promise<string[]> {
-  const opts: Required<ExtractDominantColorsOptions> = {
-    centerFraction: options.centerFraction ?? DEFAULT_CENTER_FRACTION,
-    radialWeighting: options.radialWeighting ?? true,
-    skipLikelyBackground: options.skipLikelyBackground ?? true,
-    excludeCornerBackground: options.excludeCornerBackground ?? true,
-    useGarmentBounds: options.useGarmentBounds ?? true,
-  }
-
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      try {
-        const { canvas, ctx } = buildAnalysisCanvas(img)
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const { data, width, height } = {
-          data: imageData.data,
-          width: canvas.width,
-          height: canvas.height,
-        }
-
-        const cornerBackground = opts.excludeCornerBackground
-          ? detectCornerBackgroundColors(data, width, height)
-          : []
-
-        const colorMap = accumulateColorsFromImageData(data, width, height, {
-          ...opts,
-          excludedColors: cornerBackground,
-        })
-
-        const sortedColors = sortTopColors(colorMap)
-
-        if (sortedColors.length > 0) {
-          resolve(sortedColors)
-          return
-        }
-
-        // 除外しすぎた場合: 四隅除外だけ外して再試行
-        const relaxedMap = accumulateColorsFromImageData(data, width, height, {
-          ...opts,
-          excludedColors: [],
-        })
-        const relaxed = sortTopColors(relaxedMap)
-        if (relaxed.length > 0) {
-          resolve(relaxed)
-          return
-        }
-
-        // 最後の手段: ヒューリスティック除外も外す
-        const fallbackMap = accumulateColorsFromImageData(data, width, height, {
-          ...opts,
-          skipLikelyBackground: false,
-          excludedColors: [],
-        })
-        const fallback = sortTopColors(fallbackMap)
-
-        resolve(fallback.length > 0 ? fallback : ['#808080'])
-      } catch (error) {
-        reject(error)
-      }
-    }
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = imageUrl
-  })
+  const { data, width, height } = await loadAnalysisImageData(imageUrl)
+  return extractDominantColorsFromPixels(
+    data,
+    width,
+    height,
+    resolveDominantColorOptions(options),
+  )
 }
 
 /**
@@ -408,7 +822,16 @@ export async function extractDominantColors(
  */
 export async function analyzeImage(imageUrl: string): Promise<ColorAnalysisResult> {
   try {
-    const dominantColors = await extractDominantColors(imageUrl)
+    const { data, width, height } = await loadAnalysisImageData(imageUrl)
+    const dominantColors = extractDominantColorsFromPixels(
+      data,
+      width,
+      height,
+      resolveDominantColorOptions({}),
+    )
+    const patternAnalysis = analyzePatternFromPixels(data, width, height, {
+      bounds: getGarmentSampleBounds(width, height),
+    })
     const primaryColor = dominantColors[0] || '#808080'
     const secondaryColor = dominantColors[1]
 
@@ -421,14 +844,18 @@ export async function analyzeImage(imageUrl: string): Promise<ColorAnalysisResul
       colorCategory,
       tone,
       dominantColors,
+      ...patternAnalysis,
     }
-  } catch (error) {
-    console.error('Image analysis failed:', error)
+  } catch {
     return {
       primaryColor: '#808080',
       colorCategory: 'neutral',
       tone: 'neutral',
       dominantColors: ['#808080'],
+      pattern: 'other',
+      confidence: 0,
+      warnings: ['画像を解析できませんでした。内容を手入力してください。'],
+      uncertainFields: ['pattern'],
     }
   }
 }
@@ -595,7 +1022,13 @@ export async function compressImage(file: File, maxWidth: number = 300, maxHeigh
         }
 
         ctx.drawImage(img, 0, 0, width, height)
-        canvas.toBlob(resolve, 'image/jpeg', 0.8)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error('Failed to compress image'))
+          }
+        }, 'image/jpeg', 0.8)
       }
       img.onerror = () => reject(new Error('Failed to load image'))
       img.src = e.target?.result as string

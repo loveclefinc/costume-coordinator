@@ -1,12 +1,13 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
 import { useCostumes } from '../hooks/useCostumes'
 import { normalizeCostumeColors } from '../utils/costume-normalize'
 import { useCloudSync } from '../hooks/useCloudSync'
 import CostumeImageCloudPicker from '../components/CostumeImageCloudPicker'
 import ImageColorEyedropper, { type EyedropperTarget } from '../components/ImageColorEyedropper'
+import CostumePhotoAnalysisPanel from '../components/CostumePhotoAnalysisPanel'
 import { getCloudImageFolderHelp } from '../cloud/import/cloud-import-help'
-import { analyzeImage, compressImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
+import { analyzeImage, fileToDataUrl, classifyColorCategory, classifyTone } from '../utils/image-analysis'
 import { enrichCostumeColors, normalizePattern, hexToThemeColorName } from '../utils/theme-colors'
 import { DRESS_SILHOUETTE_OPTIONS, SILHOUETTE_LABELS, type DressSilhouette } from '../utils/silhouette'
 import {
@@ -26,6 +27,17 @@ import {
   type SuitLapel,
   type SuitStyle,
 } from '../utils/suit-attributes'
+import { getEventSession } from '../event-server/session'
+import { buildParticipantReturnPath } from '../utils/participant-costume-route'
+import {
+  COSTUME_IMAGE_ACCEPT,
+  validateCostumeImage,
+} from '../utils/costume-image-validation'
+import {
+  canSaveAfterCostumeAnalysis,
+  resolveCostumeAnalysisUiStatus,
+  type CostumeAnalysisUiStatus,
+} from '../utils/costume-analysis-ui'
 
 const COLOR_CATEGORY_LABELS: Record<string, string> = {
   warm: '暖色',
@@ -149,8 +161,15 @@ function SuitLapelIcon({ value }: { value: SuitLapel }) {
 
 export default function AddCostume() {
   const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
+  const { id, eventId } = useParams<{ id?: string; eventId?: string }>()
+  const [searchParams] = useSearchParams()
   const isEditMode = Boolean(id)
+  const isParticipantFlow = Boolean(eventId)
+  const participantSession = eventId ? getEventSession(eventId) : undefined
+  const participantInviteToken = searchParams.get('t') || participantSession?.inviteToken || ''
+  const participantReturnPath = eventId
+    ? buildParticipantReturnPath(eventId, participantInviteToken)
+    : null
   const { addCostume, updateCostume, getCostume } = useCostumes()
   const { status: cloudStatus } = useCloudSync()
   const cloudConnected = cloudStatus.connected
@@ -158,18 +177,17 @@ export default function AddCostume() {
   const [showCloudPicker, setShowCloudPicker] = useState(false)
   const [name, setName] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
-  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null)
   const [wearingPhotos, setWearingPhotos] = useState<string[]>([])
   const [primaryColor, setPrimaryColor] = useState('#FF6B9D')
   const [secondaryColor, setSecondaryColor] = useState('')
   const [colorCategory, setColorCategory] = useState<'warm' | 'cool' | 'neutral'>('neutral')
   const [tone, setTone] = useState<'pastel' | 'vivid' | 'dark' | 'neutral'>('neutral')
-  const [pattern, setPattern] = useState('solid')
-  const [costumeType, setCostumeType] = useState('dress')
-  const [silhouette, setSilhouette] = useState<DressSilhouette>('a_line')
-  const [suitStyle, setSuitStyle] = useState<SuitStyle>('tuxedo')
-  const [suitBreasting, setSuitBreasting] = useState<SuitBreasting>('single')
-  const [suitLapel, setSuitLapel] = useState<SuitLapel>('shawl')
+  const [pattern, setPattern] = useState(isParticipantFlow ? '' : 'solid')
+  const [costumeType, setCostumeType] = useState(isParticipantFlow ? '' : 'dress')
+  const [silhouette, setSilhouette] = useState<DressSilhouette | ''>(isParticipantFlow ? '' : 'a_line')
+  const [suitStyle, setSuitStyle] = useState<SuitStyle | ''>(isParticipantFlow ? '' : 'tuxedo')
+  const [suitBreasting, setSuitBreasting] = useState<SuitBreasting | ''>(isParticipantFlow ? '' : 'single')
+  const [suitLapel, setSuitLapel] = useState<SuitLapel | ''>(isParticipantFlow ? '' : 'shawl')
   const [tags, setTags] = useState('')
   const [season, setSeason] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -177,6 +195,20 @@ export default function AddCostume() {
   const [error, setError] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [eyedropperTarget, setEyedropperTarget] = useState<EyedropperTarget | null>(null)
+  const [analysisStatus, setAnalysisStatus] = useState<CostumeAnalysisUiStatus>('idle')
+  const [analysisConfidence, setAnalysisConfidence] = useState<number | undefined>()
+  const [analysisWarnings, setAnalysisWarnings] = useState<string[]>([])
+  const [analysisUncertainFields, setAnalysisUncertainFields] = useState<string[]>([])
+  const [analysisError, setAnalysisError] = useState('')
+  const [analysisConfirmed, setAnalysisConfirmed] = useState(false)
+  const analysisRequestIdRef = useRef(0)
+
+  const analysisAllowsSave = canSaveAfterCostumeAnalysis(analysisStatus, analysisConfirmed)
+  const formBusy = loading || analysisStatus === 'analyzing'
+
+  useEffect(() => () => {
+    analysisRequestIdRef.current += 1
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -232,33 +264,104 @@ export default function AddCostume() {
     }
   }, [id, getCostume])
 
+  const resetCostumeAnalysis = () => {
+    analysisRequestIdRef.current += 1
+    setAnalysisStatus('idle')
+    setAnalysisConfidence(undefined)
+    setAnalysisWarnings([])
+    setAnalysisUncertainFields([])
+    setAnalysisError('')
+    setAnalysisConfirmed(false)
+  }
+
+  const applyLocalAnalysisValues = (analysis: Awaited<ReturnType<typeof analyzeImage>>) => {
+    setPrimaryColor(analysis.primaryColor)
+    setSecondaryColor(analysis.secondaryColor ?? '')
+    setColorCategory(analysis.colorCategory)
+    setTone(analysis.tone)
+    setPattern(analysis.pattern)
+  }
+
+  const applyLocalAnalysisReview = (analysis: Awaited<ReturnType<typeof analyzeImage>>) => {
+    setAnalysisConfidence(analysis.confidence)
+    setAnalysisWarnings([...analysis.warnings])
+    setAnalysisUncertainFields([...analysis.uncertainFields])
+    setAnalysisStatus(resolveCostumeAnalysisUiStatus({
+      confidence: analysis.confidence,
+      warnings: analysis.warnings,
+      uncertainFields: analysis.uncertainFields,
+    }))
+  }
+
+  const handleAnalyzeCostumePhoto = async () => {
+    if (!imageUri) {
+      setAnalysisStatus('error')
+      setAnalysisError('写真を確認できません。別の写真を選ぶか、手入力を続けてください。')
+      return
+    }
+
+    const requestId = ++analysisRequestIdRef.current
+    setAnalysisStatus('analyzing')
+    setAnalysisError('')
+    setAnalysisConfirmed(false)
+    setAnalyzing(true)
+
+    try {
+      const analysis = await analyzeImage(imageUri)
+      if (analysisRequestIdRef.current !== requestId) return
+
+      applyLocalAnalysisValues(analysis)
+      applyLocalAnalysisReview(analysis)
+    } catch (err) {
+      if (analysisRequestIdRef.current !== requestId) return
+
+      setAnalysisStatus('error')
+      setAnalysisError(`${err instanceof Error ? err.message : '写真からの入力に失敗しました'} 手入力はそのまま続けられます。`)
+    } finally {
+      if (analysisRequestIdRef.current === requestId) setAnalyzing(false)
+    }
+  }
+
+  const handleManualAnalysisFallback = () => {
+    analysisRequestIdRef.current += 1
+    setAnalyzing(false)
+    setAnalysisStatus('manual')
+    setAnalysisError('')
+    setAnalysisConfirmed(false)
+  }
+
   const applyImageDataUrl = async (dataUrl: string, sourceName?: string) => {
+    let requestId: number | null = null
     setLoading(true)
     setError('')
     try {
+      const blob = await (await fetch(dataUrl)).blob()
+      const validationError = validateCostumeImage(blob)
+      if (validationError) throw new Error(validationError)
+
+      resetCostumeAnalysis()
       setImageUri(dataUrl)
 
-      const blob = await (await fetch(dataUrl)).blob()
-      const file = new File([blob], sourceName ?? 'image.jpg', { type: blob.type || 'image/jpeg' })
-      const compressedBlob = await compressImage(file, 300, 300)
-      setThumbnailUri(URL.createObjectURL(compressedBlob))
-
+      requestId = ++analysisRequestIdRef.current
       setAnalyzing(true)
+      if (isParticipantFlow) setAnalysisStatus('analyzing')
       const analysis = await analyzeImage(dataUrl)
-      setPrimaryColor(analysis.primaryColor)
-      if (analysis.secondaryColor) {
-        setSecondaryColor(analysis.secondaryColor)
-      }
-      setColorCategory(analysis.colorCategory)
-      setTone(analysis.tone)
-      setAnalyzing(false)
+      if (analysisRequestIdRef.current !== requestId) return
+      applyLocalAnalysisValues(analysis)
+      if (isParticipantFlow) applyLocalAnalysisReview(analysis)
 
       if (sourceName && !name.trim()) {
         setName(sourceName.replace(/\.[^.]+$/, ''))
       }
     } catch (err) {
+      if (requestId !== null && analysisRequestIdRef.current !== requestId) return
       setError(err instanceof Error ? err.message : '画像の読み込みに失敗しました')
+      if (isParticipantFlow) {
+        setAnalysisStatus('error')
+        setAnalysisError('写真から入力できませんでした。手入力はそのまま続けられます。')
+      }
     } finally {
+      if (requestId === null || analysisRequestIdRef.current === requestId) setAnalyzing(false)
       setLoading(false)
     }
   }
@@ -268,10 +371,14 @@ export default function AddCostume() {
     if (!file) return
 
     try {
+      const validationError = validateCostumeImage(file)
+      if (validationError) throw new Error(validationError)
       const dataUrl = await fileToDataUrl(file)
       await applyImageDataUrl(dataUrl, file.name)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload image')
+      setError(err instanceof Error ? err.message : '画像の読み込みに失敗しました')
+    } finally {
+      e.target.value = ''
     }
   }
 
@@ -284,10 +391,14 @@ export default function AddCostume() {
     if (!file) return
 
     try {
+      const validationError = validateCostumeImage(file)
+      if (validationError) throw new Error(validationError)
       const dataUrl = await fileToDataUrl(file)
       setWearingPhotos([...wearingPhotos, dataUrl])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add wearing photo')
+      setError(err instanceof Error ? err.message : '着用写真の読み込みに失敗しました')
+    } finally {
+      e.target.value = ''
     }
   }
 
@@ -324,6 +435,21 @@ export default function AddCostume() {
       return
     }
 
+    if (!pattern) {
+      setError('柄の種類を確認してください')
+      return
+    }
+
+    if (!costumeType) {
+      setError('衣装の種類を選択してください')
+      return
+    }
+
+    if (!analysisAllowsSave) {
+      setError('写真から入力された候補を確認し、確認欄にチェックを入れてから保存してください')
+      return
+    }
+
     try {
       setLoading(true)
       setError('')
@@ -338,10 +464,14 @@ export default function AddCostume() {
         pattern: normalizePattern(pattern),
         season,
         type: costumeType,
-        ...(costumeType === 'dress' ? { silhouette } : {}),
-        ...(costumeType === 'suit' ? { suitStyle } : {}),
-        ...(costumeType === 'suit' && suitStyle === 'standard' ? { suitBreasting } : {}),
-        ...(costumeType === 'suit' && suitStyle === 'tuxedo' ? { suitLapel } : {}),
+        ...(costumeType === 'dress' && silhouette ? { silhouette } : {}),
+        ...(costumeType === 'suit' && suitStyle ? { suitStyle } : {}),
+        ...(costumeType === 'suit' && suitStyle === 'standard' && suitBreasting
+          ? { suitBreasting }
+          : {}),
+        ...(costumeType === 'suit' && suitStyle === 'tuxedo' && suitLapel
+          ? { suitLapel }
+          : {}),
       }
 
       if (isEditMode && id) {
@@ -349,7 +479,7 @@ export default function AddCostume() {
       } else {
         await addCostume(payload)
       }
-      navigate('/costumes')
+      navigate(participantReturnPath ?? '/costumes')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save costume')
     } finally {
@@ -367,12 +497,32 @@ export default function AddCostume() {
 
   return (
     <div className="add-costume-page">
-      <h1>{isEditMode ? '👗 衣装を編集' : '👗 衣装を追加'}</h1>
+      <h1>
+        {isEditMode
+          ? '👗 衣装を編集'
+          : isParticipantFlow
+            ? '👗 提出する衣装を追加'
+            : '👗 衣装を追加'}
+      </h1>
+
+      {participantReturnPath && (
+        <div className="participant-costume-context">
+          <p>写真と衣装情報を保存すると、イベントの提出画面へ戻ります。</p>
+          <Link to={participantReturnPath}>提出画面へ戻る</Link>
+        </div>
+      )}
 
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           <p>{error}</p>
-          <button onClick={() => setError('')} className="close-error">×</button>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            className="close-error"
+            aria-label="エラーを閉じる"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -382,7 +532,7 @@ export default function AddCostume() {
         <div className="image-upload">
           <input
             type="file"
-            accept="image/*"
+            accept={COSTUME_IMAGE_ACCEPT}
             onChange={handleImageUpload}
             disabled={loading}
             id="image-input"
@@ -390,6 +540,7 @@ export default function AddCostume() {
           <label htmlFor="image-input" className="upload-label">
             {imageUri ? '画像を変更' : '画像をアップロード'}
           </label>
+          <p className="add-costume-field-hint">JPEG・PNG・WebP、5MB以下</p>
         </div>
         <div className="cloud-import-section">
           <button
@@ -438,14 +589,31 @@ export default function AddCostume() {
             {analyzing && <p className="analyzing">色を分析中...</p>}
           </div>
         )}
+
+        {isParticipantFlow && imageUri && (
+          <CostumePhotoAnalysisPanel
+            status={analysisStatus}
+            canAnalyze={Boolean(imageUri)}
+            disabled={loading}
+            confidence={analysisConfidence}
+            warnings={analysisWarnings}
+            uncertainFields={analysisUncertainFields}
+            errorMessage={analysisError}
+            confirmed={analysisConfirmed}
+            onAnalyze={() => void handleAnalyzeCostumePhoto()}
+            onManual={handleManualAnalysisFallback}
+            onConfirmedChange={setAnalysisConfirmed}
+          />
+        )}
       </section>
 
       {/* Basic Info */}
       <section className="section">
         <h2>📝 基本情報</h2>
         <div className="form-group">
-          <label>衣装名 *</label>
+          <label htmlFor="costume-name-input">衣装名 *</label>
           <input
+            id="costume-name-input"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -455,8 +623,9 @@ export default function AddCostume() {
         </div>
 
         <div className="form-group">
-          <label>タグ</label>
+          <label htmlFor="costume-tags-input">タグ</label>
           <input
+            id="costume-tags-input"
             type="text"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
@@ -586,12 +755,14 @@ export default function AddCostume() {
       <section className="section">
         <h2>📑 衣装の種類</h2>
         <div className="form-group">
-          <label>衣装の種類 *</label>
+          <label htmlFor="costume-type-select">衣装の種類 *</label>
           <select
+            id="costume-type-select"
             value={costumeType}
             onChange={(e) => setCostumeType(e.target.value)}
             disabled={loading}
           >
+            {isParticipantFlow && <option value="">選択してください</option>}
             {COSTUME_TYPE_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -607,9 +778,10 @@ export default function AddCostume() {
               <select
                 id="silhouette-select"
                 value={silhouette}
-                onChange={(e) => setSilhouette(e.target.value as DressSilhouette)}
+                onChange={(e) => setSilhouette(e.target.value as DressSilhouette | '')}
                 disabled={loading}
               >
+                <option value="">選択してください</option>
                 {DRESS_SILHOUETTE_OPTIONS.map((value) => (
                   <option key={value} value={value}>
                     {SILHOUETTE_LABELS[value]}
@@ -647,9 +819,10 @@ export default function AddCostume() {
                 <select
                   id="suit-style-select"
                   value={suitStyle}
-                  onChange={(e) => setSuitStyle(e.target.value as SuitStyle)}
+                  onChange={(e) => setSuitStyle(e.target.value as SuitStyle | '')}
                   disabled={loading}
                 >
+                  <option value="">選択してください</option>
                   {SUIT_STYLE_OPTIONS.map((value) => (
                     <option key={value} value={value}>
                       {SUIT_STYLE_LABELS[value]}
@@ -681,9 +854,10 @@ export default function AddCostume() {
                   <select
                     id="suit-lapel-select"
                     value={suitLapel}
-                    onChange={(e) => setSuitLapel(e.target.value as SuitLapel)}
+                    onChange={(e) => setSuitLapel(e.target.value as SuitLapel | '')}
                     disabled={loading}
                   >
+                    <option value="">選択してください</option>
                     {SUIT_LAPEL_OPTIONS.map((value) => (
                       <option key={value} value={value}>
                         {SUIT_LAPEL_LABELS[value]}
@@ -718,12 +892,13 @@ export default function AddCostume() {
                 <div>
                   <label htmlFor="suit-breasting-select">前釦</label>
                   <select
-                    id="suit-breasting-select"
-                    value={suitBreasting}
-                    onChange={(e) => setSuitBreasting(e.target.value as SuitBreasting)}
-                    disabled={loading}
-                  >
-                    {SUIT_BREASTING_OPTIONS.map((value) => (
+                  id="suit-breasting-select"
+                  value={suitBreasting}
+                  onChange={(e) => setSuitBreasting(e.target.value as SuitBreasting | '')}
+                  disabled={loading}
+                >
+                  <option value="">選択してください</option>
+                  {SUIT_BREASTING_OPTIONS.map((value) => (
                       <option key={value} value={value}>
                         {SUIT_BREASTING_LABELS[value]}
                       </option>
@@ -765,12 +940,14 @@ export default function AddCostume() {
       <section className="section">
         <h2>🧵 柄</h2>
         <div className="form-group">
-          <label>柄の種類</label>
+          <label htmlFor="costume-pattern-select">柄の種類 *</label>
           <select
+            id="costume-pattern-select"
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
             disabled={loading}
           >
+            {isParticipantFlow && <option value="">選択してください</option>}
             {PATTERN_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -830,7 +1007,7 @@ export default function AddCostume() {
         <div className="wearing-photo-upload">
           <input
             type="file"
-            accept="image/*"
+            accept={COSTUME_IMAGE_ACCEPT}
             onChange={handleAddWearingPhoto}
             disabled={loading}
             id="wearing-photo-input"
@@ -848,9 +1025,11 @@ export default function AddCostume() {
                 <div key={index} className="photo-item">
                   <img src={photo} alt={`Wearing photo ${index + 1}`} />
                   <button
+                    type="button"
                     onClick={() => handleRemoveWearingPhoto(index)}
                     className="remove-photo-btn"
                     disabled={loading}
+                    aria-label={`着用写真 ${index + 1} を削除`}
                   >
                     ✕
                   </button>
@@ -864,14 +1043,16 @@ export default function AddCostume() {
       {/* Action Buttons */}
       <div className="action-buttons">
         <button
+          type="button"
           onClick={handleSave}
-          disabled={loading || !name.trim() || !imageUri}
+          disabled={formBusy || !name.trim() || !imageUri || !pattern || !costumeType || !analysisAllowsSave}
           className="save-button"
         >
           {loading ? '保存中...' : isEditMode ? '更新' : '保存'}
         </button>
         <button
-          onClick={() => navigate('/costumes')}
+          type="button"
+          onClick={() => navigate(participantReturnPath ?? '/costumes')}
           disabled={loading}
           className="cancel-button"
         >

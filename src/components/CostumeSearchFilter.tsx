@@ -7,6 +7,10 @@ interface CostumeSearchFilterProps {
   onFilterChange: (filtered: Costume[]) => void
 }
 
+type SearchableCostume = Costume & {
+  tags?: string[]
+}
+
 export default function CostumeSearchFilter({ costumes, onFilterChange }: CostumeSearchFilterProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTones, setSelectedTones] = useState<Set<string>>(new Set())
@@ -34,7 +38,8 @@ export default function CostumeSearchFilter({ costumes, onFilterChange }: Costum
   const uniqueColors = useMemo(() => {
     const colors = new Set<string>()
     costumes.forEach(c => {
-      if (c.colors?.primary) colors.add(c.colors.primary)
+      const primaryColor = c.colors[0]
+      if (primaryColor) colors.add(primaryColor)
     })
     return Array.from(colors).sort()
   }, [costumes])
@@ -46,7 +51,7 @@ export default function CostumeSearchFilter({ costumes, onFilterChange }: Costum
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase()
         const matchesName = costume.name?.toLowerCase().includes(query)
-        const matchesTags = costume.tags?.some(tag => tag.toLowerCase().includes(query))
+        const matchesTags = (costume as SearchableCostume).tags?.some(tag => tag.toLowerCase().includes(query))
         if (!matchesName && !matchesTags) return false
       }
 
@@ -62,7 +67,8 @@ export default function CostumeSearchFilter({ costumes, onFilterChange }: Costum
 
       // Color filter
       if (selectedColors.size > 0) {
-        if (!costume.colors?.primary || !selectedColors.has(costume.colors.primary)) return false
+        const primaryColor = costume.colors[0]
+        if (!primaryColor || !selectedColors.has(primaryColor)) return false
       }
 
       return true

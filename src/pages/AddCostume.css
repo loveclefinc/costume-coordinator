@@ -10,6 +10,32 @@
   color: var(--text);
 }
 
+.participant-costume-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.participant-costume-context p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.participant-costume-context a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
 .section {
   background-color: var(--surface);
   border-radius: 12px;
@@ -77,6 +103,166 @@
   font-weight: 600;
 }
 
+.costume-analysis-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+}
+
+.costume-analysis-card--success {
+  border-color: var(--success);
+}
+
+.costume-analysis-card--needs_review {
+  border-color: var(--warning);
+}
+
+.costume-analysis-card--error {
+  border-color: var(--error);
+}
+
+.costume-analysis-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.costume-analysis-heading-row h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+.costume-analysis-status-badge {
+  flex-shrink: 0;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.costume-analysis-card--success .costume-analysis-status-badge {
+  color: var(--success);
+}
+
+.costume-analysis-card--needs_review .costume-analysis-status-badge {
+  color: #9a6100;
+}
+
+.costume-analysis-card--error .costume-analysis-status-badge {
+  color: var(--error);
+}
+
+.costume-analysis-live p,
+.costume-analysis-confidence,
+.costume-analysis-error {
+  margin: 0.75rem 0 0;
+  line-height: 1.5;
+}
+
+.costume-analysis-live p,
+.costume-analysis-confidence {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.costume-analysis-disclosure {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border-left: 3px solid var(--primary);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.costume-analysis-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.costume-analysis-review {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.costume-analysis-notice {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(245, 166, 35, 0.1);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.costume-analysis-notice ul {
+  margin: 0.45rem 0 0 1.2rem;
+}
+
+.costume-analysis-notice li:last-child {
+  margin-bottom: 0;
+}
+
+.costume-analysis-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: 44px;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.costume-analysis-confirmation input {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.1rem;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
+.costume-analysis-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.costume-analysis-primary,
+.costume-analysis-manual {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.costume-analysis-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.costume-analysis-manual {
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+}
+
+.costume-analysis-primary:disabled,
+.costume-analysis-manual:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Form Groups */
 .form-group {
   margin-bottom: 1.5rem;
@@ -93,6 +279,7 @@
 .form-group input[type="color"],
 .form-group select {
   width: 100%;
+  min-height: 44px;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -416,6 +603,28 @@
 
   .season-choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .costume-analysis-heading-row {
+    align-items: flex-start;
+  }
+
+  .costume-analysis-actions {
+    flex-direction: column;
+  }
+
+  .costume-analysis-primary,
+  .costume-analysis-manual {
+    width: 100%;
+  }
+
+  .participant-costume-context {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .participant-costume-context a {
+    justify-content: center;
   }
 }
 

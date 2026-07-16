@@ -30,5 +30,27 @@
     }
   },
   "include": ["src", "vite.config.ts"],
-  "exclude": ["node_modules", "dist", "app", "components", "constants", "hooks", "lib", "server", "tests", "drizzle"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "app",
+    "components",
+    "constants",
+    "hooks",
+    "lib",
+    "server",
+    "tests",
+    "drizzle",
+    // Legacy React Native / Expo utilities are not imported by the current Vite app.
+    "src/utils/advanced-recommendation.ts",
+    "src/utils/costume-statistics.ts",
+    "src/utils/data-migration.ts",
+    "src/utils/event-history.ts",
+    "src/utils/firebase-sync.ts",
+    "src/utils/i18n.ts",
+    "src/utils/image-recognition.ts",
+    "src/utils/offline-sync.ts",
+    "src/utils/participant-sync.ts",
+    "src/utils/pdf-generator.ts"
+  ]
 }

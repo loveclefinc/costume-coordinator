@@ -36,6 +36,7 @@ import {
 } from '../utils/participate-auto-submit'
 import { submitPickedCostumesIdempotent } from '../utils/submit-participant-costumes'
 import { isEventServerEnabled, absoluteAppUrl } from '../event-server/config'
+import { buildParticipantCostumeAddPath } from '../utils/participant-costume-route'
 import './EventParticipate.css'
 
 type SubmitPhase = ParticipateSubmitPhase
@@ -66,6 +67,9 @@ export default function EventParticipate() {
   const participantToken = session?.participantToken
   const limits = eventInfo?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS
   const profileName = getDisplayName()
+  const addCostumePath = eventId
+    ? buildParticipantCostumeAddPath(eventId, inviteToken)
+    : '/costumes/add'
 
   const [usageHistory, setUsageHistory] = useState<Awaited<ReturnType<typeof storage.getAllUsageHistory>>>([])
 
@@ -394,8 +398,12 @@ export default function EventParticipate() {
             </div>
           ) : (
             <>
+              <label htmlFor="participant-display-name" className="participate-name-label">
+                表示名
+              </label>
               <div className="participate-name-row">
                 <input
+                  id="participant-display-name"
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayNameInput(e.target.value)}
@@ -440,13 +448,15 @@ export default function EventParticipate() {
 
           <h3>2. 衣装の自動選出</h3>
 
-          <EventCostumeMatcher
-            picked={pickedMatches}
-            theme={eventInfo?.themePreferences}
-            wardrobeCount={wardrobeReady ? costumes.length : undefined}
-            costumesLoading={!wardrobeReady}
-            status={matcherStatus}
-          />
+          {(!wardrobeReady || pickedMatches.length > 0) && (
+            <EventCostumeMatcher
+              picked={pickedMatches}
+              theme={eventInfo?.themePreferences}
+              wardrobeCount={wardrobeReady ? costumes.length : undefined}
+              costumesLoading={!wardrobeReady}
+              status={matcherStatus}
+            />
+          )}
 
           {submitPhase === 'error' && pickedMatches.length === 0 && costumes.length > 0 && (
             <button
@@ -483,12 +493,17 @@ export default function EventParticipate() {
             </div>
           )}
 
-          {wardrobeReady && costumes.length === 0 && (
-            <p className="participate-name-hint">
-              衣装が未登録です。
-              <Link to="/costumes/add"> 衣装を追加 </Link>
-              してから「提出を再試行」してください。
-            </p>
+          {wardrobeReady && pickedMatches.length === 0 && (
+            <div className="participate-add-costume">
+              <p className="participate-name-hint">
+                {costumes.length === 0
+                  ? '衣装が未登録です。写真を選び、衣装情報を確認してから保存してください。'
+                  : '提出できる候補がありません。別の衣装を写真から追加するか、登録済み衣装の内容を見直してください。'}
+              </p>
+              <Link to={addCostumePath} className="participate-btn primary">
+                {costumes.length === 0 ? '写真から衣装を追加' : '別の衣装を写真から追加'}
+              </Link>
+            </div>
           )}
         </section>
       )}

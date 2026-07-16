@@ -36,14 +36,16 @@ function AppShell() {
   const isOAuthCallback = location.pathname.includes('/oauth/')
   const isWelcome = location.pathname === '/welcome'
   const isPublicPath = PUBLIC_PATHS.has(location.pathname)
-  const isParticipatePath = /^\/events\/[^/]+\/participate$/.test(location.pathname)
+  const isParticipantFlowPath = /^\/events\/[^/]+\/participate(?:\/costumes\/add)?$/.test(
+    location.pathname,
+  )
 
   const showFullNav = onboardingDone && !isOAuthCallback && !isWelcome
   const showLogoNav =
-    !isOAuthCallback && !showFullNav && (isPublicPath || isWelcome || isParticipatePath)
+    !isOAuthCallback && !showFullNav && (isPublicPath || isWelcome || isParticipantFlowPath)
   const hasTopNav = showFullNav || showLogoNav
 
-  if (!onboardingDone && !isOAuthCallback && !isPublicPath && !isParticipatePath) {
+  if (!onboardingDone && !isOAuthCallback && !isPublicPath && !isParticipantFlowPath) {
     return <Navigate to="/welcome" replace />
   }
 
@@ -56,6 +58,7 @@ function AppShell() {
           <Route path="/welcome" element={<Onboarding />} />
           <Route path="/join" element={<JoinEvent />} />
           <Route path="/events/:id/participate" element={<EventParticipate />} />
+          <Route path="/events/:eventId/participate/costumes/add" element={<AddCostume />} />
           <Route path="/" element={<Home />} />
           <Route path="/costumes" element={<Costumes />} />
           <Route path="/costumes/add" element={<AddCostume />} />
