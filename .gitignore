@@ -10,6 +10,7 @@ dist/
 !dist/404.html
 .cache/
 .wrangler/
+build-week-video-output/
 *.tsbuildinfo
 
 # Expo / legacy mobile (非公開・ローカルのみ)

@@ -1,0 +1,138 @@
+[
+  {
+    "id": "opening",
+    "kind": "image",
+    "image": "final-results.png",
+    "label": "ENSEMBLE AI / OPENAI BUILD WEEK 2026",
+    "narration": "Ensemble AIは、既存のCostume Coordinatorを拡張し、複数人の手持ち衣装から、一人につき一組の完成コーデを決めるアプリです。",
+    "subtitle": "Ensemble AI coordinates one complete outfit per person from clothes the group already owns.",
+    "translation": "Ensemble AI extends the existing Costume Coordinator. It selects one complete outfit per person from the clothes owned by multiple members of a group.",
+    "pauseAfter": 0.35
+  },
+  {
+    "id": "build-week-scope",
+    "kind": "before-after",
+    "label": "WHAT CHANGED DURING BUILD WEEK",
+    "narration": "Build Week前から、単品衣装の登録と検索、イベント招待、オンライン提出、決定的な割り当てがありました。今回は写真入力の確認導線、お気に入りコーデ、自動コーデ提案、複数アイテムの提出と表示を追加、強化しました。",
+    "subtitle": "Existing foundations were extended with reviewed photo intake, complete outfits, deterministic suggestions, and multi-item submission.",
+    "translation": "Before Build Week, the product already had single-garment registration and search, event invitations, online submission, and deterministic assignment. During Build Week, we added or strengthened reviewed photo input, favorite outfits, automatic outfit suggestions, and multi-item submission and display.",
+    "pauseAfter": 0.35
+  },
+  {
+    "id": "photo-start",
+    "kind": "image",
+    "image": "photo-upload-empty.png",
+    "label": "1 / ADD A PHOTO",
+    "narration": "参加者は衣装写真を選ぶだけで登録を始められます。人物や本番データを使わず、デモでは安全な合成画像を使用しています。",
+    "subtitle": "A participant starts with one wardrobe photo. This demo uses privacy-safe synthetic garments.",
+    "translation": "A participant can start registration simply by selecting a garment photo. This demo uses safe synthetic images, with no people or production data.",
+    "pauseAfter": 0.25
+  },
+  {
+    "id": "photo-local-analysis",
+    "kind": "image",
+    "image": "photo-upload-analyzed.png",
+    "label": "2 / ON-DEVICE PHOTO INPUT",
+    "narration": "既存のCanvas解析を改善し、中央の衣装を優先しながら背景を抑え、主色と副色を端末内で抽出します。写真は解析のために外部AIへ送られません。",
+    "subtitle": "Improved Canvas processing prioritizes the garment, suppresses the background, and extracts colors on device.",
+    "translation": "We improved the existing Canvas analysis so that it prioritizes the garment in the center, suppresses the background, and extracts primary and secondary colors on the device. The photo is not sent to an external AI service for analysis.",
+    "pauseAfter": 0.25
+  },
+  {
+    "id": "photo-fields",
+    "kind": "image",
+    "image": "photo-review-fields.png",
+    "label": "3 / REVIEW THE SUGGESTIONS",
+    "narration": "色カテゴリ、トーン、保守的な柄候補をフォームへ自動入力します。利用者は候補を確認し、合わなければ写真から色を取り直したり、手入力に切り替えられます。",
+    "subtitle": "Color category, tone, and conservative pattern suggestions remain editable before saving.",
+    "translation": "The system fills the form with a color category, tone, and conservative pattern suggestions. The user reviews the suggestions and, if they do not fit, can extract the colors from the photo again or switch to manual input.",
+    "pauseAfter": 0.25
+  },
+  {
+    "id": "manual-confirmation",
+    "kind": "image",
+    "image": "manual-review.png",
+    "label": "4 / THE USER CONFIRMS MEANING",
+    "narration": "衣装の種類、シルエット、フォーマル度は、誤認識を避けるため自動決定しません。スーツ、ブラウス、スカート、小物などを本人が確認して保存します。",
+    "subtitle": "Garment type, silhouette, and formality are confirmed by the user—not guessed from the photo.",
+    "translation": "To avoid misclassification, garment type, silhouette, and formality are not decided automatically. The user confirms whether the item is a suit, blouse, skirt, accessory, or another type before saving it.",
+    "pauseAfter": 0.3
+  },
+  {
+    "id": "auto-outfits",
+    "kind": "image",
+    "image": "auto-suggestions.png",
+    "label": "5 / COMPLETE OUTFITS WITHOUT AN API",
+    "narration": "お気に入りがなくても、登録済みのスーツ、シャツ、ネクタイや、ブラウス、スカート、小物から完成コーデを提案します。色、トーン、柄、季節、タグを決定的なルールで採点し、理由も表示します。",
+    "subtitle": "Deterministic rules propose complete outfits from suits, shirts, separates, and accessories—with reasons.",
+    "translation": "Even without a saved favorite, the system proposes complete outfits from registered suits, shirts and ties, or from blouses, skirts and accessories. Deterministic rules score color, tone, pattern, season, and tags, and the interface also shows the reasons.",
+    "pauseAfter": 0.3
+  },
+  {
+    "id": "favorite-review",
+    "kind": "image",
+    "image": "favorite-review.png",
+    "label": "6 / REVIEW A FAVORITE OUTFIT",
+    "narration": "提案は保存しなくてもイベント候補に使えます。よく使う組み合わせは、三枚の写真と構成を確認して、演奏会の定番としてお気に入りに保存できます。",
+    "subtitle": "The user reviews all pieces and can save a trusted combination as a favorite complete outfit.",
+    "translation": "A suggestion can be used as an event candidate without being saved. For a combination used often, the user can review all three photos and the component list, then save it as a favorite called Concert Standard.",
+    "pauseAfter": 0.25
+  },
+  {
+    "id": "favorite-saved",
+    "kind": "image",
+    "image": "favorite-saved.png",
+    "label": "7 / ONE OUTFIT, EVERY COMPONENT PRESERVED",
+    "narration": "保存後は三つの単品ではなく、一つの完成コーデとして検索、提出、最適化へ渡ります。構成品のIDを保つので、同じ小物を二人へ同時に割り当てません。",
+    "subtitle": "A saved combination becomes one candidate while preserving every physical component ID.",
+    "translation": "After saving, the three pieces are passed to search, submission, and optimization as one complete outfit instead of three separate items. Because the component IDs are preserved, the same physical accessory is not assigned to two people at the same time.",
+    "pauseAfter": 0.3
+  },
+  {
+    "id": "group-result",
+    "kind": "image",
+    "image": "final-results.png",
+    "label": "8 / ONE COMPLETE OUTFIT PER PERSON",
+    "narration": "イベントテーマを設定し、三人分の候補をまとめて計算すると、一人一組が決まります。ドレス、保存済みスーツコーデ、自動提案のブラウスコーデが同じ結果画面に並びます。",
+    "subtitle": "The group result can mix a dress, a saved suit outfit, and an automatically proposed separates outfit.",
+    "translation": "After setting an event theme and calculating the candidates for all three people together, the system selects one complete outfit per person. A dress, a saved suit outfit, and an automatically suggested blouse outfit appear together on the same result screen.",
+    "pauseAfter": 0.3
+  },
+  {
+    "id": "deterministic-result",
+    "kind": "image",
+    "image": "harmony-score.png",
+    "label": "9 / DETERMINISTIC AND EXPLAINABLE",
+    "narration": "最終決定はGPTではなく、既存の決定的最適化エンジンです。テーマ、色味方針、使用履歴、構成品の重複を考慮し、調和スコアと短い選定理由を表示します。",
+    "subtitle": "The existing deterministic optimizer considers theme, harmony, recent use, and component exclusivity.",
+    "translation": "The final decision is made not by GPT, but by the existing deterministic optimization engine. It considers the theme, color policy, usage history, and duplicate physical components, then displays a harmony score and short selection reasons.",
+    "pauseAfter": 0.35
+  },
+  {
+    "id": "development",
+    "kind": "development",
+    "label": "HOW GPT-5.6 AND CODEX WERE USED",
+    "narration": "開発では、GPT-5.6 Solをプロジェクト管理と製品、プライバシー、セキュリティ判断に、Lunaを実装に使いました。CodexがコードベースとGit履歴を監査し、React、TypeScript、Cloudflare Workerを編集して検証しました。",
+    "subtitle": "GPT-5.6 Sol led PM and product/security decisions; Luna implemented; Codex audited, edited, and verified the system.",
+    "translation": "During development, we used GPT-5.6 Sol for project management and product, privacy, and security decisions, and Luna for implementation. Codex audited the codebase and Git history, edited the React, TypeScript, and Cloudflare Worker code, and verified the result.",
+    "pauseAfter": 0.35
+  },
+  {
+    "id": "validation",
+    "kind": "validation",
+    "label": "VERIFIED, PRIVATE, AND FREE TO RUN",
+    "narration": "型チェック、本番ビルド、Workerの型チェックと、五十六ファイル、四百二十四件の自動テストが成功しています。実行時はOpenAI APIもAPIキーも使わず、毎回のトークン費用はありません。",
+    "subtitle": "424 tests passed across 56 files. Runtime uses no OpenAI API, API key, model inference, or per-use token cost.",
+    "translation": "The application type check, production build, Worker type check, and 424 automated tests across 56 files all passed. At runtime, it uses neither the OpenAI API nor an API key, so there is no per-use token cost.",
+    "pauseAfter": 0.4
+  },
+  {
+    "id": "outro",
+    "kind": "outro",
+    "label": "ENSEMBLE AI",
+    "narration": "Ensemble AI。人が確認でき、説明でき、無料で続けられる衣装コーディネートです。",
+    "subtitle": "Human-reviewed. Explainable. Private by default. Free to keep using.",
+    "translation": "Ensemble AI is wardrobe coordination that people can review and understand, and that remains free to keep using.",
+    "pauseAfter": 0.8
+  }
+]

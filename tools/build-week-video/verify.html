@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Verify Ensemble AI video</title>
+    <style>
+      body { margin: 0; background: #0e1524; color: white; font: 16px system-ui; }
+      main { max-width: 1280px; margin: 24px auto; padding: 0 20px; }
+      video { width: 100%; display: block; background: #000; }
+      #metadata { margin: 12px 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p id="metadata">Loading metadata…</p>
+      <video id="video" controls preload="metadata"></video>
+    </main>
+    <script>
+      const video = document.querySelector('#video')
+      const metadata = document.querySelector('#metadata')
+      const search = new URLSearchParams(location.search)
+      const format = search.get('format') === 'webm' ? 'webm' : 'mp4'
+      const autoplay = search.get('autoplay') === '1'
+      video.src = `/output.${format}`
+      video.autoplay = autoplay
+      video.muted = autoplay
+      video.addEventListener('loadedmetadata', () => {
+        metadata.textContent = JSON.stringify({
+          format,
+          duration: video.duration,
+          width: video.videoWidth,
+          height: video.videoHeight,
+        })
+        document.title = 'READY — Verify Ensemble AI video'
+        if (autoplay) video.play().catch(() => {})
+      })
+      video.addEventListener('error', () => {
+        metadata.textContent = `Video error: ${video.error?.message ?? 'unknown'}`
+        document.title = 'ERROR — Verify Ensemble AI video'
+      })
+    </script>
+  </body>
+</html>
