@@ -9,6 +9,7 @@ import { EventApiError } from '../event-server/client'
 import type {
   createServerCostume,
   fetchParticipantSubmissionStatus,
+  pruneServerParticipantAutoOutfits,
   uploadServerPhoto,
 } from '../event-server/client'
 import { enrichCostumeColors, normalizePattern } from './theme-colors'
@@ -18,10 +19,13 @@ import type { Costume } from './storage'
 
 type SubmitDeps = {
   fetchStatus: typeof fetchParticipantSubmissionStatus
+  pruneAutoOutfits: typeof pruneServerParticipantAutoOutfits
   createCostume: typeof createServerCostume
   uploadPhoto: typeof uploadServerPhoto
   dataUrlToBlob: typeof dataUrlToBlob
 }
+
+const AUTO_OUTFIT_SOURCE_PREFIX = 'favorite-outfit:auto-'
 
 function findServerCostume(
   costumes: Awaited<ReturnType<typeof fetchParticipantSubmissionStatus>>['costumes'],
@@ -111,13 +115,51 @@ export async function submitPickedCostumesIdempotent(
   deps: SubmitDeps,
 ): Promise<number> {
   let status = await deps.fetchStatus(eventId, participantToken)
+  const prepared = picked.map((match) => ({
+    match,
+    completeOutfit: completeOutfitSubmission(match.costume),
+  }))
+
+  // Preserve the existing clear capability error before calling the new prune
+  // route, so an older Worker never reports a less useful generic route error.
+  for (const { match, completeOutfit } of prepared) {
+    if (completeOutfit && typeof limits.maxOutfitComponents !== 'number') {
+      throw new EventApiError(
+        'このイベントのオンライン提出は、複数アイテムのコーデ提出にまだ対応していません。主催者がイベントAPIを更新すると提出できます。',
+        400,
+      )
+    }
+    if (match.costume.id.startsWith(AUTO_OUTFIT_SOURCE_PREFIX) && !completeOutfit) {
+      throw new EventApiError(
+        `「${match.costume.name}」の自動提案コーデ構成を確認できません。候補を作り直してください。`,
+        400,
+      )
+    }
+  }
+
+  const activeAutoSourceCostumeIds = [...new Set(
+    prepared
+      .map(({ match }) => match.costume.id)
+      .filter((id) => id.startsWith(AUTO_OUTFIT_SOURCE_PREFIX)),
+  )]
+  const hasStoredAutoOutfits = (status.costumes ?? []).some((costume) =>
+    costume.sourceCostumeId?.startsWith(AUTO_OUTFIT_SOURCE_PREFIX),
+  )
+  // Legacy single-item submissions do not call this newer endpoint. Cleanup is
+  // required only when an auto candidate is active or one is known to be stale.
+  if (activeAutoSourceCostumeIds.length > 0 || hasStoredAutoOutfits) {
+    await deps.pruneAutoOutfits(eventId, participantToken, {
+      activeSourceCostumeIds: activeAutoSourceCostumeIds,
+    })
+    status = await deps.fetchStatus(eventId, participantToken)
+  }
+
   let processed = 0
   const serverCostumes = status.costumes ?? []
   const usedCostumeIds = new Set<string>()
 
-  for (const match of picked) {
+  for (const { match, completeOutfit } of prepared) {
     const costume = match.costume
-    const completeOutfit = completeOutfitSubmission(costume)
     if (!costume.image) {
       throw new EventApiError(
         `「${costume.name}」に写真がありません。衣装管理から画像を登録してください。`,
@@ -126,13 +168,7 @@ export async function submitPickedCostumesIdempotent(
     }
 
     if (completeOutfit) {
-      if (typeof limits.maxOutfitComponents !== 'number') {
-        throw new EventApiError(
-          'このイベントのオンライン提出は、複数アイテムのコーデ提出にまだ対応していません。主催者がイベントAPIを更新すると提出できます。',
-          400,
-        )
-      }
-      const componentLimit = Math.min(limits.maxOutfitComponents, limits.maxPhotosPerCostume)
+      const componentLimit = Math.min(limits.maxOutfitComponents!, limits.maxPhotosPerCostume)
       if (completeOutfit.components.length > componentLimit) {
         throw new EventApiError(
           `「${costume.name}」の構成品が上限（${componentLimit}点）を超えています。`,

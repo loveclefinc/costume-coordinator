@@ -11,6 +11,8 @@ import type {
   JoinEventRequest,
   JoinEventResponse,
   ParticipantSubmissionStatus,
+  PruneParticipantAutoOutfitsRequest,
+  PruneParticipantAutoOutfitsResponse,
   PublishEventResultsRequest,
   PublishedEventResults,
   ServerCostume,
@@ -92,7 +94,7 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-07-18.1'
+const EVENT_API_VERSION = '2026-07-18.2'
 export const MAX_PUBLISHED_ASSIGNMENT_REASONS = 3
 export const MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH = 120
 export const MAX_OUTFIT_COMPONENTS = 3
@@ -101,6 +103,31 @@ export const MAX_COSTUME_COMPONENT_NAME_LENGTH = 100
 export const MAX_COSTUME_COMPONENT_TYPE_LENGTH = 40
 export const MAX_COSTUME_COMPONENT_REVISION = Number.MAX_SAFE_INTEGER
 const FAVORITE_OUTFIT_SOURCE_PREFIX = 'favorite-outfit:'
+export const AUTO_OUTFIT_SOURCE_PREFIX = 'favorite-outfit:auto-'
+export const MAX_ACTIVE_AUTO_OUTFIT_SOURCE_IDS = 12
+
+/** Validate and normalize the bounded allow-list used by targeted auto-outfit pruning. */
+export function sanitizeActiveAutoOutfitSourceIds(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > MAX_ACTIVE_AUTO_OUTFIT_SOURCE_IDS) return null
+
+  const sourceIds: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string') return null
+    const sourceId = item.trim()
+    if (
+      !sourceId.startsWith(AUTO_OUTFIT_SOURCE_PREFIX) ||
+      sourceId.length <= AUTO_OUTFIT_SOURCE_PREFIX.length ||
+      sourceId.length > MAX_COSTUME_COMPONENT_ID_LENGTH ||
+      seen.has(sourceId)
+    ) {
+      return null
+    }
+    seen.add(sourceId)
+    sourceIds.push(sourceId)
+  }
+  return sourceIds
+}
 
 /**
  * Validate an untrusted complete-outfit component list.
@@ -381,6 +408,17 @@ export default {
       const participantStatusMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/participant\/status$/)
       if (participantStatusMatch && request.method === 'GET') {
         return cors(await handleParticipantStatus(participantStatusMatch[1], request, env), request, env)
+      }
+
+      const pruneAutoOutfitsMatch = url.pathname.match(
+        /^\/api\/events\/([^/]+)\/participant\/auto-outfits\/prune$/,
+      )
+      if (pruneAutoOutfitsMatch && request.method === 'POST') {
+        return cors(
+          await handlePruneParticipantAutoOutfits(pruneAutoOutfitsMatch[1], request, env),
+          request,
+          env,
+        )
       }
 
       const costumesMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/costumes$/)
@@ -680,6 +718,81 @@ async function handleParticipantStatus(
     submitted: costumeCount > 0 && costumes.every((costume) => costume.complete),
   }
   return json(res)
+}
+
+async function handlePruneParticipantAutoOutfits(
+  eventId: string,
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const participant = await requireParticipant(eventId, request, env)
+  const event = await getEventRow(env, eventId)
+  assertNotExpired(event.expires_at)
+
+  let body: PruneParticipantAutoOutfitsRequest
+  try {
+    body = (await request.json()) as PruneParticipantAutoOutfitsRequest
+  } catch {
+    return json({ error: '自動提案コーデの整理データが正しいJSONではありません' }, 400)
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return json({ error: 'activeSourceCostumeIds は配列で指定してください' }, 400)
+  }
+  const activeSourceIds = sanitizeActiveAutoOutfitSourceIds(body.activeSourceCostumeIds)
+  if (activeSourceIds === null) {
+    return json(
+      {
+        error: `activeSourceCostumeIds は ${AUTO_OUTFIT_SOURCE_PREFIX} で始まる重複しないIDを最大 ${MAX_ACTIVE_AUTO_OUTFIT_SOURCE_IDS} 件まで指定してください`,
+      },
+      400,
+    )
+  }
+
+  const active = new Set(activeSourceIds)
+  const candidates = await env.DB.prepare(
+    `SELECT id, source_costume_id
+     FROM costumes
+     WHERE event_id = ? AND participant_id = ? AND source_costume_id LIKE ?`,
+  )
+    .bind(eventId, participant.id, `${AUTO_OUTFIT_SOURCE_PREFIX}%`)
+    .all<{ id: string; source_costume_id: string }>()
+  const stale = (candidates.results ?? []).filter(
+    (costume) =>
+      costume.source_costume_id.startsWith(AUTO_OUTFIT_SOURCE_PREFIX) &&
+      !active.has(costume.source_costume_id),
+  )
+
+  let deletedPhotoCount = 0
+  for (const costume of stale) {
+    const photos = await env.DB.prepare(
+      `SELECT r2_key FROM photos WHERE event_id = ? AND costume_id = ?`,
+    )
+      .bind(eventId, costume.id)
+      .all<{ r2_key: string }>()
+
+    // Remove private objects first. If D1 fails, an authenticated retry safely
+    // repeats the R2 deletes and then removes the still-present rows.
+    for (const photo of photos.results ?? []) {
+      await env.PHOTOS.delete(photo.r2_key)
+      deletedPhotoCount++
+    }
+
+    await env.DB.batch([
+      env.DB.prepare(
+        `DELETE FROM photos WHERE event_id = ? AND costume_id = ?`,
+      ).bind(eventId, costume.id),
+      env.DB.prepare(
+        `DELETE FROM costumes
+         WHERE id = ? AND event_id = ? AND participant_id = ? AND source_costume_id = ?`,
+      ).bind(costume.id, eventId, participant.id, costume.source_costume_id),
+    ])
+  }
+
+  const response: PruneParticipantAutoOutfitsResponse = {
+    deletedCostumeCount: stale.length,
+    deletedPhotoCount,
+  }
+  return json(response)
 }
 
 async function handleJoin(

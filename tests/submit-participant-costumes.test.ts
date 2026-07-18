@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CostumeThemeMatch } from '../src/utils/costume-theme-match'
 import { DEFAULT_UPLOAD_LIMITS } from '../shared/upload-limits'
+import { EventApiError } from '../src/event-server/client'
 import { submitPickedCostumesIdempotent } from '../src/utils/submit-participant-costumes'
+
+const createPruneAutoOutfitsMock = () => vi.fn().mockResolvedValue({
+  deletedCostumeCount: 0,
+  deletedPhotoCount: 0,
+})
 
 const costumeMatch = (id: string, name: string): CostumeThemeMatch => ({
   costume: {
@@ -34,6 +40,18 @@ const completeOutfitMatch = (): CostumeThemeMatch => ({
     componentCostumeNames: ['紺スーツ', '白シャツ', '赤ネクタイ'],
   },
 })
+
+const autoOutfitMatch = (): CostumeThemeMatch => {
+  const match = completeOutfitMatch()
+  return {
+    ...match,
+    costume: {
+      ...match.costume,
+      id: 'favorite-outfit:auto-ownerhash-1',
+      name: '自動提案スーツコーデ',
+    },
+  }
+}
 
 describe('submitPickedCostumesIdempotent', () => {
   it('reuses existing server costumes instead of creating duplicates', async () => {
@@ -71,6 +89,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({ blob: new Blob(['x']), contentType: 'image/jpeg' }),
@@ -111,6 +130,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({ blob: new Blob(['x']), contentType: 'image/jpeg' }),
@@ -158,6 +178,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({ blob: new Blob(['x']), contentType: 'image/jpeg' }),
@@ -209,6 +230,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({ blob: new Blob(['x']), contentType: 'image/jpeg' }),
@@ -286,7 +308,13 @@ describe('submitPickedCostumesIdempotent', () => {
       'token',
       [completeOutfitMatch()],
       DEFAULT_UPLOAD_LIMITS,
-      { fetchStatus, createCostume, uploadPhoto, dataUrlToBlob },
+      {
+        fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
+        createCostume,
+        uploadPhoto,
+        dataUrlToBlob,
+      },
     )
 
     expect(createCostume).toHaveBeenCalledOnce()
@@ -355,6 +383,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({
@@ -397,6 +426,7 @@ describe('submitPickedCostumesIdempotent', () => {
       DEFAULT_UPLOAD_LIMITS,
       {
         fetchStatus,
+        pruneAutoOutfits: createPruneAutoOutfitsMock(),
         createCostume,
         uploadPhoto,
         dataUrlToBlob: vi.fn().mockResolvedValue({
@@ -422,6 +452,102 @@ describe('submitPickedCostumesIdempotent', () => {
     expect(uploadPhoto.mock.calls.map((call) => call[5])).toEqual([0, 1, 2])
   })
 
+  it('prunes stale auto outfits before applying capacity checks and uploading the active one', async () => {
+    const pruneAutoOutfits = createPruneAutoOutfitsMock()
+    const createCostume = vi.fn().mockResolvedValue({ costumeId: 'cos_active_auto' })
+    const uploadPhoto = vi.fn().mockResolvedValue({ photoId: 'ph', viewUrl: 'https://x' })
+    const stale = {
+      id: 'cos_stale_auto',
+      sourceCostumeId: 'favorite-outfit:auto-ownerhash-2',
+      name: '古い自動提案',
+      photoCount: 3,
+    }
+    const regular = [0, 1, 2, 3].map((index) => ({
+      id: `cos_regular_${index}`,
+      sourceCostumeId: `local-${index}`,
+      name: `衣装${index}`,
+      photoCount: 1,
+    }))
+    const fetchStatus = vi
+      .fn()
+      .mockResolvedValueOnce({
+        participantId: 'p1', displayName: '太郎', costumeCount: 5, photoCount: 7,
+        submitted: true, costumes: [...regular, stale],
+      })
+      .mockResolvedValueOnce({
+        participantId: 'p1', displayName: '太郎', costumeCount: 4, photoCount: 4,
+        submitted: true, costumes: regular,
+      })
+      .mockResolvedValueOnce({
+        participantId: 'p1', displayName: '太郎', costumeCount: 5, photoCount: 7,
+        submitted: true, costumes: regular,
+      })
+
+    await expect(submitPickedCostumesIdempotent(
+      'evt_1',
+      'token',
+      [autoOutfitMatch()],
+      DEFAULT_UPLOAD_LIMITS,
+      {
+        fetchStatus,
+        pruneAutoOutfits,
+        createCostume,
+        uploadPhoto,
+        dataUrlToBlob: vi.fn().mockResolvedValue({
+          blob: new Blob(['x']), contentType: 'image/jpeg',
+        }),
+      },
+    )).resolves.toBe(1)
+
+    expect(pruneAutoOutfits).toHaveBeenCalledWith('evt_1', 'token', {
+      activeSourceCostumeIds: ['favorite-outfit:auto-ownerhash-1'],
+    })
+    expect(fetchStatus).toHaveBeenCalledTimes(3)
+    expect(pruneAutoOutfits.mock.invocationCallOrder[0])
+      .toBeLessThan(createCostume.mock.invocationCallOrder[0])
+    expect(createCostume.mock.invocationCallOrder[0])
+      .toBeLessThan(uploadPhoto.mock.invocationCallOrder[0])
+  })
+
+  it('stops before writes when stale auto cleanup requires a newer Worker', async () => {
+    const pruneAutoOutfits = vi.fn().mockRejectedValue(new EventApiError(
+      '自動提案コーデのオンライン提出にはイベントAPIの更新が必要です。',
+      426,
+    ))
+    const createCostume = vi.fn()
+    const uploadPhoto = vi.fn()
+    const fetchStatus = vi.fn().mockResolvedValue({
+      participantId: 'p1', displayName: '太郎', costumeCount: 1, photoCount: 3,
+      submitted: true,
+      costumes: [{
+        id: 'cos_stale_auto',
+        sourceCostumeId: 'favorite-outfit:auto-old-1',
+        name: '古い自動提案',
+        photoCount: 3,
+      }],
+    })
+
+    await expect(submitPickedCostumesIdempotent(
+      'evt_1',
+      'token',
+      [costumeMatch('dress-1', '単品ドレス')],
+      DEFAULT_UPLOAD_LIMITS,
+      {
+        fetchStatus,
+        pruneAutoOutfits,
+        createCostume,
+        uploadPhoto,
+        dataUrlToBlob: vi.fn(),
+      },
+    )).rejects.toThrow(/イベントAPIの更新が必要/)
+
+    expect(pruneAutoOutfits).toHaveBeenCalledWith('evt_1', 'token', {
+      activeSourceCostumeIds: [],
+    })
+    expect(createCostume).not.toHaveBeenCalled()
+    expect(uploadPhoto).not.toHaveBeenCalled()
+  })
+
   it('keeps legacy online submission usable when the Worker has no outfit capability', async () => {
     const oldWorkerLimits = { ...DEFAULT_UPLOAD_LIMITS, maxOutfitComponents: undefined }
     const fetchStatus = vi.fn().mockResolvedValue({
@@ -433,6 +559,7 @@ describe('submitPickedCostumesIdempotent', () => {
       costumes: [],
     })
 
+    const compositePrune = createPruneAutoOutfitsMock()
     await expect(submitPickedCostumesIdempotent(
       'evt_1',
       'token',
@@ -440,11 +567,13 @@ describe('submitPickedCostumesIdempotent', () => {
       oldWorkerLimits,
       {
         fetchStatus,
+        pruneAutoOutfits: compositePrune,
         createCostume: vi.fn(),
         uploadPhoto: vi.fn(),
         dataUrlToBlob: vi.fn(),
       },
     )).rejects.toThrow(/複数アイテム/)
+    expect(compositePrune).not.toHaveBeenCalled()
 
     const legacyCreate = vi.fn().mockResolvedValue({ costumeId: 'cos_single' })
     const legacyUpload = vi.fn().mockResolvedValue({ photoId: 'ph', viewUrl: 'https://x' })
@@ -458,6 +587,7 @@ describe('submitPickedCostumesIdempotent', () => {
         submitted: true, costumes: [],
       })
 
+    const legacyPrune = createPruneAutoOutfitsMock()
     await expect(submitPickedCostumesIdempotent(
       'evt_1',
       'token',
@@ -465,6 +595,7 @@ describe('submitPickedCostumesIdempotent', () => {
       oldWorkerLimits,
       {
         fetchStatus,
+        pruneAutoOutfits: legacyPrune,
         createCostume: legacyCreate,
         uploadPhoto: legacyUpload,
         dataUrlToBlob: vi.fn().mockResolvedValue({
@@ -472,5 +603,6 @@ describe('submitPickedCostumesIdempotent', () => {
         }),
       },
     )).resolves.toBe(1)
+    expect(legacyPrune).not.toHaveBeenCalled()
   })
 })

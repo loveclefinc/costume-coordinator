@@ -230,6 +230,19 @@ export interface ParticipantSubmissionStatus {
   submitted: boolean
 }
 
+/**
+ * 現在も端末側で有効な自動提案コーデだけを残す。
+ * Worker は参加者本人の `favorite-outfit:auto-` 行以外を変更しない。
+ */
+export interface PruneParticipantAutoOutfitsRequest {
+  activeSourceCostumeIds: string[]
+}
+
+export interface PruneParticipantAutoOutfitsResponse {
+  deletedCostumeCount: number
+  deletedPhotoCount: number
+}
+
 export interface ApiErrorBody {
   error: string
 }

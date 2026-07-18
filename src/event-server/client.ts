@@ -9,6 +9,8 @@ import type {
   JoinEventRequest,
   JoinEventResponse,
   ParticipantSubmissionStatus,
+  PruneParticipantAutoOutfitsRequest,
+  PruneParticipantAutoOutfitsResponse,
   PublishEventResultsRequest,
   PublishedEventResults,
   RegisterHostRequest,
@@ -150,6 +152,33 @@ export async function fetchParticipantSubmissionStatus(
     `/api/events/${encodeURIComponent(eventId)}/participant/status`,
     { participantToken },
   )
+}
+
+export async function pruneServerParticipantAutoOutfits(
+  eventId: string,
+  participantToken: string,
+  body: PruneParticipantAutoOutfitsRequest,
+): Promise<PruneParticipantAutoOutfitsResponse> {
+  try {
+    return await apiFetch<PruneParticipantAutoOutfitsResponse>(
+      `/api/events/${encodeURIComponent(eventId)}/participant/auto-outfits/prune`,
+      {
+        method: 'POST',
+        participantToken,
+        body: JSON.stringify(body),
+      },
+    )
+  } catch (error) {
+    // Workers deployed before this endpoint return the generic route-level 404.
+    // Stop before uploads instead of leaving stale auto candidates silently.
+    if (error instanceof EventApiError && error.status === 404 && error.message === 'Not found') {
+      throw new EventApiError(
+        '自動提案コーデのオンライン提出にはイベントAPIの更新が必要です。主催者がWorkerを更新してから、もう一度お試しください。',
+        426,
+      )
+    }
+    throw error
+  }
 }
 
 export async function fetchPublishedEventResults(

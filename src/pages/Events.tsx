@@ -12,6 +12,7 @@ import {
   createServerEvent,
   deleteServerEvent,
   fetchParticipantSubmissionStatus,
+  pruneServerParticipantAutoOutfits,
   uploadServerPhoto,
   EventApiError,
 } from '../event-server/client'
@@ -373,6 +374,7 @@ export default function Events() {
                 DEFAULT_UPLOAD_LIMITS,
                 {
                   fetchStatus: fetchParticipantSubmissionStatus,
+                  pruneAutoOutfits: pruneServerParticipantAutoOutfits,
                   createCostume: createServerCostume,
                   uploadPhoto: uploadServerPhoto,
                   dataUrlToBlob,

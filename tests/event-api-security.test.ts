@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import eventApiWorker, {
   areCostumePhotoSlotsComplete,
+  MAX_ACTIVE_AUTO_OUTFIT_SOURCE_IDS,
   MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH,
+  sanitizeActiveAutoOutfitSourceIds,
   sanitizeCostumeComponents,
   sanitizePublishedAssignmentReasons,
   type Env,
@@ -39,6 +41,8 @@ async function createWorkerEnv(options: {
   costumeComponentsJson?: string
   existingSourceCostume?: { id: string; componentsJson: string; ownerId?: string }
   replacementPhotoKeys?: string[]
+  pruneCostumes?: Array<{ id: string; source_costume_id: string }>
+  prunePhotoKeys?: Record<string, string[]>
   existingPhotoSlots?: Record<number, { id: string }>
   photoCount?: number
   submissionCostumes?: Array<{
@@ -93,6 +97,10 @@ async function createWorkerEnv(options: {
         if (call.query.includes('SELECT c.id, c.source_costume_id, c.name, c.components_json')) {
           return { results: options.submissionCostumes ?? [] }
         }
+        if (call.query.includes('SELECT id, source_costume_id') &&
+            call.query.includes('source_costume_id LIKE ?')) {
+          return { results: options.pruneCostumes ?? [] }
+        }
         if (call.query.includes('SELECT p.id, p.display_name, p.created_at')) {
           return { results: options.snapshotParticipants ?? [] }
         }
@@ -104,6 +112,12 @@ async function createWorkerEnv(options: {
           return { results: options.snapshotPhotos?.[costumeId] ?? [] }
         }
         if (call.query.includes('SELECT r2_key FROM photos WHERE event_id = ? AND costume_id = ?')) {
+          const costumeId = String(call.bindValues[1] ?? '')
+          if (options.prunePhotoKeys?.[costumeId]) {
+            return {
+              results: options.prunePhotoKeys[costumeId].map((r2_key) => ({ r2_key })),
+            }
+          }
           return {
             results: (options.replacementPhotoKeys ?? []).map((r2_key) => ({ r2_key })),
           }
@@ -426,6 +440,141 @@ describe('event photo storage boundary', () => {
   })
 })
 
+describe('participant auto-outfit pruning boundary', () => {
+  it('strictly validates and bounds the active auto source ID allow-list', () => {
+    expect(sanitizeActiveAutoOutfitSourceIds([
+      ' favorite-outfit:auto-owner-1 ',
+      'favorite-outfit:auto-owner-2',
+    ])).toEqual([
+      'favorite-outfit:auto-owner-1',
+      'favorite-outfit:auto-owner-2',
+    ])
+    expect(sanitizeActiveAutoOutfitSourceIds(undefined)).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds('favorite-outfit:auto-owner-1')).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds(['favorite-outfit:manual'])).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds(['favorite-outfit:auto-'])).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds([
+      'favorite-outfit:auto-owner-1',
+      'favorite-outfit:auto-owner-1',
+    ])).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds([
+      ...Array.from(
+        { length: MAX_ACTIVE_AUTO_OUTFIT_SOURCE_IDS },
+        (_, index) => `favorite-outfit:auto-owner-${index}`,
+      ),
+      'favorite-outfit:auto-too-many',
+    ])).toBeNull()
+    expect(sanitizeActiveAutoOutfitSourceIds([
+      `favorite-outfit:auto-${'x'.repeat(220)}`,
+    ])).toBeNull()
+  })
+
+  it('deletes only this participant stale auto rows and their private R2 photos', async () => {
+    const activeSourceId = 'favorite-outfit:auto-owner-1'
+    const staleSourceId = 'favorite-outfit:auto-owner-2'
+    const state = await createWorkerEnv({
+      pruneCostumes: [
+        { id: 'costume-active', source_costume_id: activeSourceId },
+        { id: 'costume-stale', source_costume_id: staleSourceId },
+        // Defense in depth: even a malformed DB adapter result cannot broaden cleanup.
+        { id: 'costume-manual', source_costume_id: 'favorite-outfit:manual-set' },
+      ],
+      prunePhotoKeys: {
+        'costume-stale': [
+          'event-1/costume-stale/photo-1',
+          'event-1/costume-stale/photo-2',
+        ],
+      },
+    })
+    const response = await eventApiWorker.fetch(
+      new Request('https://worker.test/api/events/event-1/participant/auto-outfits/prune', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Participant-Token': state.participantToken,
+        },
+        body: JSON.stringify({ activeSourceCostumeIds: [activeSourceId] }),
+      }),
+      state.env,
+      {} as never,
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      deletedCostumeCount: 1,
+      deletedPhotoCount: 2,
+    })
+    const lookup = state.statementCalls.find((call) =>
+      call.query.includes('source_costume_id LIKE ?'))
+    expect(lookup?.query).toContain('participant_id = ?')
+    expect(lookup?.bindValues).toEqual([
+      'event-1',
+      'participant-1',
+      'favorite-outfit:auto-%',
+    ])
+    expect(state.photos.delete.mock.calls.map((call) => call[0])).toEqual([
+      'event-1/costume-stale/photo-1',
+      'event-1/costume-stale/photo-2',
+    ])
+    const deletedCostumes = state.statementCalls.filter((call) =>
+      call.query.includes('DELETE FROM costumes'))
+    expect(deletedCostumes).toHaveLength(1)
+    expect(deletedCostumes[0].query).toContain('participant_id = ?')
+    expect(deletedCostumes[0].bindValues).toEqual([
+      'costume-stale',
+      'event-1',
+      'participant-1',
+      staleSourceId,
+    ])
+  })
+
+  it('is idempotent with no stale rows and rejects an invalid allow-list before writes', async () => {
+    const empty = await createWorkerEnv()
+    const emptyResponse = await eventApiWorker.fetch(
+      new Request('https://worker.test/api/events/event-1/participant/auto-outfits/prune', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Participant-Token': empty.participantToken,
+        },
+        body: JSON.stringify({ activeSourceCostumeIds: [] }),
+      }),
+      empty.env,
+      {} as never,
+    )
+    expect(await emptyResponse.json()).toEqual({
+      deletedCostumeCount: 0,
+      deletedPhotoCount: 0,
+    })
+    expect(empty.photos.delete).not.toHaveBeenCalled()
+    expect(empty.statementCalls.some((call) => call.query.includes('DELETE FROM costumes')))
+      .toBe(false)
+
+    const invalid = await createWorkerEnv({
+      pruneCostumes: [{
+        id: 'costume-stale',
+        source_costume_id: 'favorite-outfit:auto-owner-2',
+      }],
+    })
+    const invalidResponse = await eventApiWorker.fetch(
+      new Request('https://worker.test/api/events/event-1/participant/auto-outfits/prune', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Participant-Token': invalid.participantToken,
+        },
+        body: JSON.stringify({ activeSourceCostumeIds: ['favorite-outfit:manual-set'] }),
+      }),
+      invalid.env,
+      {} as never,
+    )
+    expect(invalidResponse.status).toBe(400)
+    expect(invalid.statementCalls.some((call) => call.query.includes('DELETE FROM costumes')))
+      .toBe(false)
+    expect(invalid.photos.delete).not.toHaveBeenCalled()
+  })
+})
+
 describe('complete outfit persistence boundary', () => {
   const components: CostumeComponentPayload[] = [
     { sourceCostumeId: 'suit-1', name: 'ネイビースーツ', type: 'suit' },
@@ -442,7 +591,7 @@ describe('complete outfit persistence boundary', () => {
     )
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
-      apiVersion: '2026-07-18.1',
+      apiVersion: '2026-07-18.2',
       uploadLimits: { maxPhotosPerCostume: 3, maxOutfitComponents: 3 },
     })
   })

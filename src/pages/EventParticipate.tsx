@@ -10,6 +10,7 @@ import {
   fetchPublishedEventResults,
   fetchParticipantSubmissionStatus,
   joinServerEvent,
+  pruneServerParticipantAutoOutfits,
   uploadServerPhoto,
   EventApiError,
 } from '../event-server/client'
@@ -234,6 +235,7 @@ export default function EventParticipate() {
         limits,
         {
           fetchStatus: fetchParticipantSubmissionStatus,
+          pruneAutoOutfits: pruneServerParticipantAutoOutfits,
           createCostume: createServerCostume,
           uploadPhoto: uploadServerPhoto,
           dataUrlToBlob,
