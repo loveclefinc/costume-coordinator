@@ -537,6 +537,29 @@ describe('favorite complete outfits', () => {
     expect(isAccessoryOnlyCostume(completeBlouseOutfit)).toBe(false)
   })
 
+  it('keeps physically disjoint alternatives inside each owner candidate cap', () => {
+    const wardrobe = [
+      costume({ id: 'suit-diverse', name: 'スーツ', type: 'suit' }),
+      ...Array.from({ length: 3 }, (_, index) =>
+        costume({ id: `shirt-diverse-${index}`, name: `シャツ${index}`, type: 'shirt' }),
+      ),
+      ...Array.from({ length: 3 }, (_, index) =>
+        costume({ id: `tie-diverse-${index}`, name: `ネクタイ${index}`, type: 'necktie' }),
+      ),
+    ]
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    expect(suggestions).toHaveLength(MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER)
+
+    const usedPieces = new Set<string>()
+    for (const suggestion of suggestions) {
+      for (const piece of suggestion.pieces) {
+        expect(usedPieces.has(piece.id)).toBe(false)
+        usedPieces.add(piece.id)
+      }
+    }
+  })
+
   it('caps automatic outfit generation per owner and across the wardrobe', () => {
     const suits = Array.from({ length: 5 }, (_, index) =>
       costume({ id: `suit-${index}`, name: `スーツ${index}`, type: 'suit' }),
