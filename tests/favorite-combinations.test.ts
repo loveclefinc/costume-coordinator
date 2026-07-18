@@ -560,6 +560,26 @@ describe('favorite complete outfits', () => {
     }
   })
 
+  it('distributes first-choice components across different base garments', () => {
+    const suits = Array.from({ length: 4 }, (_, index) =>
+      costume({ id: `suit-group-${index}`, name: `スーツ${index}`, type: 'suit' }),
+    )
+    const shirts = Array.from({ length: 4 }, (_, index) =>
+      costume({ id: `shirt-group-${index}`, name: `シャツ${index}`, type: 'shirt' }),
+    )
+
+    const suggestions = buildAutoOutfitSuggestions([...suits, ...shirts])
+    const firstChoiceByOwner = suggestions.filter(({ costume: item }) =>
+      item.id.endsWith('-1'),
+    )
+
+    expect(suggestions).toHaveLength(MAX_AUTO_OUTFIT_CANDIDATES)
+    expect(firstChoiceByOwner).toHaveLength(4)
+    expect(new Set(
+      firstChoiceByOwner.map(({ pieces }) => pieces[0]?.id),
+    )).toEqual(new Set(shirts.map((shirt) => shirt.id)))
+  })
+
   it('caps automatic outfit generation per owner and across the wardrobe', () => {
     const suits = Array.from({ length: 5 }, (_, index) =>
       costume({ id: `suit-${index}`, name: `スーツ${index}`, type: 'suit' }),

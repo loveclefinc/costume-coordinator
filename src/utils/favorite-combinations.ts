@@ -549,15 +549,10 @@ function autoOutfitBlueprintsForOwner(owner: Costume, available: Costume[]): Aut
   return []
 }
 
-/**
- * 点数だけで上位を切ると、全候補が同じシャツや小物を共有し、物理構成品の
- * 排他によって他の参加者へ割り当てられなくなる。最初は最高点を選び、以降は
- * 既選択候補と共有する構成品が少ない候補を優先して、上限内にも代替を残す。
- */
-function selectDiverseAutoOutfitBlueprints(
+function scoreAutoOutfitBlueprints(
   blueprints: AutoOutfitBlueprint[],
 ): ScoredAutoOutfitBlueprint[] {
-  const remaining: ScoredAutoOutfitBlueprint[] = blueprints
+  return blueprints
     .map((blueprint) => ({
       blueprint,
       ...autoOutfitScore(blueprint),
@@ -570,39 +565,10 @@ function selectDiverseAutoOutfitBlueprints(
         b.score - a.score ||
         a.componentKey.localeCompare(b.componentKey),
     )
-  const selected: ScoredAutoOutfitBlueprint[] = []
-  const usedPieceIds = new Set<string>()
+}
 
-  while (
-    remaining.length > 0 &&
-    selected.length < MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER
-  ) {
-    remaining.sort((a, b) => {
-      if (selected.length === 0) {
-        return b.score - a.score || a.componentKey.localeCompare(b.componentKey)
-      }
-      const reusedByA = a.blueprint.pieces.reduce(
-        (count, piece) => count + (usedPieceIds.has(piece.id) ? 1 : 0),
-        0,
-      )
-      const reusedByB = b.blueprint.pieces.reduce(
-        (count, piece) => count + (usedPieceIds.has(piece.id) ? 1 : 0),
-        0,
-      )
-      return (
-        reusedByA - reusedByB ||
-        b.score - a.score ||
-        a.componentKey.localeCompare(b.componentKey)
-      )
-    })
-
-    const next = remaining.shift()
-    if (!next) break
-    selected.push(next)
-    next.blueprint.pieces.forEach((piece) => usedPieceIds.add(piece.id))
-  }
-
-  return selected
+function blueprintPhysicalIds(blueprint: AutoOutfitBlueprint): string[] {
+  return [blueprint.owner, ...blueprint.pieces].map((item) => item.id)
 }
 
 function isValidResolvedFavorite(entry: ResolvedFavoriteCombination, wardrobe: Costume[]): boolean {
@@ -637,31 +603,68 @@ export function buildAutoOutfitSuggestions(wardrobe: Costume[]): AutoOutfitSugge
     return type === 'suit' || type === 'dress' || isUpperGarment(costume)
   })
 
-  const suggestionsByOwner = owners.map((owner) => {
-    const rankedBlueprints = selectDiverseAutoOutfitBlueprints(
-      autoOutfitBlueprintsForOwner(owner, available),
+  const states = owners
+    .map((owner) => ({
+      owner,
+      remaining: scoreAutoOutfitBlueprints(autoOutfitBlueprintsForOwner(owner, available)),
+      selectedCount: 0,
+    }))
+    .filter((state) => state.remaining.length > 0)
+    .sort(
+      (a, b) =>
+        (b.remaining[0]?.score ?? -1) - (a.remaining[0]?.score ?? -1) ||
+        a.owner.id.localeCompare(b.owner.id),
     )
-
-    return rankedBlueprints.flatMap(({ blueprint }, index) => {
-      const suggestion = materializeAutoOutfit(blueprint, index + 1)
-      return suggestion ? [suggestion] : []
-    })
-  })
-
+  const physicalUseCounts = new Map<string, number>()
   const suggestions: AutoOutfitSuggestion[] = []
+
+  // 点数だけで所有者ごとに上位を切ると、複数のベース衣装が同じシャツや
+  // 小物3点へ集中し、4人目以降の割当に使える実物が候補集合から消える。
+  // 全所有者を順位層ごとに巡回し、すでに候補で使った回数が少ない実物を
+  // 含む案から選ぶことで、上限12件の中にも物理的に異なる代替を残す。
   for (
     let rank = 0;
     rank < MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER && suggestions.length < MAX_AUTO_OUTFIT_CANDIDATES;
     rank += 1
   ) {
-    const layer = suggestionsByOwner
-      .flatMap((ownerSuggestions) => ownerSuggestions[rank] ? [ownerSuggestions[rank]] : [])
-      .sort(
-        (a, b) =>
+    const layer: AutoOutfitSuggestion[] = []
+    for (const state of states) {
+      if (suggestions.length + layer.length >= MAX_AUTO_OUTFIT_CANDIDATES) break
+      if (state.selectedCount >= MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER) continue
+
+      state.remaining.sort((a, b) => {
+        const reusedByA = blueprintPhysicalIds(a.blueprint).reduce(
+          (count, id) => count + (physicalUseCounts.get(id) ?? 0),
+          0,
+        )
+        const reusedByB = blueprintPhysicalIds(b.blueprint).reduce(
+          (count, id) => count + (physicalUseCounts.get(id) ?? 0),
+          0,
+        )
+        return (
+          reusedByA - reusedByB ||
           b.score - a.score ||
-          a.owner.id.localeCompare(b.owner.id) ||
-          a.costume.id.localeCompare(b.costume.id),
-      )
+          a.componentKey.localeCompare(b.componentKey)
+        )
+      })
+
+      const next = state.remaining.shift()
+      if (!next) continue
+      state.selectedCount += 1
+      const suggestion = materializeAutoOutfit(next.blueprint, state.selectedCount)
+      if (!suggestion) continue
+      for (const id of blueprintPhysicalIds(next.blueprint)) {
+        physicalUseCounts.set(id, (physicalUseCounts.get(id) ?? 0) + 1)
+      }
+      layer.push(suggestion)
+    }
+
+    layer.sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.owner.id.localeCompare(b.owner.id) ||
+        a.costume.id.localeCompare(b.costume.id),
+    )
 
     suggestions.push(...layer.slice(0, MAX_AUTO_OUTFIT_CANDIDATES - suggestions.length))
   }
