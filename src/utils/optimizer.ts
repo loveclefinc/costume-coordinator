@@ -44,6 +44,22 @@ export interface OptimizationInput {
 }
 
 /**
+ * 仮想コーデ候補が共有する実物を識別するキー。
+ * オンライン提出の端末内IDは参加者間で重複し得るため、
+ * 提出者付き候補だけは表示名でスコープする。
+ */
+function physicalCostumeKeys(costume: Costume): string[] {
+  const physicalIds = costume.componentCostumeIds?.length
+    ? costume.componentCostumeIds
+    : [costume.id]
+  const scope = costume.sourceParticipantName
+    ? ['participant', costume.sourceParticipantName]
+    : ['shared']
+
+  return Array.from(new Set(physicalIds)).map((id) => JSON.stringify([...scope, id]))
+}
+
+/**
  * Calculate color compatibility score between two costumes
  * Returns 0-1 where 1 is perfect compatibility
  */
@@ -244,6 +260,7 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
 
   const results: OptimizationResult[] = []
   const assignedCostumes = new Set<string>()
+  const assignedPhysicalItems = new Set<string>()
 
   // Sort participants by preference strength (those with strong preferences first)
   const sortedParticipants = [...participants].sort((a, b) => {
@@ -268,6 +285,10 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
     for (const costume of eligibleCostumes) {
       // Skip already assigned costumes
       if (assignedCostumes.has(costume.id)) continue
+
+      // 別の仮想候補でも、同じシャツや小物を同時に使えない。
+      const physicalKeys = physicalCostumeKeys(costume)
+      if (physicalKeys.some((key) => assignedPhysicalItems.has(key))) continue
 
       // Skip recently used costumes (cleaning / unavailable)
       if (isCostumeRecentlyUsed(costume, usageHistory, recentUsageExcludeDays)) continue
@@ -320,6 +341,9 @@ export function optimizeCostumeAssignments(input: OptimizationInput): { assignme
 
     if (bestCandidate) {
       assignedCostumes.add(bestCandidate.costume.id)
+      for (const key of physicalCostumeKeys(bestCandidate.costume)) {
+        assignedPhysicalItems.add(key)
+      }
 
       results.push({
         participantId: participant.id,

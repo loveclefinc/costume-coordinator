@@ -3,6 +3,7 @@ import type { EventThemePreferencesPayload } from '../../shared/event-api-types'
 import type { CostumeThemeMatch } from '../utils/costume-theme-match'
 import { formatThemeSummary } from '../utils/event-theme-ui'
 import { COLOR_LABELS, PATTERN_LABELS, TONE_LABELS } from '../utils/event-theme-ui'
+import type { Costume } from '../utils/storage'
 import CostumePhotoMosaic from './CostumePhotoMosaic'
 import './EventCostumeMatcher.css'
 
@@ -14,6 +15,19 @@ interface EventCostumeMatcherProps {
   status?: 'idle' | 'picking' | 'submitting' | 'done'
 }
 
+export function outfitCandidateBadge(
+  costume: Pick<Costume, 'id' | 'componentCostumeIds' | 'componentCostumeNames'>,
+): string | null {
+  const componentCount = Math.max(
+    costume.componentCostumeIds?.length ?? 0,
+    costume.componentCostumeNames?.length ?? 0,
+  )
+  if (componentCount < 2) return null
+  if (costume.id.startsWith('favorite-outfit:auto-')) return '自動提案コーデ'
+  if (costume.id.startsWith('favorite-outfit:')) return '保存済みコーデ'
+  return '完成コーデ'
+}
+
 export default function EventCostumeMatcher({
   picked,
   theme,
@@ -22,11 +36,11 @@ export default function EventCostumeMatcher({
   status = 'idle',
 }: EventCostumeMatcherProps) {
   if (costumesLoading && picked.length === 0) {
-    return <p className="event-costume-matcher-loading">登録衣装とコーデからイベントに合う候補を選出しています…</p>
+    return <p className="event-costume-matcher-loading">登録した衣装・小物からイベントに合う候補を選出しています…</p>
   }
 
   if (status === 'picking' && picked.length === 0) {
-    return <p className="event-costume-matcher-loading">登録衣装とコーデからイベントに合う候補を選出しています…</p>
+    return <p className="event-costume-matcher-loading">登録した衣装・小物からイベントに合う候補を選出しています…</p>
   }
 
   if (picked.length === 0) {
@@ -35,7 +49,7 @@ export default function EventCostumeMatcher({
         <div className="event-costume-matcher-empty">
           <p>登録衣装 {wardrobeCount} 件のうち、提出できる候補がありません。</p>
           <p>
-            テーマ設定や使用履歴の除外期間を確認してください。条件を緩めるか、別の衣装を
+            衣装の種類・写真、テーマ設定、使用履歴の除外期間を確認してください。トップスや小物だけの場合は、合わせるボトムスやベース衣装を
             <Link to="/costumes/add"> 登録 </Link>
             してから再試行してください。
           </p>
@@ -71,7 +85,7 @@ export default function EventCostumeMatcher({
           ? `テーマに合う候補 ${picked.length} 件を提出しました。これは仮の候補で、全員提出後にシステムが1組（単品または完成コーデ）を正式決定します。`
           : status === 'submitting'
             ? `候補 ${picked.length} 件を提出しています…`
-            : `登録衣装とお気に入りコーデから、テーマに合う候補を ${picked.length} 件自動選出しました（正式決定までは使用済み扱いにしません）。`}
+            : `登録した単品衣装、保存済みコーデ、自動提案コーデから、テーマに合う候補を ${picked.length} 件選出しました（正式決定までは使用済み扱いにしません）。`}
       </p>
       <p className="event-costume-matcher-note">
         正式決定された単品またはコーデは使用履歴に記録され、設定した期間は次回候補から外れます。
@@ -80,7 +94,7 @@ export default function EventCostumeMatcher({
       <div className="event-costume-matcher-grid">
         {picked.map((match, index) => {
           const { costume, scorePercent, reasons } = match
-          const isCompleteOutfit = (costume.componentCostumeNames?.length ?? 0) > 1
+          const candidateBadge = outfitCandidateBadge(costume)
           const colorLabel = costume.colors
             .map((c) => COLOR_LABELS[c] ?? c)
             .slice(0, 2)
@@ -100,7 +114,7 @@ export default function EventCostumeMatcher({
               <div className="event-costume-card-body">
                 <div className="event-costume-card-title">
                   <strong>{costume.name}</strong>
-                  {isCompleteOutfit && <span>完成コーデ</span>}
+                  {candidateBadge && <span>{candidateBadge}</span>}
                 </div>
                 <p className="event-costume-card-meta">
                   {colorLabel && `${colorLabel} / `}

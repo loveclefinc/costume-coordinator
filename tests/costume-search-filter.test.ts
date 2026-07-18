@@ -130,6 +130,24 @@ describe('Costume wardrobe search', () => {
     expect(labels).toEqual(expect.arrayContaining(['青い花柄ドレス', '青', '花柄', 'ドレス', '春', 'Aライン']))
   })
 
+  it('searches separately registered tops and bottoms by their Japanese type names', () => {
+    const separates = [
+      costume({ id: 'blouse-white', name: '白ブラウス', type: 'blouse', updatedAt: 40 }),
+      costume({ id: 'skirt-navy', name: '紺スカート', type: 'skirt', updatedAt: 41 }),
+      costume({ id: 'pants-black', name: '黒パンツ', type: 'pants', updatedAt: 42 }),
+    ]
+
+    expect(searchWardrobeCostumes(separates, 'ブラウス').map((result) => result.costume.id)).toEqual([
+      'blouse-white',
+    ])
+    expect(searchWardrobeCostumes(separates, 'スカート').map((result) => result.costume.id)).toEqual([
+      'skirt-navy',
+    ])
+    expect(searchWardrobeCostumes(separates, 'パンツ・ズボン').map((result) => result.costume.id)).toEqual([
+      'pants-black',
+    ])
+  })
+
   it('normalizes casual query tokens', () => {
     expect(queryTokens('青系の衣装')).toEqual([
       expect.arrayContaining(['青系', '青', 'ブルー', '水色', 'ネイビー']),

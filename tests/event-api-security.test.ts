@@ -442,6 +442,7 @@ describe('complete outfit persistence boundary', () => {
     )
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
+      apiVersion: '2026-07-18.1',
       uploadLimits: { maxPhotosPerCostume: 3, maxOutfitComponents: 3 },
     })
   })
@@ -450,11 +451,11 @@ describe('complete outfit persistence boundary', () => {
     expect(sanitizeCostumeComponents(undefined)).toEqual([])
     expect(
       sanitizeCostumeComponents([
-        { sourceCostumeId: ' suit-1 ', name: '  Navy   suit ', type: ' suit ' },
+        { sourceCostumeId: ' suit-1 ', name: '  Navy   suit ', type: ' suit ', revision: 123 },
         { sourceCostumeId: 'shirt-1', name: 'White shirt' },
       ]),
     ).toEqual([
-      { sourceCostumeId: 'suit-1', name: 'Navy suit', type: 'suit' },
+      { sourceCostumeId: 'suit-1', name: 'Navy suit', type: 'suit', revision: 123 },
       { sourceCostumeId: 'shirt-1', name: 'White shirt' },
     ])
     expect(sanitizeCostumeComponents([components[0]])).toBeNull()
@@ -464,6 +465,16 @@ describe('complete outfit persistence boundary', () => {
       .toBeNull()
     expect(sanitizeCostumeComponents([{ ...components[0], name: '' }, components[1]])).toBeNull()
     expect(sanitizeCostumeComponents(components, 2)).toBeNull()
+    expect(sanitizeCostumeComponents([{ ...components[0], revision: -1 }, components[1]])).toBeNull()
+    expect(sanitizeCostumeComponents([{ ...components[0], revision: 1.5 }, components[1]])).toBeNull()
+    expect(sanitizeCostumeComponents([
+      { ...components[0], revision: '123' },
+      components[1],
+    ])).toBeNull()
+    expect(sanitizeCostumeComponents([
+      { ...components[0], revision: Number.MAX_SAFE_INTEGER + 1 },
+      components[1],
+    ])).toBeNull()
   })
 
   it('requires every declared component slot while leaving legacy single items compatible', () => {
@@ -619,6 +630,49 @@ describe('complete outfit persistence boundary', () => {
     expect(changed.photos.delete).toHaveBeenCalledTimes(1)
     const update = changed.statementCalls.find((call) => call.query.includes('UPDATE costumes SET'))
     expect(update?.bindValues[0]).toBe('コンサート用スタイル（改訂）')
+  })
+
+  it('resets component photo slots when only the submitted revision changes', async () => {
+    const previousComponents = components.map((component) => ({ ...component, revision: 100 }))
+    const revisedComponents = components.map((component) => ({ ...component, revision: 101 }))
+    const changed = await createWorkerEnv({
+      existingSourceCostume: {
+        id: 'costume-existing',
+        componentsJson: JSON.stringify(previousComponents),
+      },
+      replacementPhotoKeys: ['event-1/costume-existing/photo-1'],
+    })
+
+    const response = await eventApiWorker.fetch(
+      new Request('https://worker.test/api/events/event-1/costumes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Participant-Token': changed.participantToken,
+        },
+        body: JSON.stringify({
+          sourceCostumeId: 'favorite-outfit:formal-1',
+          name: 'コンサート用スタイル',
+          colors: [],
+          tone: 'dark',
+          pattern: 'plain',
+          components: revisedComponents,
+        }),
+      }),
+      changed.env,
+      {} as never,
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      costumeId: 'costume-existing',
+      photosReset: true,
+    })
+    expect(changed.photos.delete).toHaveBeenCalledWith(
+      'event-1/costume-existing/photo-1',
+    )
+    const update = changed.statementCalls.find((call) => call.query.includes('UPDATE costumes SET'))
+    expect(update?.bindValues[10]).toBe(JSON.stringify(revisedComponents))
   })
 
   it('never replaces a costume owned by another participant', async () => {

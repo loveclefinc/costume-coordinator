@@ -10,7 +10,7 @@ const DB_VERSION = 2
 export interface FavoriteCombination {
   id: string
   name: string
-  /** 主衣装と同時に着用する個人ワードローブ内の衣装ID。 */
+  /** ベース衣装と同時に着用する個人ワードローブ内の衣装ID。 */
   pieceIds: string[]
   createdAt: number
   updatedAt: number
@@ -33,7 +33,7 @@ export interface Costume {
   tone: string // 'warm' | 'cool' | 'neutral'
   pattern: string // 'solid' | 'striped' | 'floral' | 'geometric' | 'other'
   season: string[] // ['spring', 'summer', 'autumn', 'winter']
-  type?: string // 'dress' | 'suit' | 'shirt' | 'necktie' | 'bowtie' | 'accessory' | 'other'
+  type?: string // 'dress' | 'suit' | 'shirt' | 'blouse' | 'top' | 'skirt' | 'pants' | 'necktie' | 'bowtie' | 'accessory' | 'other'
   /** ドレスのシルエット（type === 'dress' のとき） */
   silhouette?: DressSilhouette
   /** スーツの形式（type === 'suit' のとき） */

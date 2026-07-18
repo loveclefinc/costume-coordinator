@@ -309,7 +309,7 @@ export default function EventParticipate() {
       setJoined(true)
       autoSubmitStarted.current = false
       setSubmitPhase('idle')
-      toast(`${res.displayName} さんとして参加しました。衣装を自動選出して提出します。`, 'success')
+      toast(`${res.displayName} さんとして参加しました。衣装・コーデ候補を選出して提出します。`, 'success')
     } catch (e) {
       setError(e instanceof EventApiError ? e.message : '参加に失敗しました')
     } finally {
@@ -373,7 +373,7 @@ export default function EventParticipate() {
         <section className="participate-section">
           <h3>1. 参加者名</h3>
           <p className="participate-name-hint">
-            参加後、登録済みの単品衣装とお気に入りコーデからテーマに合う候補を複数自動選出し、代表者へ提出します（最終結果は全員提出後にシステムが決定）。
+            参加後、単品衣装、保存済みコーデ、登録したトップス・ボトムス・小物からの自動提案をまとめ、テーマに合う候補を代表者へ提出します（最終結果は全員提出後にシステムが決定）。
           </p>
           {profileName && !editingName ? (
             <div className="participate-profile-choice">
@@ -446,7 +446,7 @@ export default function EventParticipate() {
             別の名前で参加し直す
           </button>
 
-          <h3>2. 衣装・コーデの自動選出</h3>
+          <h3>2. 衣装・コーデ候補の選出</h3>
 
           {(!wardrobeReady || pickedMatches.length > 0) && (
             <EventCostumeMatcher
@@ -498,7 +498,7 @@ export default function EventParticipate() {
               <p className="participate-name-hint">
                 {costumes.length === 0
                   ? '衣装が未登録です。写真を選び、衣装情報を確認してから保存してください。'
-                  : '提出できる候補がありません。別の衣装を写真から追加するか、登録済み衣装の内容を見直してください。'}
+                  : '提出できる候補がありません。衣装の種類と写真を見直すか、トップスにはボトムス、スーツやドレスには合わせる小物を登録してください。'}
               </p>
               <Link to={addCostumePath} className="participate-btn primary">
                 {costumes.length === 0 ? '写真から衣装を追加' : '別の衣装を写真から追加'}

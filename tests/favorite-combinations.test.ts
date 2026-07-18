@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_AUTO_OUTFIT_CANDIDATES,
+  MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER,
+  buildAutoOutfitSuggestions,
   buildCompleteOutfitCandidates,
   createFavoriteCombination,
+  isAccessoryOnlyCostume,
   materializeFavoriteCombination,
   resolveFavoriteCombinations,
   searchFavoriteCombinations,
@@ -233,13 +237,326 @@ describe('favorite complete outfits', () => {
     expect(ids).not.toContain('favorite-outfit:favorite-formal')
   })
 
-  it('keeps the base suit available when every component exists but one photo is missing', () => {
+  it('uses the remaining photographed accessory when one saved component photo is missing', () => {
     const wardrobe = completeWardrobe().map((item) =>
       item.id === 'shirt-white' ? { ...item, image: '' } : item,
     )
 
-    const ids = buildCompleteOutfitCandidates(wardrobe).map((item) => item.id)
-    expect(ids).toContain('suit-navy')
+    const candidates = buildCompleteOutfitCandidates(wardrobe)
+    const ids = candidates.map((item) => item.id)
+    expect(ids).not.toContain('suit-navy')
     expect(ids).not.toContain('favorite-outfit:favorite-formal')
+    expect(ids.some((id) => id.startsWith('favorite-outfit:auto-'))).toBe(true)
+    expect(candidates.find((item) => item.id.startsWith('favorite-outfit:auto-'))?.componentCostumeIds).toEqual([
+      'suit-navy',
+      'tie-red',
+    ])
+  })
+
+  it('suggests compatible registered pieces deterministically when no manual outfit exists', () => {
+    const wardrobe = [
+      costume({
+        id: 'suit-navy',
+        name: 'ネイビースーツ',
+        type: 'suit',
+        colors: ['navy'],
+        tone: 'dark',
+        pattern: 'plain',
+        season: ['winter'],
+        tags: ['本番'],
+      }),
+      costume({
+        id: 'shirt-compatible',
+        name: '白シャツ',
+        type: 'shirt',
+        colors: ['white'],
+        tone: 'dark',
+        pattern: 'plain',
+        season: ['winter'],
+        tags: ['本番'],
+      }),
+      costume({
+        id: 'shirt-clashing',
+        name: '夏の花柄シャツ',
+        type: 'shirt',
+        colors: ['green'],
+        tone: 'vivid',
+        pattern: 'floral',
+        season: ['summer'],
+      }),
+      costume({
+        id: 'tie-red',
+        name: '赤ネクタイ',
+        type: 'necktie',
+        colors: ['red'],
+        tone: 'dark',
+        pattern: 'dot',
+        season: ['winter'],
+      }),
+    ]
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    const fromReversedWardrobe = buildAutoOutfitSuggestions([...wardrobe].reverse())
+
+    expect(suggestions).toHaveLength(2)
+    expect(suggestions[0].pieces.map((piece) => piece.id)).toEqual([
+      'shirt-compatible',
+      'tie-red',
+    ])
+    expect(suggestions[0].score).toBeGreaterThan(suggestions[1].score)
+    expect(suggestions[0].reasons).toContain('色を合わせやすい')
+    expect(suggestions[0].costume.id).toMatch(/^favorite-outfit:auto-[0-9a-f]{16}-[1-3]$/)
+    expect(suggestions[0].costume.componentCostumeIds).toEqual([
+      'suit-navy',
+      'shirt-compatible',
+      'tie-red',
+    ])
+    expect(fromReversedWardrobe.map(({ costume: item, score }) => [item.id, score])).toEqual(
+      suggestions.map(({ costume: item, score }) => [item.id, score]),
+    )
+  })
+
+  it('keeps the owner rank slot id when a suggested accessory is replaced', () => {
+    const base = [
+      costume({ id: 'suit-stable', name: 'スーツ', type: 'suit' }),
+      costume({ id: 'shirt-stable', name: 'シャツ', type: 'shirt' }),
+    ]
+    const before = buildAutoOutfitSuggestions([
+      ...base,
+      costume({ id: 'tie-before', name: '赤ネクタイ', type: 'necktie' }),
+    ])[0]
+    const after = buildAutoOutfitSuggestions([
+      ...base,
+      costume({ id: 'tie-after', name: '青ネクタイ', type: 'necktie' }),
+    ])[0]
+
+    expect(after.costume.id).toBe(before.costume.id)
+    expect(before.costume.componentCostumeIds).toEqual([
+      'suit-stable',
+      'shirt-stable',
+      'tie-before',
+    ])
+    expect(after.costume.componentCostumeIds).toEqual([
+      'suit-stable',
+      'shirt-stable',
+      'tie-after',
+    ])
+  })
+
+  it('gives a valid manually saved favorite priority over automatic suggestions', () => {
+    const wardrobe = completeWardrobe()
+    expect(buildAutoOutfitSuggestions(wardrobe).some(({ owner }) => owner.id === 'suit-navy')).toBe(false)
+
+    const candidates = buildCompleteOutfitCandidates(wardrobe)
+    expect(candidates.filter((item) => item.id.startsWith('favorite-outfit:'))).toHaveLength(1)
+    expect(candidates.some((item) => item.id === 'favorite-outfit:favorite-formal')).toBe(true)
+    expect(candidates.some((item) => item.id.startsWith('favorite-outfit:auto-'))).toBe(false)
+  })
+
+  it('falls back to an automatic outfit when the saved favorite is incomplete', () => {
+    const wardrobe = completeWardrobe().map((item) =>
+      item.id === 'suit-navy'
+        ? {
+            ...item,
+            favoriteCombinations: [combination({ pieceIds: ['removed-piece'] })],
+          }
+        : item,
+    )
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    expect(suggestions.some(({ owner }) => owner.id === 'suit-navy')).toBe(true)
+    expect(suggestions[0].costume.componentCostumeIds).toEqual([
+      'suit-navy',
+      'shirt-white',
+      'tie-red',
+    ])
+  })
+
+  it('materializes blouse + bottom + accessory and never offers either half alone', () => {
+    const wardrobe = [
+      costume({
+        id: 'blouse-white',
+        name: '白ブラウス',
+        type: 'blouse',
+        colors: ['white'],
+        season: ['spring'],
+      }),
+      costume({
+        id: 'skirt-blue',
+        name: '青スカート',
+        type: 'skirt',
+        colors: ['blue'],
+        pattern: 'stripe',
+        season: ['spring'],
+      }),
+      costume({
+        id: 'pants-black',
+        name: '黒パンツ',
+        type: 'pants',
+        colors: ['black'],
+        season: ['spring'],
+      }),
+      costume({
+        id: 'brooch-gold',
+        name: '金ブローチ',
+        type: 'accessory',
+        colors: ['gold'],
+        season: ['spring'],
+      }),
+    ]
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    expect(suggestions).toHaveLength(2)
+    expect(suggestions.every(({ costume: item }) => item.type === 'blouse')).toBe(true)
+    expect(suggestions.every(({ costume: item }) => item.componentCostumeIds?.length === 3)).toBe(true)
+    expect(suggestions.every(({ pieces }) => pieces.some((piece) => piece.type === 'skirt' || piece.type === 'pants'))).toBe(true)
+
+    const candidates = buildCompleteOutfitCandidates(wardrobe)
+    const ids = candidates.map((item) => item.id)
+    expect(ids).not.toContain('blouse-white')
+    expect(ids).not.toContain('skirt-blue')
+    expect(ids).not.toContain('pants-black')
+    expect(ids).not.toContain('brooch-gold')
+    expect(ids.filter((id) => id.startsWith('favorite-outfit:auto-'))).toHaveLength(2)
+  })
+
+  it('also treats a registered shirt + trousers as a complete separates outfit', () => {
+    const wardrobe = [
+      costume({ id: 'shirt-stage', name: 'ステージシャツ', type: 'shirt' }),
+      costume({ id: 'trousers-black', name: '黒トラウザー', type: 'trousers' }),
+    ]
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    expect(suggestions).toHaveLength(1)
+    expect(suggestions[0].costume.componentCostumeIds).toEqual([
+      'shirt-stage',
+      'trousers-black',
+    ])
+    expect(buildCompleteOutfitCandidates(wardrobe).map((item) => item.id)).toEqual([
+      suggestions[0].costume.id,
+    ])
+  })
+
+  it('pairs a dress with generic accessories but not standalone neckwear', () => {
+    const wardrobe = [
+      costume({ id: 'dress-black', name: '黒ドレス', type: 'dress' }),
+      costume({ id: 'necklace-pearl', name: 'パールネックレス', type: 'accessory' }),
+      costume({ id: 'tie-blue', name: '青ネクタイ', type: 'necktie' }),
+    ]
+
+    const suggestions = buildAutoOutfitSuggestions(wardrobe)
+    expect(suggestions).toHaveLength(1)
+    expect(suggestions[0].costume.componentCostumeIds).toEqual([
+      'dress-black',
+      'necklace-pearl',
+    ])
+
+    const ids = buildCompleteOutfitCandidates(wardrobe).map((item) => item.id)
+    expect(ids).toContain('dress-black')
+    expect(ids).not.toContain('necklace-pearl')
+    expect(ids).not.toContain('tie-blue')
+  })
+
+  it('requires one bottom for a manual upper-garment outfit and prioritizes lower pattern metadata', () => {
+    const wardrobe = [
+      costume({ id: 'top-black', name: '黒トップス', type: 'top', pattern: 'plain' }),
+      costume({ id: 'skirt-check', name: 'チェックスカート', type: 'skirt', pattern: 'check' }),
+      costume({ id: 'brooch-pearl', name: 'パールブローチ', type: 'accessory', pattern: 'plain' }),
+    ]
+    const valid = validateFavoriteCombination(
+      {
+        name: 'モノトーン',
+        ownerId: 'top-black',
+        pieceIds: ['skirt-check', 'brooch-pearl'],
+      },
+      wardrobe,
+    )
+    const missingBottom = validateFavoriteCombination(
+      {
+        name: '未完成',
+        ownerId: 'top-black',
+        pieceIds: ['brooch-pearl'],
+      },
+      wardrobe,
+    )
+
+    expect(valid.valid).toBe(true)
+    expect(missingBottom.valid).toBe(false)
+    expect(missingBottom.errors.join(' ')).toMatch(/ボトムスを1点/)
+
+    const outfit = materializeFavoriteCombination({
+      owner: wardrobe[0],
+      pieces: [wardrobe[1], wardrobe[2]],
+      missingPieceIds: [],
+      combination: combination({
+        id: 'favorite-separates',
+        name: 'モノトーン',
+        pieceIds: ['skirt-check', 'brooch-pearl'],
+      }),
+    })
+    expect(outfit?.pattern).toBe('check')
+    expect(outfit?.componentCostumeIds).toEqual(['top-black', 'skirt-check', 'brooch-pearl'])
+  })
+
+  it('never emits a lower garment alone and keeps a legacy other piece valid for dresses', () => {
+    const skirt = costume({ id: 'skirt-only', name: 'スカート', type: 'skirt' })
+    const dress = costume({ id: 'dress-blue', name: '青ドレス', type: 'dress' })
+    const legacyOther = costume({
+      id: 'legacy-shawl',
+      name: 'ショール',
+      type: 'other',
+      pattern: 'floral',
+    })
+
+    expect(buildCompleteOutfitCandidates([skirt]).map((item) => item.id)).not.toContain('skirt-only')
+    expect(validateFavoriteCombination(
+      { name: '旧形式', ownerId: 'dress-blue', pieceIds: ['legacy-shawl'] },
+      [dress, legacyOther],
+    ).valid).toBe(true)
+    expect(materializeFavoriteCombination({
+      owner: dress,
+      pieces: [legacyOther],
+      missingPieceIds: [],
+      combination: combination({ name: '旧形式', pieceIds: ['legacy-shawl'] }),
+    })?.pattern).toBe('floral')
+  })
+
+  it('filters raw upper/lower/accent items but retains a materialized complete outfit', () => {
+    const rawBlouse = costume({ id: 'blouse-raw', name: 'ブラウス', type: 'blouse' })
+    const completeBlouseOutfit = costume({
+      id: 'favorite-outfit:auto-fixed',
+      name: 'ブラウスとスカート',
+      type: 'blouse',
+      componentCostumeIds: ['blouse-raw', 'skirt-raw'],
+      componentCostumeNames: ['ブラウス', 'スカート'],
+    })
+
+    expect(isAccessoryOnlyCostume(rawBlouse)).toBe(true)
+    expect(isAccessoryOnlyCostume(costume({ id: 'skirt-raw', name: 'スカート', type: 'skirt' }))).toBe(true)
+    expect(isAccessoryOnlyCostume(costume({ id: 'tie-raw', name: 'ネクタイ', type: 'necktie' }))).toBe(true)
+    expect(isAccessoryOnlyCostume(completeBlouseOutfit)).toBe(false)
+  })
+
+  it('caps automatic outfit generation per owner and across the wardrobe', () => {
+    const suits = Array.from({ length: 5 }, (_, index) =>
+      costume({ id: `suit-${index}`, name: `スーツ${index}`, type: 'suit' }),
+    )
+    const shirts = Array.from({ length: 12 }, (_, index) =>
+      costume({ id: `shirt-${index}`, name: `シャツ${index}`, type: 'shirt' }),
+    )
+    const accents = Array.from({ length: 12 }, (_, index) =>
+      costume({ id: `tie-${index}`, name: `ネクタイ${index}`, type: 'necktie' }),
+    )
+
+    const suggestions = buildAutoOutfitSuggestions([...suits, ...shirts, ...accents])
+    const perOwner = new Map<string, number>()
+    for (const suggestion of suggestions) {
+      perOwner.set(suggestion.owner.id, (perOwner.get(suggestion.owner.id) ?? 0) + 1)
+    }
+
+    expect(suggestions).toHaveLength(MAX_AUTO_OUTFIT_CANDIDATES)
+    expect(Math.max(...perOwner.values())).toBeLessThanOrEqual(MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER)
+    expect([...perOwner.keys()].sort()).toEqual(suits.map((item) => item.id).sort())
+    expect(suggestions.every(({ costume: item }) => item.componentCostumeIds?.length === 3)).toBe(true)
   })
 })

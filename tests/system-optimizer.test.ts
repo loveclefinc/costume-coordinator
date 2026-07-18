@@ -166,6 +166,66 @@ describe('runSystemOptimization', () => {
     expect(outcome.selected[0].costumeId).toBe('guest-suit')
   })
 
+  it('does not assign two virtual outfits that share the same physical accessory', () => {
+    const sharedAccessoryOutfitA: Costume = {
+      ...costume('outfit-a', '共有ブローチコーデA', ['blue']),
+      componentCostumeIds: ['dress-a', 'brooch-shared'],
+      componentCostumeNames: ['ドレスA', '共有ブローチ'],
+    }
+    const sharedAccessoryOutfitB: Costume = {
+      ...costume('outfit-b', '共有ブローチコーデB', ['blue']),
+      componentCostumeIds: ['dress-b', 'brooch-shared'],
+      componentCostumeNames: ['ドレスB', '共有ブローチ'],
+    }
+    const independentOutfit: Costume = {
+      ...costume('outfit-c', '独立コーデ', ['blue']),
+      componentCostumeIds: ['dress-c', 'brooch-other'],
+      componentCostumeNames: ['ドレスC', '別のブローチ'],
+    }
+
+    const outcome = runSystemOptimization({
+      participants: [
+        { id: 'a', name: 'A', preferences: ['outfit-a'] },
+        { id: 'b', name: 'B', preferences: [] },
+      ],
+      costumes: [sharedAccessoryOutfitA, sharedAccessoryOutfitB, independentOutfit],
+      usageHistory: [],
+      themePreferences: theme,
+    })
+
+    expect(outcome.selected.find((row) => row.participantName === 'A')?.costumeId)
+      .toBe('outfit-a')
+    expect(outcome.selected.find((row) => row.participantName === 'B')?.costumeId)
+      .toBe('outfit-c')
+  })
+
+  it('scopes submitted component ids by participant to avoid cross-device false conflicts', () => {
+    const aliceOutfit: Costume = {
+      ...participantCostume('alice-outfit', 'Aliceコーデ', ['blue'], 'Alice'),
+      componentCostumeIds: ['dress-1', 'brooch-1'],
+      componentCostumeNames: ['ドレス', 'ブローチ'],
+    }
+    const bobOutfit: Costume = {
+      ...participantCostume('bob-outfit', 'Bobコーデ', ['blue'], 'Bob'),
+      // 別端末のローカルIDは同じ文字列になり得る。
+      componentCostumeIds: ['dress-1', 'brooch-1'],
+      componentCostumeNames: ['ドレス', 'ブローチ'],
+    }
+
+    const outcome = runSystemOptimization({
+      participants: [
+        { id: 'alice', name: 'Alice', preferences: ['alice-outfit'] },
+        { id: 'bob', name: 'Bob', preferences: ['bob-outfit'] },
+      ],
+      costumes: [aliceOutfit, bobOutfit],
+      usageHistory: [],
+      themePreferences: theme,
+    })
+
+    expect(outcome.selected.map((row) => row.costumeId).sort())
+      .toEqual(['alice-outfit', 'bob-outfit'])
+  })
+
   it('includes the saved stage order and row breaks in proposal scoring', () => {
     const participants = ['a', 'b', 'c', 'd'].map((id) => ({
       id,

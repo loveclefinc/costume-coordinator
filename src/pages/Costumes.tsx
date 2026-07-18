@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import FavoriteCombinationComposer from '../components/FavoriteCombinationComposer'
 import { useCostumes } from '../hooks/useCostumes'
@@ -13,15 +13,19 @@ import {
   SEASON_LABELS,
   TONE_LABELS,
   costumeFeatureLabels,
+  costumeSearchLabels,
   searchWardrobeCostumes,
+  wardrobeLabelsMatchQuery,
 } from '../utils/costume-search'
 import {
+  buildAutoOutfitSuggestions,
   createFavoriteCombination,
   removeFavoriteCombination,
   resolveFavoriteCombinations,
   searchFavoriteCombinations,
   upsertFavoriteCombination,
   validateFavoriteCombination,
+  type AutoOutfitSuggestion,
   type FavoriteCombinationInput,
   type ResolvedFavoriteCombination,
 } from '../utils/favorite-combinations'
@@ -31,7 +35,7 @@ function labelFor(labels: Record<string, string>, value: string): string {
   return labels[value.toLowerCase()] ?? value
 }
 
-const QUICK_SEARCHES = ['お気に入り', '無地', '柄', '花柄', '青系', 'タキシード', 'Aライン']
+const QUICK_SEARCHES = ['自動提案', 'お気に入り', '無地', '柄', '花柄', '青系', 'タキシード', 'Aライン']
 
 function WardrobeImage({ costume, priority = false }: { costume: Costume; priority?: boolean }) {
   const [failed, setFailed] = useState(false)
@@ -100,7 +104,7 @@ function FavoriteCombinationCard({
           <h3 id={`favorite-${entry.combination.id}`}>{entry.combination.name}</h3>
           <dl className="favorite-combination-pieces">
             <div>
-              <dt>主衣装</dt>
+              <dt>ベース衣装</dt>
               <dd>{entry.owner.name}</dd>
             </div>
             <div>
@@ -127,6 +131,86 @@ function FavoriteCombinationCard({
   )
 }
 
+export function autoOutfitSuggestionMatchesQuery(
+  suggestion: AutoOutfitSuggestion,
+  query: string,
+): boolean {
+  return wardrobeLabelsMatchQuery(
+    [
+      '自動提案',
+      '未保存',
+      'コーデ提案',
+      ...costumeSearchLabels(suggestion.costume),
+      ...costumeSearchLabels(suggestion.owner),
+      ...suggestion.pieces.flatMap(costumeSearchLabels),
+      ...suggestion.reasons,
+    ],
+    query,
+  )
+}
+
+function AutoOutfitSuggestionCard({
+  suggestion,
+  onReview,
+}: {
+  suggestion: AutoOutfitSuggestion
+  onReview: () => void
+}) {
+  const items = [suggestion.owner, ...suggestion.pieces]
+  const headingId = `auto-outfit-${suggestion.costume.id}`
+  const scoreLabelId = `${headingId}-score-label`
+
+  return (
+    <li className="favorite-combination-list-item">
+      <article
+        className="favorite-combination-card auto-outfit-suggestion-card"
+        aria-labelledby={headingId}
+      >
+        <div className="favorite-combination-card-images">
+          {items.map((costume) => (
+            <CombinationThumbnail key={costume.id} costume={costume} />
+          ))}
+        </div>
+        <div className="favorite-combination-card-body auto-outfit-suggestion-card-body">
+          <p className="auto-outfit-suggestion-kicker">自動提案・未保存</p>
+          <h3 id={headingId}>{suggestion.costume.name}</h3>
+          <p className="auto-outfit-suggestion-components">
+            <span>構成</span>
+            {items.map((item) => item.name).join('・')}
+          </p>
+          <div className="auto-outfit-suggestion-score">
+            <span id={scoreLabelId}>組み合わせやすさ</span>
+            <strong>{suggestion.score} / 100</strong>
+            <meter
+              min={0}
+              max={100}
+              value={suggestion.score}
+              aria-labelledby={scoreLabelId}
+            >
+              {suggestion.score} / 100
+            </meter>
+          </div>
+          <ul className="auto-outfit-suggestion-reasons" aria-label="提案理由">
+            {suggestion.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+          </ul>
+          <p className="auto-outfit-suggestion-note">
+            保存しなくてもイベント候補に使われます。よく使う場合は、内容を確認してお気に入りに保存できます。
+          </p>
+        </div>
+        <div className="favorite-combination-card-actions auto-outfit-suggestion-card-actions">
+          <button
+            type="button"
+            onClick={onReview}
+            aria-label={`「${suggestion.costume.name}」の内容を確認してお気に入りに保存`}
+          >
+            内容を確認して保存
+          </button>
+        </div>
+      </article>
+    </li>
+  )
+}
+
 function samePieceIds(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
   const bSet = new Set(b)
@@ -139,14 +223,22 @@ export default function Costumes() {
   const [filter, setFilter] = useState('')
   const [composerOpen, setComposerOpen] = useState(false)
   const [editingCombination, setEditingCombination] = useState<ResolvedFavoriteCombination | undefined>()
+  const [draftCombination, setDraftCombination] = useState<FavoriteCombinationInput | undefined>()
 
   const allCombinations = resolveFavoriteCombinations(costumes)
+  const allAutoSuggestions = useMemo(() => buildAutoOutfitSuggestions(costumes), [costumes])
   const filteredCombinations = searchFavoriteCombinations(costumes, filter)
+  const filteredAutoSuggestions = allAutoSuggestions.filter((suggestion) =>
+    autoOutfitSuggestionMatchesQuery(suggestion, filter),
+  )
   const searchResults = searchWardrobeCostumes(costumes, filter)
   const filteredCostumes = searchResults.map((result) => result.costume)
   const resultById = new Map(searchResults.map((result) => [result.costume.id, result]))
   const hasQuery = Boolean(filter.trim())
-  const hasAnyResults = filteredCostumes.length > 0 || filteredCombinations.length > 0
+  const hasAnyResults =
+    filteredCostumes.length > 0 ||
+    filteredCombinations.length > 0 ||
+    filteredAutoSuggestions.length > 0
 
   const openNewCombination = () => {
     if (costumes.length < 2) {
@@ -154,6 +246,17 @@ export default function Costumes() {
       return
     }
     setEditingCombination(undefined)
+    setDraftCombination(undefined)
+    setComposerOpen(true)
+  }
+
+  const openSuggestedCombination = (suggestion: AutoOutfitSuggestion) => {
+    setEditingCombination(undefined)
+    setDraftCombination({
+      name: suggestion.costume.name,
+      ownerId: suggestion.owner.id,
+      pieceIds: suggestion.pieces.map((piece) => piece.id),
+    })
     setComposerOpen(true)
   }
 
@@ -197,6 +300,7 @@ export default function Costumes() {
     })
     setComposerOpen(false)
     setEditingCombination(undefined)
+    setDraftCombination(undefined)
     toast(editingCombination ? 'お気に入りコーデを更新しました。' : 'お気に入りコーデを保存しました。', 'success')
   }
 
@@ -278,7 +382,7 @@ export default function Costumes() {
         <div>
           <p className="wardrobe-eyebrow">MY WARDROBE</p>
           <h1>👗 所有衣装</h1>
-          <p className="wardrobe-intro">写真と属性を見比べ、色・柄・種類・タグから手持ちの衣装を探せます。</p>
+          <p className="wardrobe-intro">写真と属性を見比べ、色・柄・種類・タグから手持ちの衣装や小物、コーデを探せます。</p>
         </div>
         <div className="wardrobe-header-actions">
           <button type="button" className="wardrobe-combination-button" onClick={openNewCombination}>
@@ -292,13 +396,20 @@ export default function Costumes() {
 
       {composerOpen && (
         <FavoriteCombinationComposer
-          key={editingCombination?.combination.id ?? 'new-combination'}
+          key={
+            editingCombination?.combination.id ??
+            (draftCombination
+              ? `draft-${draftCombination.ownerId}-${draftCombination.pieceIds.join('-')}`
+              : 'new-combination')
+          }
           wardrobe={costumes}
           initial={editingCombination}
+          draft={draftCombination}
           onSave={handleSaveCombination}
           onCancel={() => {
             setComposerOpen(false)
             setEditingCombination(undefined)
+            setDraftCombination(undefined)
           }}
         />
       )}
@@ -307,17 +418,17 @@ export default function Costumes() {
 
       {costumes.length > 0 && (
         <search className="wardrobe-search" aria-labelledby="wardrobe-search-label">
-          <label id="wardrobe-search-label" htmlFor="wardrobe-search-input">所有衣装とコーデを検索</label>
+          <label id="wardrobe-search-label" htmlFor="wardrobe-search-input">所有衣装・小物とコーデを検索</label>
           <p id="wardrobe-search-help">「青 花柄」のように複数の条件を組み合わせられます。</p>
           <div className="wardrobe-search-control">
             <input
               id="wardrobe-search-input"
               type="search"
-              placeholder="例: 無地 / 青系 / タキシード / 本番用"
+              placeholder="例: 自動提案 / 青系 / ブラウス / 本番用"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               aria-describedby="wardrobe-search-help wardrobe-result-count"
-              aria-controls="wardrobe-results favorite-combination-results"
+              aria-controls="wardrobe-results favorite-combination-results auto-outfit-suggestion-results"
             />
             {filter && (
               <button type="button" onClick={() => setFilter('')} aria-label="検索条件をすべて解除">
@@ -340,8 +451,8 @@ export default function Costumes() {
           </div>
           <p id="wardrobe-result-count" className="wardrobe-result-count" role="status" aria-live="polite">
             {hasQuery
-              ? `コーデ ${filteredCombinations.length} / ${allCombinations.length}件・衣装 ${filteredCostumes.length} / ${costumes.length}件`
-              : `お気に入りコーデ ${allCombinations.length}件・衣装 ${costumes.length}件`}
+              ? `自動提案 ${filteredAutoSuggestions.length} / ${allAutoSuggestions.length}件・お気に入り ${filteredCombinations.length} / ${allCombinations.length}件・登録アイテム ${filteredCostumes.length} / ${costumes.length}件`
+              : `自動提案 ${allAutoSuggestions.length}件・お気に入りコーデ ${allCombinations.length}件・登録アイテム ${costumes.length}件`}
           </p>
         </search>
       )}
@@ -362,9 +473,33 @@ export default function Costumes() {
                 entry={entry}
                 onEdit={() => {
                   setEditingCombination(entry)
+                  setDraftCombination(undefined)
                   setComposerOpen(true)
                 }}
                 onDelete={() => void handleDeleteCombination(entry)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {filteredAutoSuggestions.length > 0 && (
+        <section className="auto-outfit-suggestions-section" aria-labelledby="auto-outfit-suggestions-heading">
+          <div className="wardrobe-section-heading">
+            <div>
+              <p className="wardrobe-section-kicker">SUGGESTIONS</p>
+              <h2 id="auto-outfit-suggestions-heading">登録アイテムからのコーデ提案</h2>
+            </div>
+            <p>
+              保存済みコーデがない衣装も、登録したトップス・ボトムス・小物から完成コーデ候補を作ります。
+            </p>
+          </div>
+          <ul id="auto-outfit-suggestion-results" className="auto-outfit-suggestions-grid">
+            {filteredAutoSuggestions.map((suggestion) => (
+              <AutoOutfitSuggestionCard
+                key={suggestion.costume.id}
+                suggestion={suggestion}
+                onReview={() => openSuggestedCombination(suggestion)}
               />
             ))}
           </ul>

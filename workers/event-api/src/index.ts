@@ -92,13 +92,14 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
 }
-const EVENT_API_VERSION = '2026-07-17.3'
+const EVENT_API_VERSION = '2026-07-18.1'
 export const MAX_PUBLISHED_ASSIGNMENT_REASONS = 3
 export const MAX_PUBLISHED_ASSIGNMENT_REASON_LENGTH = 120
 export const MAX_OUTFIT_COMPONENTS = 3
 export const MAX_COSTUME_COMPONENT_ID_LENGTH = 200
 export const MAX_COSTUME_COMPONENT_NAME_LENGTH = 100
 export const MAX_COSTUME_COMPONENT_TYPE_LENGTH = 40
+export const MAX_COSTUME_COMPONENT_REVISION = Number.MAX_SAFE_INTEGER
 const FAVORITE_OUTFIT_SOURCE_PREFIX = 'favorite-outfit:'
 
 /**
@@ -126,10 +127,22 @@ export function sanitizeCostumeComponents(
       return null
     }
     if (candidate.type !== undefined && typeof candidate.type !== 'string') return null
+    if (
+      candidate.revision !== undefined &&
+      (
+        typeof candidate.revision !== 'number' ||
+        !Number.isSafeInteger(candidate.revision) ||
+        candidate.revision < 0 ||
+        candidate.revision > MAX_COSTUME_COMPONENT_REVISION
+      )
+    ) {
+      return null
+    }
 
     const sourceCostumeId = candidate.sourceCostumeId.trim()
     const name = candidate.name.trim().replace(/\s+/g, ' ')
     const type = typeof candidate.type === 'string' ? candidate.type.trim() : ''
+    const revision = typeof candidate.revision === 'number' ? candidate.revision : undefined
     if (
       !sourceCostumeId ||
       sourceCostumeId.length > MAX_COSTUME_COMPONENT_ID_LENGTH ||
@@ -141,7 +154,12 @@ export function sanitizeCostumeComponents(
       return null
     }
     sourceIds.add(sourceCostumeId)
-    components.push({ sourceCostumeId, name, ...(type ? { type } : {}) })
+    components.push({
+      sourceCostumeId,
+      name,
+      ...(type ? { type } : {}),
+      ...(revision !== undefined ? { revision } : {}),
+    })
   }
   return components
 }

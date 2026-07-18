@@ -412,9 +412,9 @@ describe('submitPickedCostumesIdempotent', () => {
       expect.objectContaining({
         sourceCostumeId: 'favorite-outfit:formal-set',
         components: [
-          { sourceCostumeId: 'suit-1', name: '紺スーツ', type: 'suit' },
-          { sourceCostumeId: 'shirt-1', name: '白シャツ' },
-          { sourceCostumeId: 'tie-1', name: '赤ネクタイ' },
+          { sourceCostumeId: 'suit-1', name: '紺スーツ', type: 'suit', revision: 1 },
+          { sourceCostumeId: 'shirt-1', name: '白シャツ', revision: 1 },
+          { sourceCostumeId: 'tie-1', name: '赤ネクタイ', revision: 1 },
         ],
       }),
     )

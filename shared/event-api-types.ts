@@ -77,6 +77,11 @@ export interface CostumeComponentPayload {
   sourceCostumeId: string
   name: string
   type?: string
+  /**
+   * 構成元の更新版。写真だけを差し替えた場合でも、同じ提出元IDの
+   * R2写真スロットを安全に更新するために使う。旧クライアントは省略する。
+   */
+  revision?: number
 }
 
 export interface ServerCostume {

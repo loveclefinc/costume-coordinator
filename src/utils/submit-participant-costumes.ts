@@ -62,12 +62,18 @@ function completeOutfitSubmission(costume: Costume): CompleteOutfitSubmission | 
       400,
     )
   }
+  const revision = Number.isSafeInteger(costume.updatedAt) && costume.updatedAt >= 0
+    ? costume.updatedAt
+    : 0
 
   return {
     components: ids.map((sourceCostumeId, index) => ({
       sourceCostumeId,
       name: names[index],
       ...(index === 0 && costume.type ? { type: costume.type } : {}),
+      // 仮想候補の updatedAt は全構成品の最新更新時刻。各スロットへ
+      // 同じ版を送ることで、写真だけの差し替えもWorkerのメタデータ差分になる。
+      revision,
     })),
     images,
   }

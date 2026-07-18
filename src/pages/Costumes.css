@@ -260,11 +260,13 @@
   text-align: end;
 }
 
-.favorite-combinations-section {
+.favorite-combinations-section,
+.auto-outfit-suggestions-section {
   margin-bottom: 2.25rem;
 }
 
 .favorite-combinations-grid,
+.auto-outfit-suggestions-grid,
 .wardrobe-costumes-grid {
   display: grid;
   margin: 0;
@@ -272,7 +274,8 @@
   list-style: none;
 }
 
-.favorite-combinations-grid {
+.favorite-combinations-grid,
+.auto-outfit-suggestions-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr));
   gap: 0.8rem;
 }
@@ -384,6 +387,93 @@
   color: var(--error);
   font-size: 0.76rem;
   line-height: 1.45;
+}
+
+.auto-outfit-suggestion-card {
+  border-style: dashed;
+  border-color: rgba(var(--primary-rgb), 0.46);
+  background:
+    radial-gradient(circle at 98% 4%, rgba(var(--secondary-rgb), 0.1), transparent 32%),
+    var(--surface);
+}
+
+.auto-outfit-suggestion-card-body {
+  align-self: stretch;
+}
+
+.auto-outfit-suggestion-kicker {
+  margin: 0;
+  color: #a63f4b;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.dark .auto-outfit-suggestion-kicker {
+  color: var(--primary);
+}
+
+.auto-outfit-suggestion-components {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.auto-outfit-suggestion-components > span {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.auto-outfit-suggestion-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  margin-top: 0.7rem;
+  font-size: 0.74rem;
+}
+
+.auto-outfit-suggestion-score > span {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.auto-outfit-suggestion-score > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-outfit-suggestion-score meter {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 0.65rem;
+  accent-color: var(--primary);
+}
+
+.auto-outfit-suggestion-reasons {
+  margin: 0.65rem 0 0;
+  padding-inline-start: 1.05rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.auto-outfit-suggestion-note {
+  margin: 0.65rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(var(--primary-rgb), 0.18);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.auto-outfit-suggestion-card-actions button {
+  min-width: 116px;
+  line-height: 1.35;
 }
 
 .favorite-combination-card-actions {
@@ -687,6 +777,10 @@
     padding: 0.55rem;
     border-top: 1px solid rgba(var(--primary-rgb), 0.18);
     border-inline-start: 0;
+  }
+
+  .auto-outfit-suggestion-card-actions {
+    grid-template-columns: 1fr;
   }
 }
 

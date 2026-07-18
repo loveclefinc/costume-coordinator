@@ -1352,7 +1352,7 @@ export default function EventDetail() {
             </p>
           ) : (
             <p className="participant-submitted-note">
-              登録済みの単品衣装とお気に入りコーデから候補を自動選出して提出してください。
+              単品衣装、保存済みコーデ、登録したトップス・ボトムス・小物からの自動提案を候補として提出してください。
             </p>
           )}
           <div className="server-action-stack">

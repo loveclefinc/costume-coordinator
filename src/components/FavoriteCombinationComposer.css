@@ -28,6 +28,12 @@
   text-wrap: balance;
 }
 
+.favorite-combination-composer-heading h2:focus {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .favorite-combination-composer-heading p:last-child {
   max-width: 44rem;
   margin-top: 0.45rem;

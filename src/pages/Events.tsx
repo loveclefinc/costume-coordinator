@@ -379,7 +379,7 @@ export default function Events() {
                 },
               )
               setEventSession(server.eventId, { costumesSubmitted: true })
-              toast(`代表者の候補衣装 ${picked.length} 件を自動提出しました`, 'success')
+              toast(`代表者の衣装・コーデ候補 ${picked.length} 件を提出しました`, 'success')
             }
           } catch (submitError) {
             const message = submitError instanceof Error ? submitError.message : '写真提出に失敗しました'
