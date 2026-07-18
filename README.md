@@ -90,4 +90,10 @@ pnpm test
 
 ## ライセンス
 
-Private / All rights reserved（リポジトリ設定に従う）
+Copyright © 2026 Love Clef. All rights reserved.
+
+本リポジトリは、本プロジェクトの運用、紹介およびOpenAI Build Week 2026の審査を目的として公開されています。MITその他のオープンソースライセンスは付与していません。一般の第三者によるソースコードの複製、改変、再配布、再公開、ホスティング、デプロイ、または他の製品・サービスへの利用を許可するものではありません。
+
+OpenAI、Devpostおよび指定された審査員・テスト担当者には、Build Weekの評価・審査・検証に必要な範囲で、リポジトリを取得、インストール、実行、テストする限定的な許可を与えます。詳しい条件は[`USAGE_TERMS.md`](./USAGE_TERMS.md)を参照してください。
+
+Public availability does not grant permission to reuse the source code. OpenAI, Devpost, and designated judges or testers receive only the limited evaluation permission described in [`USAGE_TERMS.md`](./USAGE_TERMS.md).
