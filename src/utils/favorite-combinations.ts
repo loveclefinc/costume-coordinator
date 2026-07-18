@@ -5,7 +5,7 @@ import { enrichCostumeColors, normalizePattern } from './theme-colors'
 export const MAX_FAVORITE_COMBINATION_PIECES = 2
 export const MAX_AUTO_OUTFIT_CANDIDATES_PER_OWNER = 3
 export const MAX_AUTO_OUTFIT_CANDIDATES = 12
-const MAX_AUTO_COMPONENT_OPTIONS_PER_ROLE = 8
+const MAX_AUTO_COMPONENT_OPTIONS_PER_ROLE = MAX_AUTO_OUTFIT_CANDIDATES
 
 const OWNER_TYPES = new Set(['dress', 'suit', 'shirt', 'blouse', 'top', 'other'])
 const UPPER_TYPES = new Set(['shirt', 'blouse', 'top'])

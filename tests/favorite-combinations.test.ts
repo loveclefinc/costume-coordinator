@@ -560,11 +560,11 @@ describe('favorite complete outfits', () => {
     }
   })
 
-  it('distributes first-choice components across different base garments', () => {
-    const suits = Array.from({ length: 4 }, (_, index) =>
+  it('distributes first-choice components across more than eight base garments', () => {
+    const suits = Array.from({ length: 9 }, (_, index) =>
       costume({ id: `suit-group-${index}`, name: `スーツ${index}`, type: 'suit' }),
     )
-    const shirts = Array.from({ length: 4 }, (_, index) =>
+    const shirts = Array.from({ length: 9 }, (_, index) =>
       costume({ id: `shirt-group-${index}`, name: `シャツ${index}`, type: 'shirt' }),
     )
 
@@ -574,7 +574,7 @@ describe('favorite complete outfits', () => {
     )
 
     expect(suggestions).toHaveLength(MAX_AUTO_OUTFIT_CANDIDATES)
-    expect(firstChoiceByOwner).toHaveLength(4)
+    expect(firstChoiceByOwner).toHaveLength(9)
     expect(new Set(
       firstChoiceByOwner.map(({ pieces }) => pieces[0]?.id),
     )).toEqual(new Set(shirts.map((shirt) => shirt.id)))
