@@ -23,6 +23,8 @@ import {
   formatBytes,
   type UploadLimits,
 } from '../../../shared/upload-limits'
+import { applyEventApiCors } from './cors-policy'
+import { persistUploadWithRollback } from './upload-persistence'
 
 export interface Env {
   DB: D1Database
@@ -603,26 +605,34 @@ async function handleUploadPhoto(
 
   const photoId = `ph_${Date.now()}_${randomId()}`
   const r2Key = `${eventId}/${costumeId}/${photoId}`
-  await env.PHOTOS.put(r2Key, bytes, {
-    httpMetadata: { contentType },
-  })
-
   const sortOrder = countRow?.c ?? 0
-  await env.DB.prepare(
-    `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, size_bytes, sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      photoId,
-      eventId,
-      costumeId,
-      r2Key,
-      contentType,
-      bytes.byteLength,
-      sortOrder,
-      Date.now(),
-    )
-    .run()
+  await persistUploadWithRollback({
+    putObject: async () => {
+      await env.PHOTOS.put(r2Key, bytes, {
+        httpMetadata: { contentType },
+      })
+    },
+    insertRecord: async () => {
+      await env.DB.prepare(
+        `INSERT INTO photos (id, event_id, costume_id, r2_key, content_type, size_bytes, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          photoId,
+          eventId,
+          costumeId,
+          r2Key,
+          contentType,
+          bytes.byteLength,
+          sortOrder,
+          Date.now(),
+        )
+        .run()
+    },
+    deleteObject: async () => {
+      await env.PHOTOS.delete(r2Key)
+    },
+  })
 
   const viewUrl = mediaUrl(request.url, photoId, url.searchParams.get('invite') ?? undefined)
   const res: UploadPhotoResponse = { photoId, viewUrl }
@@ -1155,20 +1165,5 @@ async function handleGoogleTokenRefresh(request: Request, env: Env): Promise<Res
 }
 
 function cors(response: Response, request: Request, env: Env): Response {
-  const origin = request.headers.get('Origin') ?? ''
-  const allowed = (env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim())
-  const headers = new Headers(response.headers)
-  if (origin && allowed.includes(origin)) {
-    headers.set('Access-Control-Allow-Origin', origin)
-    headers.set('Access-Control-Allow-Credentials', 'true')
-  } else if (allowed.length === 1 && allowed[0]) {
-    headers.set('Access-Control-Allow-Origin', allowed[0])
-  }
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
-  headers.set(
-    'Access-Control-Allow-Headers',
-    'Content-Type, X-Participant-Token, X-Admin-Token',
-  )
-  headers.set('Vary', 'Origin')
-  return new Response(response.body, { status: response.status, headers })
+  return applyEventApiCors(response, request, env.ALLOWED_ORIGINS)
 }

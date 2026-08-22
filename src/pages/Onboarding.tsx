@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCloudSync } from '../hooks/useCloudSync'
 import {
   completeOnboarding,
+  consumeOnboardingReturnPath,
   markOnboardingOAuthPending,
 } from '../utils/onboarding'
 import PublicLegalFooter from '../components/PublicLegalFooter'
@@ -54,7 +55,7 @@ export default function Onboarding() {
 
   const finishLocalOnly = () => {
     completeOnboarding()
-    navigate('/', { replace: true })
+    navigate(consumeOnboardingReturnPath(), { replace: true })
   }
 
   const startCloudConnect = async (provider: 'google' | 'dropbox') => {

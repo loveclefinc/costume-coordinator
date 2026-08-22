@@ -17,7 +17,7 @@ import Onboarding from './pages/Onboarding'
 import JoinEvent from './pages/JoinEvent'
 import EventParticipate from './pages/EventParticipate'
 import Guide from './pages/Guide'
-import { isOnboardingComplete } from './utils/onboarding'
+import { isOnboardingComplete, rememberOnboardingReturnPath } from './utils/onboarding'
 import './App.css'
 
 /** Google OAuth 審査・一般公開向け。オンボーディング前でも到達できるページ */
@@ -44,6 +44,7 @@ function AppShell() {
   const hasTopNav = showFullNav || showLogoNav
 
   if (!onboardingDone && !isOAuthCallback && !isPublicPath && !isParticipatePath) {
+    rememberOnboardingReturnPath(`${location.pathname}${location.search}`)
     return <Navigate to="/welcome" replace />
   }
 
