@@ -74,6 +74,7 @@ jobs:
         with:
           # This subproject's pnpm-workspace.yaml uses allowBuilds, which requires pnpm 10+.
           version: 11.5.1
+          package_json_file: workers/event-api/package.json
 
       - name: Setup Node
         uses: actions/setup-node@v6
