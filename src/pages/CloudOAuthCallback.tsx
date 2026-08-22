@@ -5,6 +5,7 @@ import type { CloudProvider } from '../cloud/types'
 import { completeOAuthCallback } from '../hooks/useCloudSync'
 import {
   completeOnboarding,
+  consumeOnboardingReturnPath,
   isOnboardingOAuthPending,
 } from '../utils/onboarding'
 import './OAuthCallback.css'
@@ -44,6 +45,7 @@ export default function CloudOAuthCallback({ provider }: Props) {
       await completeOAuthCallback(provider, code, session.codeVerifier)
 
       const fromOnboarding = isOnboardingOAuthPending()
+      const returnPath = fromOnboarding ? consumeOnboardingReturnPath() : '/settings'
       if (fromOnboarding) {
         completeOnboarding()
       }
@@ -52,7 +54,7 @@ export default function CloudOAuthCallback({ provider }: Props) {
       setMessage(
         `${provider === 'dropbox' ? 'Dropbox' : 'Google Drive'} に接続し、初回同期を完了しました。`,
       )
-      setTimeout(() => navigate(fromOnboarding ? '/' : '/settings'), 2000)
+      setTimeout(() => navigate(returnPath), 2000)
     } catch (err) {
       console.error('OAuth callback error:', err)
       setStatus('error')

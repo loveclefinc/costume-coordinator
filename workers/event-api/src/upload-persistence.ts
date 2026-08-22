@@ -6,7 +6,7 @@ export interface UploadPersistenceSteps {
 
 /**
  * R2 と D1 を疑似トランザクションとして扱う。
- * R2 保存後に D1 記録が失敗した場合は、同じ R2 object を補償削除して孤児化を防ぐ。
+ * R2 保存後に D1 記録が失敗した場合は、同じ R2 object だけを補償削除して孤児化を防ぐ。
  */
 export async function persistUploadWithRollback(steps: UploadPersistenceSteps): Promise<void> {
   await steps.putObject()
@@ -15,8 +15,8 @@ export async function persistUploadWithRollback(steps: UploadPersistenceSteps): 
   } catch (error) {
     try {
       await steps.deleteObject()
-    } catch {
-      // 元の D1 エラーを優先して上位へ返す。削除失敗は次回の保守監査対象。
+    } catch (rollbackError) {
+      console.error('R2 rollback failed after D1 insert failure', rollbackError)
     }
     throw error
   }

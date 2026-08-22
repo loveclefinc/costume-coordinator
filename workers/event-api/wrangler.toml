@@ -1,5 +1,5 @@
 name = "costume-coordinator-events"
-main = "src/entry.ts"
+main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
 [vars]
